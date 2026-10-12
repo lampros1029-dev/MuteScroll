@@ -18,3 +18,5 @@ tmp/
 .cursor/
 .pytest_cache/
 *.egg-info/
+
+pilot-report.json

@@ -22,6 +22,13 @@ ALLOWED_DOMAINS: tuple[str, ...] = (
     "youtube.com", "youtu.be", "tiktok.com", "instagram.com", "facebook.com", "fb.watch", "fb.com",
 )  # fmt: skip
 
+# Media CDNs a licensed vendor may hand back (PRD 22.2). Kept separate from ALLOWED_DOMAINS so a
+# user-submitted URL can never point at a CDN host directly.
+MEDIA_CDN_DOMAINS: tuple[str, ...] = (
+    "tiktokcdn.com", "tiktokcdn-us.com", "tiktokcdn-eu.com", "tiktokv.com", "tiktokv.us", "tiktokv.eu",
+    "byteoversea.com", "ibytedtos.com", "muscdn.com", "cdninstagram.com", "fbcdn.net",
+)  # fmt: skip
+
 Resolver = Callable[[str], list[str]]
 
 
@@ -45,9 +52,17 @@ def assert_all_public(addresses: list[str]) -> None:
             raise PermissionError(f"blocked non-public address: {address}")
 
 
-def host_allowed(host: str) -> bool:
+def _in_domains(host: str, domains: tuple[str, ...]) -> bool:
     host = host.lower().rstrip(".")
-    return any(host == d or host.endswith(f".{d}") for d in ALLOWED_DOMAINS)
+    return any(host == d or host.endswith(f".{d}") for d in domains)
+
+
+def host_allowed(host: str) -> bool:
+    return _in_domains(host, ALLOWED_DOMAINS)
+
+
+def media_host_allowed(host: str) -> bool:
+    return _in_domains(host, MEDIA_CDN_DOMAINS)
 
 
 def system_resolver(host: str) -> list[str]:
@@ -57,7 +72,12 @@ def system_resolver(host: str) -> list[str]:
         raise PermissionError(f"could not resolve {host}") from exc
 
 
-def assert_url_safe(url: str, resolver: Resolver = system_resolver) -> None:
+def assert_url_safe(
+    url: str,
+    resolver: Resolver = system_resolver,
+    *,
+    host_check: Callable[[str], bool] = host_allowed,
+) -> None:
     """Scheme, allow-listed host, no credentials, and every resolved address is public."""
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https"):
@@ -67,7 +87,7 @@ def assert_url_safe(url: str, resolver: Resolver = system_resolver) -> None:
     if parts.port not in (None, 80, 443):
         raise PermissionError("custom ports are not allowed")
     host = parts.hostname or ""
-    if not host_allowed(host):
+    if not host_check(host):
         raise PermissionError(f"host not allowed: {host}")
     assert_all_public(resolver(host))
 
