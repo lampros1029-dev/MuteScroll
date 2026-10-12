@@ -1562,6 +1562,215 @@ code {
   }
 }
 
+/* ---------- Editorial pass: structure, utility labels, fidelity diff, purposeful motion ---------- */
+
+/* Mono utility labels with a short accent rule: the one place the accent marks structure. */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+
+.kicker::before {
+  content: "";
+  width: 1.75rem;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* The form's hint and error lines share one slot; an empty error takes no space. */
+.paste {
+  gap: 0;
+}
+
+.paste .field-error:empty {
+  display: none;
+}
+
+.paste .field-hint {
+  margin-top: 0.6rem;
+}
+
+/* Section heads: title left, lede right on wide screens, so the page is not one centred column. */
+@media (min-width: 62rem) {
+  .section-head {
+    max-width: none;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: clamp(2rem, 6vw, 5rem);
+    align-items: end;
+  }
+
+  .section-head .kicker {
+    grid-column: 1 / -1;
+  }
+
+  .section-head .section-lede {
+    padding-bottom: 0.3rem;
+  }
+}
+
+/* Steps lead with a large serif numeral instead of a small tag. */
+.step-number {
+  font-family: var(--serif);
+  font-size: 3.25rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Reading surface: timestamps are the navigation, so they carry the signal colour. */
+.transcript-sample .stamp {
+  color: var(--accent);
+}
+
+.transcript-sample .segment {
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+}
+
+/* Fidelity: a real diff of what cleanup touches. */
+.compare {
+  gap: 1.75rem 2.5rem;
+}
+
+.compare-raw {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.diff {
+  padding: 0 0.1em;
+  border-radius: 3px;
+  color: var(--ink);
+}
+
+.diff-del {
+  background: color-mix(in srgb, var(--ink-faint) 28%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-soft);
+}
+
+.diff-gap {
+  text-decoration: none;
+  box-shadow: inset 0 -2px 0 var(--ink-soft);
+}
+
+.diff-add {
+  background: var(--accent-tint);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.compare-ledger {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.5rem 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+.ledger-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  margin-bottom: 0.6rem;
+  list-style: none;
+}
+
+.ledger-item {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.ledger-changed {
+  border-color: var(--ink-soft);
+  color: var(--ink);
+}
+
+@media (min-width: 52rem) {
+  .compare {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .compare-col-after {
+    padding-left: 2.5rem;
+    border-left: 1px solid var(--rule);
+  }
+}
+
+/* Motion that explains the product: the transcript arrives line by line, then the doubtful word is marked.
+   Only when motion is welcome; the final state is the default, so nothing depends on it. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem);
+    }
+  }
+
+  @keyframes mark-in {
+    from {
+      background-color: transparent;
+      text-decoration-color: transparent;
+    }
+  }
+
+  .hero-copy > * {
+    animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  }
+
+  .hero-copy > :nth-child(2) {
+    animation-delay: 0.08s;
+  }
+
+  .hero-copy > :nth-child(3) {
+    animation-delay: 0.16s;
+  }
+
+  .hero-copy > :nth-child(4) {
+    animation-delay: 0.24s;
+  }
+
+  .hero-sheet .transcript-head {
+    animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s backwards;
+  }
+
+  .hero-sheet .segment {
+    animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  }
+
+  .hero-sheet .segment:nth-child(1) {
+    animation-delay: 0.45s;
+  }
+
+  .hero-sheet .segment:nth-child(2) {
+    animation-delay: 0.8s;
+  }
+
+  .hero-sheet .segment:nth-child(3) {
+    animation-delay: 1.15s;
+  }
+
+  .hero-sheet .segment:nth-child(4) {
+    animation-delay: 1.5s;
+  }
+
+  .hero-sheet .segment:nth-child(5) {
+    animation-delay: 1.85s;
+  }
+
+  .hero-sheet .flag {
+    animation: mark-in 0.5s ease 2.1s backwards;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

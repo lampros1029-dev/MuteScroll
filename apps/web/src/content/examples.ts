@@ -8,7 +8,7 @@ export const HERO_EXAMPLE: Transcription = {
   metadata: {
     platform: "instagram",
     content_type: "reel",
-    title: "Camera setting in 30 seconds (example)",
+    title: "Camera setting in 30 seconds",
     author: null,
     duration_seconds: 31,
   },
@@ -33,10 +33,19 @@ export const HERO_EXAMPLE: Transcription = {
   credits_charged: 1,
 };
 
-/** Before/after for the fidelity section. Only formatting changes: fillers, capitals and punctuation. */
+/**
+ * Before/after for the fidelity section. It mirrors what the worker really does (clean_text):
+ * collapse repeated whitespace and capitalise the first letter, nothing else. The recogniser's
+ * own punctuation and words are kept, and the original line is kept if any number would differ.
+ */
 export const FIDELITY_EXAMPLE = {
-  raw: "uh so the kit is $10 um and you need the lumix s5 firmware before you start",
-  formatted: "So the kit is $10, and you need the Lumix S5 firmware before you start.",
+  /** `rawLead` is the lowercase first letter; `rawRest` carries one doubled space the cleanup removes. */
+  rawLead: "s",
+  rawRest: "o the kit is $10,\u00a0\u00a0and you need the Lumix S5 firmware before you start.",
+  formattedLead: "S",
+  formattedRest: "o the kit is $10, and you need the Lumix S5 firmware before you start.",
   flagged: "Lumix S5",
   flagReason: "Low confidence. Check the camera name against the audio before you quote it.",
+  changed: ["First letter capitalised", "One doubled space removed"],
+  kept: ["$10", "Lumix S5", "Every word and the punctuation as recognised"],
 } as const;

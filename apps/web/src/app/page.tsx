@@ -150,7 +150,9 @@ export default function HomePage() {
           <figure className="compare" aria-label="Before and after example">
             <div className="compare-col">
               <p className="compare-label">What the speech model returned</p>
-              <p className="compare-raw">{FIDELITY_EXAMPLE.raw}</p>
+              <p className="compare-raw">
+                <FidelityRaw />
+              </p>
             </div>
             <div className="compare-col compare-col-after">
               <p className="compare-label">What MuteScroll returns</p>
@@ -158,18 +160,33 @@ export default function HomePage() {
                 <FidelityFormatted />
               </p>
             </div>
-            <figcaption className="compare-caption">
-              Illustrative. Only fillers, capitals and punctuation change. The $10 stays $10, and the uncertain name is
-              flagged with its reason.
-            </figcaption>
+            <div className="compare-ledger">
+              <p className="compare-label">Changed</p>
+              <ul className="ledger-list">
+                {FIDELITY_EXAMPLE.changed.map((item) => (
+                  <li key={item} className="ledger-item ledger-changed">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <p className="compare-label">Kept exactly</p>
+              <ul className="ledger-list">
+                {FIDELITY_EXAMPLE.kept.map((item) => (
+                  <li key={item} className="ledger-item">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <figcaption className="compare-caption">Illustrative example, not a customer video.</figcaption>
           </figure>
 
           <ul className="rules">
             <li className="rule">
               <h3 className="rule-title">Formatting only.</h3>
               <p>
-                We fix punctuation, capitals and filler words such as &ldquo;uh&rdquo;. We never rewrite meaning, so $10
-                never becomes $100.
+                We tidy spacing and the first capital letter, nothing else. We never rewrite words, and if a number
+                would differ after cleanup, we keep the original line, so $10 never becomes $100.
               </p>
             </li>
             <li className="rule">
@@ -276,15 +293,38 @@ export default function HomePage() {
 
 /** The formatted line with the one uncertain word flagged. Built from the example constants. */
 function FidelityFormatted() {
-  const { formatted, flagged, flagReason } = FIDELITY_EXAMPLE;
-  const index = formatted.indexOf(flagged);
-  if (index < 0) return <>{formatted}</>;
+  const { formattedLead, formattedRest, flagged, flagReason } = FIDELITY_EXAMPLE;
+  const index = formattedRest.indexOf(flagged);
+  const lead = <mark className="diff diff-add">{formattedLead}</mark>;
+  if (index < 0) {
+    return (
+      <>
+        {lead}
+        {formattedRest}
+      </>
+    );
+  }
   return (
     <>
-      {formatted.slice(0, index)}
+      {lead}
+      {formattedRest.slice(0, index)}
       <FlagMark id="fidelity-flag" text={flagged} reason="low_confidence" />
-      {formatted.slice(index + flagged.length)}
+      {formattedRest.slice(index + flagged.length)}
       <span className="sr-only"> ({flagReason})</span>
+    </>
+  );
+}
+
+/** The recogniser's line with the two things cleanup touches marked: the first letter and a doubled space. */
+function FidelityRaw() {
+  const { rawLead, rawRest } = FIDELITY_EXAMPLE;
+  const [before = "", after = ""] = rawRest.split("\u00a0\u00a0");
+  return (
+    <>
+      <mark className="diff diff-del">{rawLead}</mark>
+      {before}
+      <mark className="diff diff-del diff-gap">{"\u00a0\u00a0"}</mark>
+      {after}
     </>
   );
 }
