@@ -4,8 +4,8 @@ TypeScript validates the URL shape and host allow-list (`@mutescroll/shared`). T
 must additionally check where a hostname actually *resolves* before connecting, and again
 for every redirect hop, because DNS can point an allowed-looking name at an internal address.
 
-Known limit: checking DNS and then connecting leaves a small rebinding window. Production
-workers must also run with no route to private ranges (network policy) as defence in depth.
+Known limit: resolve-then-connect leaves a DNS rebinding window. That window is accepted
+for this launch; no extra network policy is added here.
 """
 
 from __future__ import annotations

@@ -21,6 +21,7 @@ from yt_dlp.utils import DownloadError
 
 from .captions import parse_json3, pick_track
 from .models import Segment, VideoMetadata
+from .ssrf import Resolver, assert_url_safe, system_resolver
 
 MAX_DOWNLOAD_BYTES = 2 * 1024**3
 
@@ -100,9 +101,16 @@ class _SilentLogger:
 
 
 class YtDlpSource:
-    def __init__(self, *, proxy: str | None = None, http: httpx.Client | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        proxy: str | None = None,
+        http: httpx.Client | None = None,
+        resolver: Resolver = system_resolver,
+    ) -> None:
         self._proxy = proxy if proxy is not None else (os.environ.get("MEDIA_EGRESS_PROXY_URL") or None)
         self._http = http or httpx.Client(timeout=20.0, follow_redirects=False)
+        self._resolver = resolver
 
     def _base_options(self) -> dict[str, Any]:
         # YouTube extraction needs a JS runtime for signature challenges (yt-dlp EJS).
@@ -161,11 +169,18 @@ class YtDlpSource:
         if picked is None:
             return None
         code, fmt = picked
+        url = fmt.get("url")
+        if not isinstance(url, str):
+            return None
         try:
-            response = self._http.get(fmt["url"])
+            # Same scheme, allow-list, credential, port, and public-address checks as other fetches.
+            assert_url_safe(url, self._resolver)
+            response = self._http.get(url, follow_redirects=False)
+            if response.is_redirect:
+                return None
             response.raise_for_status()
             segments = parse_json3(response.json())
-        except (httpx.HTTPError, ValueError):
+        except (httpx.HTTPError, ValueError, PermissionError):
             return None
         if not segments:
             return None
