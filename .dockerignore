@@ -1,0 +1,17 @@
+.git
+.github
+.cursor
+.venv
+**/node_modules
+**/dist
+**/__pycache__
+**/*.egg-info
+.pytest_cache
+.env
+.env.*
+!.env.example
+.secrets
+.secrets.*
+*.secrets
+pilot-*
+*.log
