@@ -1,0 +1,29 @@
+# MuteScroll marketing site. The API and media worker stay in the root Dockerfile.
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY apps/api-mcp/package.json apps/api-mcp/package.json
+COPY apps/web apps/web
+
+RUN npm ci --workspace=@mutescroll/web --include-workspace-root
+
+# Next inlines these into the server build. Set them on the service before deploying.
+ARG API_BASE_URL=http://localhost:8080
+ARG NEXT_PUBLIC_MCP_URL=http://localhost:8080/mcp
+ARG NEXT_PUBLIC_SITE_URL=https://mutescroll.xyz
+ARG NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
+ENV API_BASE_URL=$API_BASE_URL \
+    NEXT_PUBLIC_MCP_URL=$NEXT_PUBLIC_MCP_URL \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=$NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
+
+RUN npm run build --workspace=@mutescroll/web \
+ && npm prune --omit=dev --workspace=@mutescroll/web --include-workspace-root
+
+ENV NODE_ENV=production
+USER node
+EXPOSE 3000
+CMD ["npm", "run", "start", "--workspace=@mutescroll/web"]

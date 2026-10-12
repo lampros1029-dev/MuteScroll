@@ -29,3 +29,27 @@ jobs:
           python-version: "3.11"
       - run: pip install -e "workers/media[dev]"
       - run: python -m pytest workers/media
+
+  # Builds the API image (Dockerfile) and the Next.js image (Dockerfile.web).
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile: [Dockerfile, Dockerfile.web]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f ${{ matrix.dockerfile }} .
+
+  # initialize and tools/list only. Does not call transcribe_video, so it does not spend
+  # Groq, ScrapeCreators, or Supadata credits.
+  mcp-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/mcp-smoke.mjs

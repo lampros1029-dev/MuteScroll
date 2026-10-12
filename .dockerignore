@@ -3,6 +3,7 @@
 .cursor
 .venv
 **/node_modules
+**/.next
 **/dist
 **/__pycache__
 **/*.egg-info
