@@ -17,6 +17,7 @@ export interface CreditsView {
 export function meView(user: UserRecord, credits: CreditsView) {
   return {
     email: user.email,
+    email_verified: user.emailVerifiedAt !== null,
     plan: user.plan,
     credits: { remaining: credits.remaining, resets_at: isoTime(credits.resetsAt) },
     created_at: isoTime(user.createdAt),

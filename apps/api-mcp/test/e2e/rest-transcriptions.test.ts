@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MediaWorkerError } from "../../src/worker/errors.js";
 import { FakeWorker, delay } from "../helpers/fake-worker.js";
 import { sampleUrl, transcriptFixture } from "../helpers/fixtures.js";
-import { api, bearer, sessionHeaders, signUp, type AccountSession } from "../helpers/rest.js";
+import { api, bearer, createKey, sessionHeaders, signUp, type AccountSession } from "../helpers/rest.js";
 import type { RunningServer } from "../helpers/harness.js";
 import { STORE_MODES } from "../helpers/postgres.js";
 import { serverStarter } from "../helpers/suite.js";
@@ -314,7 +314,7 @@ describe.each(STORE_MODES)("REST transcriptions on $name stores", (mode) => {
       created_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
     });
 
-    const page = await api(server, "/v1/library?limit=1&offset=1", { headers: bearer((await createKeyFor(server, account)).key) });
+    const page = await api(server, "/v1/library?limit=1&offset=1", { headers: bearer((await createKey(server, account)).key) });
     expect(page.body.items).toHaveLength(1);
     expect(page.body.limit).toBe(1);
   });
@@ -329,8 +329,3 @@ describe.each(STORE_MODES)("REST transcriptions on $name stores", (mode) => {
     expect(b.body.transcription.credits_charged).toBe(1);
   });
 });
-
-async function createKeyFor(server: RunningServer, account: AccountSession): Promise<{ key: string }> {
-  const result = await api(server, "/v1/api-keys", { method: "POST", headers: sessionHeaders(account) });
-  return { key: result.body.key as string };
-}

@@ -33,6 +33,8 @@ export interface JobStore {
   listForUser(userId: string, page: PageRequest): Promise<JobSummary[]>;
   /** Deletes a succeeded or failed job. False when it is unknown or still queued or running. */
   removeFinished(id: string): Promise<boolean>;
+  /** Deletes every job owned by the user, including ones that are still running. */
+  removeForUser(userId: string): Promise<void>;
   /** Removes expired jobs. Returns how many were removed. */
   pruneExpired(): Promise<number>;
 }

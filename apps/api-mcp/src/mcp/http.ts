@@ -16,16 +16,25 @@ const JSON_RPC_UNAUTHORIZED = -32001;
 
 /**
  * Streamable HTTP at `/mcp`, stateless: a fresh server and transport per request, so no session state
- * survives between calls. A Bearer key makes the caller an account. Without one, the caller is anonymous.
+ * survives between calls. A Bearer API key or a ChatGPT OAuth token makes the caller an account. Without
+ * either, the caller is anonymous.
  * The body is read here so the size limit applies before the SDK sees it.
  */
 export async function handleMcpRequest(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
   let caller: Caller;
+  let oauthScope: string | undefined;
   try {
-    caller = callerOf(await identify(req, res, ctx, { allowSession: false }));
+    const requester = await identify(req, res, ctx, { allowSession: false });
+    caller = callerOf(requester);
+    oauthScope = requester.kind === "account" ? requester.oauthScope : undefined;
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
-    sendJson(res, 401, { jsonrpc: "2.0", error: { code: JSON_RPC_UNAUTHORIZED, message: "Unauthorized" }, id: null });
+    sendJson(
+      res,
+      401,
+      { jsonrpc: "2.0", error: { code: JSON_RPC_UNAUTHORIZED, message: "Unauthorized" }, id: null },
+      { "www-authenticate": `Bearer resource_metadata="${ctx.config.publicBaseUrl}/.well-known/oauth-protected-resource/mcp"` },
+    );
     return;
   }
 
@@ -48,7 +57,7 @@ export async function handleMcpRequest(req: IncomingMessage, res: ServerResponse
     }
   }
 
-  const server = createMcpServer(ctx, caller);
+  const server = createMcpServer(ctx, caller, oauthScope);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();

@@ -2,9 +2,13 @@ import type { Pool } from "pg";
 
 import type { JobTtls } from "../jobs/types.js";
 import type { Stores } from "../stores.js";
+import { PgAuthTokenStore } from "./pg-auth-tokens.js";
+import { PgBillingEventLog } from "./pg-billing-events.js";
+import { PgBillingLinkStore } from "./pg-billing-links.js";
 import { PgCreditLedger } from "./pg-credit-ledger.js";
 import { PgJobStore } from "./pg-job-store.js";
 import { PgApiKeyStore, PgSessionStore, PgUserStore } from "./pg-accounts.js";
+import { PgOAuthStore } from "./pg-oauth.js";
 import { createPool } from "./pool.js";
 import { pendingMigrations } from "./migrate.js";
 
@@ -33,7 +37,11 @@ export function createPostgresStores(options: PostgresStoresOptions): PostgresSt
     users: new PgUserStore(pool),
     sessions: new PgSessionStore(pool),
     apiKeys: new PgApiKeyStore(pool),
+    oauth: new PgOAuthStore(pool),
+    authTokens: new PgAuthTokenStore(pool),
     ledger: new PgCreditLedger(pool),
+    billingEvents: new PgBillingEventLog(pool),
+    billingLinks: new PgBillingLinkStore(pool),
     pendingMigrations: () => pendingMigrations(pool),
     close: () => pool.end(),
   };

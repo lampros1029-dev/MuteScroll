@@ -81,8 +81,14 @@ export function bearer(key: string): Record<string, string> {
   return { authorization: `Bearer ${key}` };
 }
 
-/** Creates an API key through the web session and returns its id and the one-time key. */
+/**
+ * Creates an API key through the web session. Only the Team plan may hold keys, so this puts the
+ * account on Team first. Tests of the Free-plan refusal call the route themselves.
+ */
 export async function createKey(server: RunningServer, session: AccountSession): Promise<{ id: string; key: string }> {
+  const user = await server.ctx.stores.users.findByEmail(session.email);
+  if (user === undefined) throw new Error("account missing");
+  if (user.plan !== "team") await server.ctx.stores.users.setPlan(user.id, "team");
   const result = await api(server, "/v1/api-keys", { method: "POST", headers: sessionHeaders(session) });
   if (result.status !== 201) throw new Error(`key creation failed with ${result.status}`);
   return { id: result.body.id, key: result.body.key };

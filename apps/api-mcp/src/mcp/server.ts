@@ -4,6 +4,7 @@ import type { Caller } from "../caller.js";
 import type { AppContext } from "../context.js";
 import { getTranscriptionInputShape, toolOutputShape, transcribeInputShape } from "./schemas.js";
 import { toCallToolResult } from "./output.js";
+import type { ToolOutput } from "./schemas.js";
 import { runGetTranscription } from "./tools/get-transcription.js";
 import { runTranscribeVideo } from "./tools/transcribe-video.js";
 
@@ -22,7 +23,7 @@ const GET_DESCRIPTION =
   "transcribe_video returned status processing, or after the user uploaded a file for a failed job.";
 
 /** One MCP server per HTTP request (stateless transport). The caller is bound into the tool handlers. */
-export function createMcpServer(ctx: AppContext, caller: Caller): McpServer {
+export function createMcpServer(ctx: AppContext, caller: Caller, oauthScope?: string): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
 
   server.registerTool(
@@ -34,7 +35,11 @@ export function createMcpServer(ctx: AppContext, caller: Caller): McpServer {
       outputSchema: toolOutputShape,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async (args) => toCallToolResult(await runTranscribeVideo(ctx, caller, args)),
+    async (args) => {
+      const denied = transcribeScopeDenied(oauthScope);
+      if (denied !== undefined) return toCallToolResult(denied);
+      return toCallToolResult(await runTranscribeVideo(ctx, caller, args));
+    },
   );
 
   server.registerTool(
@@ -46,8 +51,20 @@ export function createMcpServer(ctx: AppContext, caller: Caller): McpServer {
       outputSchema: toolOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => toCallToolResult(await runGetTranscription(ctx, caller, args.job_id)),
+    async (args) => {
+      const denied = transcribeScopeDenied(oauthScope);
+      if (denied !== undefined) return toCallToolResult(denied);
+      return toCallToolResult(await runGetTranscription(ctx, caller, args.job_id));
+    },
   );
 
   return server;
+}
+
+function transcribeScopeDenied(scope: string | undefined): ToolOutput | undefined {
+  if (scope === undefined || scope.split(" ").includes("transcribe")) return undefined;
+  return {
+    status: "failed",
+    error: { code: "insufficient_scope", message: "This connection does not include the transcribe permission." },
+  };
 }

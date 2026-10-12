@@ -4,8 +4,12 @@ import type { AppContext } from "../context.js";
 import { logEvent } from "../log.js";
 import { ApiError, internalError, sendApiError } from "./errors.js";
 import { login, logout, me, signup } from "./auth-routes.js";
+import { billingPortal, checkout, deleteAccount } from "./billing-routes.js";
+import { confirmEmailVerification, forgotPassword, requestEmailVerification, resetPassword } from "./mail-routes.js";
 import { createApiKey, deleteApiKey, listApiKeys } from "./api-key-routes.js";
 import { listLibrary, listPlansRoute } from "./library-routes.js";
+import { listOAuthGrants } from "../oauth/http.js";
+import { paddleWebhook } from "./paddle-webhook.js";
 import { createUpload } from "./upload-routes.js";
 import {
   createTranscription,
@@ -30,6 +34,14 @@ const ROUTES: readonly Route[] = [
   { method: "POST", path: /^\/v1\/auth\/login$/, handler: (req, res, ctx) => login(req, res, ctx) },
   { method: "POST", path: /^\/v1\/auth\/logout$/, handler: (req, res, ctx) => logout(req, res, ctx) },
   { method: "GET", path: /^\/v1\/me$/, handler: (req, res, ctx) => me(req, res, ctx) },
+  { method: "DELETE", path: /^\/v1\/me$/, handler: (req, res, ctx) => deleteAccount(req, res, ctx) },
+  { method: "POST", path: /^\/v1\/auth\/email\/verification$/, handler: (req, res, ctx) => requestEmailVerification(req, res, ctx) },
+  { method: "POST", path: /^\/v1\/auth\/email\/verification\/confirm$/, handler: (req, res, ctx) => confirmEmailVerification(req, res, ctx) },
+  { method: "POST", path: /^\/v1\/auth\/forgot-password$/, handler: (req, res, ctx) => forgotPassword(req, res, ctx) },
+  { method: "POST", path: /^\/v1\/auth\/reset-password$/, handler: (req, res, ctx) => resetPassword(req, res, ctx) },
+  { method: "POST", path: /^\/v1\/checkout$/, handler: (req, res, ctx) => checkout(req, res, ctx) },
+  { method: "POST", path: /^\/v1\/billing\/portal$/, handler: (req, res, ctx) => billingPortal(req, res, ctx) },
+  { method: "GET", path: /^\/v1\/oauth\/grants$/, handler: (req, res, ctx) => listOAuthGrants(req, res, ctx) },
   { method: "GET", path: /^\/v1\/api-keys$/, handler: (req, res, ctx) => listApiKeys(req, res, ctx) },
   { method: "POST", path: /^\/v1\/api-keys$/, handler: (req, res, ctx) => createApiKey(req, res, ctx) },
   { method: "DELETE", path: new RegExp(`^/v1/api-keys/${ID}$`), handler: (req, res, ctx, m) => deleteApiKey(req, res, ctx, m[1] ?? "") },
@@ -44,6 +56,8 @@ const ROUTES: readonly Route[] = [
   { method: "POST", path: /^\/v1\/uploads$/, handler: (req, res, ctx) => createUpload(req, res, ctx) },
   { method: "GET", path: /^\/v1\/library$/, handler: (req, res, ctx, _m, query) => listLibrary(req, res, ctx, query) },
   { method: "GET", path: /^\/v1\/plans$/, handler: (req, res) => listPlansRoute(req, res) },
+  // Paddle notifications. Signature only: this handler does not call requireCsrf.
+  { method: "POST", path: /^\/v1\/paddle\/webhook$/, handler: (req, res, ctx) => paddleWebhook(req, res, ctx) },
 ];
 
 /** Dispatches /v1 requests. Every failure, expected or not, leaves as the documented error JSON. */

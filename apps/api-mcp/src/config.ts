@@ -1,3 +1,4 @@
+import { readPaddleConfig, type PaddleConfig } from "./billing/paddle-config.js";
 import type { JobTtls } from "./jobs/types.js";
 
 export class ConfigError extends Error {
@@ -16,12 +17,20 @@ export interface WorkerConfig {
   readonly timeoutMs: number;
 }
 
+export interface GmailConfig {
+  readonly clientId: string | undefined;
+  readonly clientSecret: string | undefined;
+  readonly refreshToken: string | undefined;
+}
+
 export interface Config {
   readonly port: number;
   readonly publicBaseUrl: string;
   /** Session and CSRF cookies get the Secure flag when the public URL is https. */
   readonly secureCookies: boolean;
   readonly plansUrl: string;
+  /** Website origin that shows the ChatGPT approval page. Taken from PLANS_URL. */
+  readonly webOrigin: string;
   readonly trustProxy: boolean;
   readonly clientIpHeader: string;
   readonly mcpMaxBodyBytes: number;
@@ -38,6 +47,13 @@ export interface Config {
   readonly signupsPerIpPerHour: number;
   /** Login attempts per client IP per minute (AUTH_LOGINS_PER_IP_PER_MINUTE). */
   readonly loginsPerIpPerMinute: number;
+  /** Verification and password-reset emails per client IP per hour. */
+  readonly authMailPerIpPerHour: number;
+  /**
+   * Gmail send credentials. Any missing name means mail is not configured.
+   * The values are never logged. Sender is always mutescroll.xyz@gmail.com.
+   */
+  readonly gmail: GmailConfig;
   /** Session lifetime; it slides forward on use (SESSION_TTL_DAYS). */
   readonly sessionTtlMs: number;
   /** How long transcribe_video waits for a result before returning `processing`. */
@@ -49,16 +65,22 @@ export interface Config {
   /** Postgres connection string (DATABASE_URL). Unset = in-memory stores for a single process. */
   readonly databaseUrl: string | undefined;
   readonly worker: WorkerConfig;
+  /** Paddle Billing. Absent key means the in-memory billing provider and no outbound calls. */
+  readonly paddle: PaddleConfig;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): Config {
   const port = intEnv(env, "PORT", 8080, 1, 65535);
   const publicBaseUrl = urlEnv(env, "PUBLIC_BASE_URL", `http://localhost:${port}`);
+  const paddle = readPaddleConfig(env);
+  if (!paddle.ok) throw new ConfigError(paddle.message);
+  const plansUrl = urlEnv(env, "PLANS_URL", "https://mutescroll.xyz/plans");
   return {
     port,
     publicBaseUrl,
     secureCookies: publicBaseUrl.startsWith("https://"),
-    plansUrl: urlEnv(env, "PLANS_URL", "https://mutescroll.xyz/plans"),
+    plansUrl,
+    webOrigin: new URL(plansUrl).origin,
     trustProxy: boolEnv(env, "TRUST_PROXY", false),
     clientIpHeader: (env["CLIENT_IP_HEADER"] ?? "x-forwarded-for").trim().toLowerCase(),
     mcpMaxBodyBytes: intEnv(env, "MCP_MAX_BODY_BYTES", 256 * 1024, 1024, 16 * 1024 * 1024),
@@ -70,6 +92,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJ
     accountRequestsPerMinute: intEnv(env, "ACCOUNT_REQUESTS_PER_MINUTE", 30, 1, 10_000),
     signupsPerIpPerHour: intEnv(env, "AUTH_SIGNUPS_PER_IP_PER_HOUR", 5, 1, 10_000),
     loginsPerIpPerMinute: intEnv(env, "AUTH_LOGINS_PER_IP_PER_MINUTE", 10, 1, 10_000),
+    authMailPerIpPerHour: intEnv(env, "AUTH_MAIL_PER_IP_PER_HOUR", 5, 1, 10_000),
+    gmail: readGmailConfig(env),
     sessionTtlMs: intEnv(env, "SESSION_TTL_DAYS", 30, 1, 365) * DAY_MS,
     toolWaitMs: intEnv(env, "TOOL_WAIT_MS", 25_000, 0, 120_000),
     jobConcurrency: intEnv(env, "JOB_CONCURRENCY", 2, 1, 64),
@@ -87,6 +111,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJ
       cwd: nonEmpty(env["MEDIA_WORKER_DIR"]),
       timeoutMs: intEnv(env, "MEDIA_WORKER_TIMEOUT_SECONDS", 900, 10, 6 * 3600) * 1000,
     },
+    paddle: paddle.config,
+  };
+}
+
+function readGmailConfig(env: NodeJS.ProcessEnv): GmailConfig {
+  return {
+    clientId: nonEmpty(env["GMAIL_OAUTH_CLIENT_ID"]),
+    clientSecret: nonEmpty(env["GMAIL_OAUTH_CLIENT_SECRET"]),
+    refreshToken: nonEmpty(env["GMAIL_OAUTH_REFRESH_TOKEN"]),
   };
 }
 

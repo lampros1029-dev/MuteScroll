@@ -9,6 +9,7 @@ import type { AppContext } from "../context.js";
 import { clientKeyFor } from "../http/client-key.js";
 import { CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE, csrfCookie, parseCookies, sessionCookie, type CookieSettings } from "../http/cookies.js";
 import { headerString } from "../http/headers.js";
+import { isOauthAccessToken, userIdForAccessToken } from "../oauth/service.js";
 import { ApiError } from "./errors.js";
 
 export interface AnonymousRequester {
@@ -24,12 +25,16 @@ export interface AccountRequester {
   readonly cookieAuth: boolean;
   /** The session cookie value, used by logout. Only set for cookie auth. */
   readonly sessionToken?: string;
+  /** Space-separated OAuth scope. Absent for sessions and API keys, which are not scope-limited. */
+  readonly oauthScope?: string;
+  /** Presented OAuth access token, so it can revoke itself. Never logged. */
+  readonly oauthAccessToken?: string;
 }
 
 export type Requester = AnonymousRequester | AccountRequester;
 
 export interface IdentityOptions {
-  /** Web sessions are accepted on /v1 only. MCP accepts Bearer keys only. */
+  /** Web sessions are accepted on /v1 only. MCP accepts Bearer API keys and ChatGPT OAuth tokens. */
   readonly allowSession: boolean;
 }
 
@@ -45,9 +50,20 @@ export async function identify(req: IncomingMessage, res: ServerResponse, ctx: A
   const authorization = headerString(req.headers["authorization"]);
   if (authorization !== undefined) {
     const presented = BEARER.exec(authorization)?.[1];
+    if (presented !== undefined && isOauthAccessToken(presented)) {
+      const principal = await userIdForAccessToken({ store: ctx.stores.oauth, now: ctx.now }, presented);
+      const user = principal === undefined ? undefined : await ctx.stores.users.findById(principal.userId);
+      if (principal === undefined || user === undefined) {
+        throw new ApiError(401, "unauthorized", "This ChatGPT connection expired. Connect the account again.");
+      }
+      return { kind: "account", clientKey, user, cookieAuth: false, oauthScope: principal.scope, oauthAccessToken: presented };
+    }
     const userId = presented === undefined ? undefined : await userIdForApiKey({ store: ctx.stores.apiKeys, now: ctx.now }, presented);
     const user = userId === undefined ? undefined : await ctx.stores.users.findById(userId);
-    if (user === undefined) throw new ApiError(401, "unauthorized", "The API key is not valid. Check the key or create a new one.");
+    // A key whose owner is not on Team is refused exactly like an unknown key. The row stays.
+    if (user === undefined || user.plan !== "team") {
+      throw new ApiError(401, "unauthorized", "The API key is not valid. Check the key or create a new one.");
+    }
     return { kind: "account", clientKey, user, cookieAuth: false };
   }
   if (options.allowSession) {
@@ -64,6 +80,13 @@ export async function identify(req: IncomingMessage, res: ServerResponse, ctx: A
     }
   }
   return { kind: "anonymous", clientKey };
+}
+
+/** OAuth tokens must include `required`. Sessions and API keys are not scope-limited. */
+export function requireOauthScope(requester: Requester, required: "transcribe" | "library:read"): void {
+  if (requester.kind !== "account" || requester.oauthScope === undefined) return;
+  if (requester.oauthScope.split(" ").includes(required)) return;
+  throw new ApiError(403, "insufficient_scope", `This connection does not include the ${required} permission.`);
 }
 
 export function requireAccount(requester: Requester): AccountRequester {

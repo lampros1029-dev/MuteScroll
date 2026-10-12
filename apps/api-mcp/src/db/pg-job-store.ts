@@ -137,6 +137,10 @@ export class PgJobStore implements JobStore {
     return (result.rowCount ?? 0) > 0;
   }
 
+  async removeForUser(userId: string): Promise<void> {
+    await this.options.pool.query("DELETE FROM jobs WHERE owner_user_id = $1", [userId]);
+  }
+
   async pruneExpired(): Promise<number> {
     const result = await this.options.pool.query("DELETE FROM jobs WHERE expires_at <= $1", [at(this.options.now())]);
     return result.rowCount ?? 0;

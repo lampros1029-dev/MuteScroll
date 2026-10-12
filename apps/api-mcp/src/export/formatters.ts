@@ -1,15 +1,21 @@
 import { formatTimestamp } from "@mutescroll/shared";
 
 import { buildCues, collapseWhitespace, type Cue } from "./cues.js";
+import { renderDocx } from "./docx.js";
 import type { Transcription, TranscriptionSegment } from "./model.js";
 import { clockFromSeconds, srtTimestamp, vttTimestamp } from "./timestamps.js";
 
-export const EXPORT_FORMATS = ["txt", "md", "srt", "vtt", "json"] as const;
+export const EXPORT_FORMATS = ["txt", "md", "srt", "vtt", "json", "docx"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
 export interface RenderedExport {
   readonly body: string;
   readonly contentType: string;
+  /**
+   * Set when `body` is raw file bytes, one character per byte (`Buffer.from(body, encoding)`).
+   * Text formats omit this and are UTF-8 strings.
+   */
+  readonly encoding?: "latin1";
 }
 
 /** Returns the format, or null when it is not one we export. Missing means plain text. */
@@ -31,6 +37,10 @@ export function renderExport(format: ExportFormat, transcription: Transcription)
       return { body: formatVtt(buildCues(transcription.segments)), contentType: "text/vtt; charset=utf-8" };
     case "json":
       return { body: `${JSON.stringify(transcription, null, 2)}\n`, contentType: "application/json; charset=utf-8" };
+    case "docx": {
+      const docx = renderDocx(transcription);
+      return { body: docx.body, contentType: docx.contentType, encoding: "latin1" };
+    }
     default: {
       const unreachable: never = format;
       throw new Error(`Unhandled export format: ${String(unreachable)}`);

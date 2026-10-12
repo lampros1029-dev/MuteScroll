@@ -57,12 +57,24 @@ describe("M3 configuration", () => {
 describe("migration files", () => {
   it("finds the schema in apps/api-mcp/migrations, sorted and checksummed", async () => {
     const migrations = await loadMigrations();
-    expect(migrations.map((migration) => migration.name)).toEqual(["001_init.sql"]);
+    expect(migrations.map((migration) => migration.name)).toEqual([
+      "001_init.sql",
+      "002_billing_events.sql",
+      "003_oauth.sql",
+      "004_billing_links.sql",
+      "005_auth_mail.sql",
+      "006_oauth_grant_created.sql",
+    ]);
     const [first] = migrations;
     const onDisk = await readFile(join(MIGRATIONS_DIR, "001_init.sql"), "utf8");
     expect(first?.sql).toBe(onDisk);
     expect(first?.checksum).toBe(createHash("sha256").update(onDisk, "utf8").digest("hex"));
     expect(first?.sql).toContain("CREATE TABLE credit_ledger");
+    expect(migrations[1]?.sql).toContain("CREATE TABLE billing_events");
+    expect(migrations[2]?.sql).toContain("CREATE TABLE oauth_clients");
+    expect(migrations[3]?.sql).toContain("CREATE TABLE billing_links");
+    expect(migrations[4]?.sql).toContain("CREATE TABLE auth_tokens");
+    expect(migrations[5]?.sql).toContain("oauth_grants");
   });
 
   describe("with a scratch directory", () => {

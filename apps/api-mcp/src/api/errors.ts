@@ -4,7 +4,16 @@ import { sendJson } from "../http/respond.js";
 import { copyFor, type ToolErrorCode } from "../mcp/messages.js";
 
 /** Account and request problems. Failure codes are reused from the MCP tool set (PRD 13). */
-export type AuthErrorCode = "unauthorized" | "invalid_credentials" | "forbidden" | "csrf_failed" | "email_taken";
+export type AuthErrorCode =
+  | "unauthorized"
+  | "invalid_credentials"
+  | "forbidden"
+  | "csrf_failed"
+  | "email_taken"
+  | "plan_required"
+  | "insufficient_scope"
+  | "billing_not_configured"
+  | "email_not_configured";
 
 export type RequestErrorCode =
   | "invalid_request"
@@ -74,7 +83,11 @@ const STATUS: Record<ApiErrorCode, number> = {
   invalid_credentials: 401,
   forbidden: 403,
   csrf_failed: 403,
+  plan_required: 403,
+  insufficient_scope: 403,
   email_taken: 409,
+  billing_not_configured: 503,
+  email_not_configured: 503,
   invalid_request: 400,
   unsupported_media_type: 415,
   unsupported_file_type: 415,

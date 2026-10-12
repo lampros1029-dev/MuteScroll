@@ -16,7 +16,7 @@ export class MemoryUserStore implements UserStore {
 
   async create(input: NewUser): Promise<UserRecord> {
     if (this.idByEmail.has(input.email)) throw new EmailTakenError();
-    const user: UserRecord = { ...input };
+    const user: UserRecord = { ...input, emailVerifiedAt: input.emailVerifiedAt ?? null };
     this.byId.set(user.id, user);
     this.idByEmail.set(user.email, user.id);
     return { ...user };
@@ -30,6 +30,35 @@ export class MemoryUserStore implements UserStore {
   async findById(id: string): Promise<UserRecord | undefined> {
     const user = this.byId.get(id);
     return user === undefined ? undefined : { ...user };
+  }
+
+  async setPlan(id: string, plan: UserRecord["plan"]): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined) return false;
+    this.byId.set(id, { ...user, plan });
+    return true;
+  }
+
+  async setPassword(id: string, passwordHash: string): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined) return false;
+    this.byId.set(id, { ...user, passwordHash });
+    return true;
+  }
+
+  async markEmailVerified(id: string, verifiedAt: number): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined) return false;
+    this.byId.set(id, { ...user, emailVerifiedAt: verifiedAt });
+    return true;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined) return false;
+    this.byId.delete(id);
+    this.idByEmail.delete(user.email);
+    return true;
   }
 }
 
@@ -52,6 +81,12 @@ export class MemorySessionStore implements SessionStore {
 
   async remove(tokenHash: string): Promise<void> {
     this.sessions.delete(tokenHash);
+  }
+
+  async removeForUser(userId: string): Promise<void> {
+    for (const [tokenHash, record] of this.sessions) {
+      if (record.userId === userId) this.sessions.delete(tokenHash);
+    }
   }
 
   async removeExpired(now: number): Promise<number> {
@@ -97,5 +132,11 @@ export class MemoryApiKeyStore implements ApiKeyStore {
     if (record === undefined || record.userId !== userId) return false;
     this.keys.delete(id);
     return true;
+  }
+
+  async removeForUser(userId: string): Promise<void> {
+    for (const [id, record] of this.keys) {
+      if (record.userId === userId) this.keys.delete(id);
+    }
   }
 }

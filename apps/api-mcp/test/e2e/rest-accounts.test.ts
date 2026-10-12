@@ -86,6 +86,9 @@ describe.each(STORE_MODES)("REST accounts on $name stores", (mode) => {
     expect(wrongCsrf.status).toBe(403);
     const read = await api(server, "/v1/me", { headers: { cookie: account.cookie } });
     expect(read.status).toBe(200);
+    const user = await server.ctx.stores.users.findByEmail(account.email);
+    if (user === undefined) throw new Error("account missing");
+    await server.ctx.stores.users.setPlan(user.id, "team");
     expect((await api(server, "/v1/api-keys", { method: "POST", headers: sessionHeaders(account) })).status).toBe(201);
   });
 
@@ -236,7 +239,7 @@ describe.each(STORE_MODES)("REST accounts on $name stores", (mode) => {
     expect(missing.body.error.code).toBe("not_found");
     const wrongMethod = await api(server, "/v1/me", { method: "PUT", json: {} });
     expect(wrongMethod.status).toBe(405);
-    expect(wrongMethod.headers.get("allow")).toBe("GET");
+    expect(wrongMethod.headers.get("allow")).toBe("GET, DELETE");
     expect(wrongMethod.body.error.code).toBe("method_not_allowed");
   });
 
@@ -249,5 +252,43 @@ describe.each(STORE_MODES)("REST accounts on $name stores", (mode) => {
     const badLimit = await api(server, "/v1/library?limit=0", { headers: { cookie: account.cookie } });
     expect(badLimit.status).toBe(400);
     expect(badLimit.body.error.code).toBe("invalid_request");
+  });
+
+  it("lets only the Team plan create or use API keys, and keeps the key when the plan changes", async () => {
+    const server = await start();
+    const account = await signUp(server);
+    const user = await server.ctx.stores.users.findByEmail(account.email);
+    if (user === undefined) throw new Error("account missing");
+
+    const free = await api(server, "/v1/api-keys", { method: "POST", headers: sessionHeaders(account) });
+    expect(free.status).toBe(403);
+    expect(free.body.error.code).toBe("plan_required");
+
+    await server.ctx.stores.users.setPlan(user.id, "pro");
+    expect((await api(server, "/v1/api-keys", { method: "POST", headers: sessionHeaders(account) })).status).toBe(403);
+
+    await server.ctx.stores.users.setPlan(user.id, "team");
+    const created = await api(server, "/v1/api-keys", { method: "POST", headers: sessionHeaders(account) });
+    expect(created.status).toBe(201);
+    const key = created.body.key as string;
+    expect((await api(server, "/v1/me", { headers: bearer(key) })).status).toBe(200);
+
+    await server.ctx.stores.users.setPlan(user.id, "free");
+    const refused = await api(server, "/v1/me", { headers: bearer(key) });
+    const unknown = await api(server, "/v1/me", { headers: bearer(`msk_${"b".repeat(43)}`) });
+    expect(refused.status).toBe(401);
+    expect(refused.body).toEqual(unknown.body);
+    const listed = await api(server, "/v1/api-keys", { headers: { cookie: account.cookie } });
+    expect(listed.body.items).toHaveLength(1);
+
+    const mcp = await fetch(`${server.baseUrl}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${key}` },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    });
+    expect(mcp.status).toBe(401);
+
+    await server.ctx.stores.users.setPlan(user.id, "team");
+    expect((await api(server, "/v1/me", { headers: bearer(key) })).status).toBe(200);
   });
 });

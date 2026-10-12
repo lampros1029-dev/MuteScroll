@@ -33,7 +33,7 @@ describe.each(STORE_MODES)("MCP with Bearer keys on $name stores", (mode) => {
     const key = await createKey(server, account);
     const owner = await mcpClient(server, key.key);
     const done = await callTool(owner, "transcribe_video", { url: sampleUrl("nnnnnnnnnn1") });
-    expect(done.output).toMatchObject({ status: "completed", credits_charged: 1, quota: { remaining_this_period: 19 } });
+    expect(done.output).toMatchObject({ status: "completed", credits_charged: 1, quota: { remaining_this_period: 5999 } });
     const jobId = done.output.job_id ?? "";
 
     const anonymous = await mcpClient(server);
@@ -45,11 +45,11 @@ describe.each(STORE_MODES)("MCP with Bearer keys on $name stores", (mode) => {
 
     for (let i = 0; i < 100; i += 1) {
       const me = await api(server, "/v1/me", { headers: { cookie: account.cookie } });
-      if (me.body.credits.remaining === 19) break;
+      if (me.body.credits.remaining === 5999) break;
       await delay(10, undefined);
     }
     const me = await api(server, "/v1/me", { headers: { cookie: account.cookie } });
-    expect(me.body.credits.remaining).toBe(19);
+    expect(me.body.credits.remaining).toBe(5999);
 
     const otherAccount = await signUp(server);
     const otherKey = await createKey(server, otherAccount);

@@ -18,6 +18,7 @@ interface UserRow {
   readonly email: string;
   readonly password_hash: string;
   readonly plan: string;
+  readonly email_verified_at: Date | null;
   readonly created_at: Date;
 }
 
@@ -44,8 +45,15 @@ export class PgUserStore implements UserStore {
   async create(input: NewUser): Promise<UserRecord> {
     try {
       const result = await this.pool.query<UserRow>(
-        "INSERT INTO users (id, email, password_hash, plan, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-        [input.id, input.email, input.passwordHash, input.plan, new Date(input.createdAt)],
+        "INSERT INTO users (id, email, password_hash, plan, email_verified_at, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+        [
+          input.id,
+          input.email,
+          input.passwordHash,
+          input.plan,
+          input.emailVerifiedAt === undefined || input.emailVerifiedAt === null ? null : new Date(input.emailVerifiedAt),
+          new Date(input.createdAt),
+        ],
       );
       const row = result.rows[0];
       if (row === undefined) throw new Error("insert returned no row");
@@ -66,6 +74,26 @@ export class PgUserStore implements UserStore {
     const result = await this.pool.query<UserRow>("SELECT * FROM users WHERE id = $1", [id]);
     const row = result.rows[0];
     return row === undefined ? undefined : toUser(row);
+  }
+
+  async setPlan(id: string, plan: UserRecord["plan"]): Promise<boolean> {
+    const result = await this.pool.query("UPDATE users SET plan = $2 WHERE id = $1", [id, plan]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async setPassword(id: string, passwordHash: string): Promise<boolean> {
+    const result = await this.pool.query("UPDATE users SET password_hash = $2 WHERE id = $1", [id, passwordHash]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async markEmailVerified(id: string, verifiedAt: number): Promise<boolean> {
+    const result = await this.pool.query("UPDATE users SET email_verified_at = $2 WHERE id = $1", [id, new Date(verifiedAt)]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.pool.query("DELETE FROM users WHERE id = $1", [id]);
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
@@ -104,6 +132,10 @@ export class PgSessionStore implements SessionStore {
     await this.pool.query("DELETE FROM sessions WHERE token_hash = $1", [tokenHash]);
   }
 
+  async removeForUser(userId: string): Promise<void> {
+    await this.pool.query("DELETE FROM sessions WHERE user_id = $1", [userId]);
+  }
+
   async removeExpired(now: number): Promise<number> {
     const result = await this.pool.query("DELETE FROM sessions WHERE expires_at <= $1", [new Date(now)]);
     return result.rowCount ?? 0;
@@ -139,6 +171,10 @@ export class PgApiKeyStore implements ApiKeyStore {
     const result = await this.pool.query("DELETE FROM api_keys WHERE id = $1 AND user_id = $2", [id, userId]);
     return (result.rowCount ?? 0) > 0;
   }
+
+  async removeForUser(userId: string): Promise<void> {
+    await this.pool.query("DELETE FROM api_keys WHERE user_id = $1", [userId]);
+  }
 }
 
 function toUser(row: UserRow): UserRecord {
@@ -147,6 +183,7 @@ function toUser(row: UserRow): UserRecord {
     email: row.email,
     passwordHash: row.password_hash,
     plan: parsePlanId(row.plan),
+    emailVerifiedAt: row.email_verified_at === null ? null : row.email_verified_at.getTime(),
     createdAt: row.created_at.getTime(),
   };
 }

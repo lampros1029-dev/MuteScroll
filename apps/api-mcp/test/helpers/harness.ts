@@ -15,6 +15,7 @@ export function testConfig(env: Record<string, string> = {}): Config {
       ACCOUNT_REQUESTS_PER_MINUTE: "1000",
       AUTH_SIGNUPS_PER_IP_PER_HOUR: "1000",
       AUTH_LOGINS_PER_IP_PER_MINUTE: "1000",
+      AUTH_MAIL_PER_IP_PER_HOUR: "1000",
       ...env,
     },
     "linux",

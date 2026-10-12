@@ -4,7 +4,7 @@ import { listPlans } from "../billing/plans.js";
 import type { AppContext } from "../context.js";
 import { sendJson } from "../http/respond.js";
 import { ApiError } from "./errors.js";
-import { identify, requireAccount } from "./identity.js";
+import { identify, requireAccount, requireOauthScope } from "./identity.js";
 import { libraryItemView, planView } from "./views.js";
 
 const DEFAULT_LIMIT = 50;
@@ -14,6 +14,7 @@ const MAX_OFFSET = 100_000;
 /** GET /v1/library?limit=&offset=: the account's jobs, newest first. */
 export async function listLibrary(req: IncomingMessage, res: ServerResponse, ctx: AppContext, query: URLSearchParams): Promise<void> {
   const account = requireAccount(await identify(req, res, ctx, { allowSession: true }));
+  requireOauthScope(account, "library:read");
   const limit = integerParam(query, "limit", DEFAULT_LIMIT, 1, MAX_LIMIT);
   const offset = integerParam(query, "offset", 0, 0, MAX_OFFSET);
   const items = await ctx.service.listLibrary(account.user.id, { limit, offset });

@@ -18,6 +18,8 @@ describe("status codes (docs/rest-api.md)", () => {
     ["invalid_credentials", 401],
     ["forbidden", 403],
     ["csrf_failed", 403],
+    ["plan_required", 403],
+    ["insufficient_scope", 403],
     ["not_found", 404],
     ["method_not_allowed", 405],
     ["email_taken", 409],
@@ -34,6 +36,8 @@ describe("status codes (docs/rest-api.md)", () => {
     ["blocked_bot_check", 502],
     ["asr_error", 502],
     ["internal", 500],
+    ["billing_not_configured", 503],
+    ["email_not_configured", 503],
   ] as Array<[ApiErrorCode, number]>)("%s is %i", (code, status) => {
     expect(statusFor(code)).toBe(status);
   });

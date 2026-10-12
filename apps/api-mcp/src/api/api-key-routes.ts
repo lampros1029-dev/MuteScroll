@@ -21,6 +21,9 @@ export async function listApiKeys(req: IncomingMessage, res: ServerResponse, ctx
  */
 export async function createApiKey(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
   const account = await sessionAccount(req, res, ctx);
+  if (account.user.plan !== "team") {
+    throw new ApiError(403, "plan_required", "API keys are available on the Team plan.");
+  }
   const issued = await issueApiKey({ store: ctx.stores.apiKeys, now: ctx.now }, account.user.id);
   sendJson(res, 201, { id: issued.id, key: issued.key });
 }

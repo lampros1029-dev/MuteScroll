@@ -91,6 +91,12 @@ export class MemoryJobStore implements JobStore {
     return true;
   }
 
+  async removeForUser(userId: string): Promise<void> {
+    for (const job of [...this.jobs.values()]) {
+      if (job.ownerUserId === userId) this.remove(job);
+    }
+  }
+
   async pruneExpired(): Promise<number> {
     const now = this.options.now();
     let removed = 0;
