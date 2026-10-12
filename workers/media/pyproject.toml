@@ -3,12 +3,23 @@ name = "mutescroll-media"
 version = "0.0.0"
 description = "MuteScroll media worker: retrieval, audio extraction, ASR routing (PRD section 9, 10)."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "httpx>=0.27",
+  # [default] pulls yt-dlp-ejs; the worker image also needs deno or node on PATH.
+  "yt-dlp[default]>=2026.8.1",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
-# Added in M1: yt-dlp, httpx, groq, faster-whisper (self-host tier)
+
+[project.scripts]
+mutescroll-transcribe = "mutescroll_media.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = ["integration: hits real networks/APIs; run with -m integration"]
+addopts = "-m 'not integration'"

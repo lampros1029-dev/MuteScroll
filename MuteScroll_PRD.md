@@ -386,8 +386,8 @@ This is a **visible quality differentiator** vs. commodity transcript sites, and
 | Retrieval failed (platform blocked) | "I couldn't retrieve this video right now. If you can see it, upload the file here and I'll transcribe it with the same quality." |
 | No speech | "I processed the video but found no meaningful speech (music or sound only)." |
 | Poor audio | "Audio quality is poor. Here's a best-effort transcript; uncertain parts are marked." |
-| Too long for plan | "This video is 2 h 10 min; your current plan supports up to 60 min per video. Plan details: mutescroll.app/plans" (informational link, §4.1) |
-| Quota reached | "You've used this period's transcriptions. They reset on <date>. Plan details: mutescroll.app/plans" |
+| Too long for plan | "This video is 2 h 10 min; your current plan supports up to 60 min per video. Plan details: mutescroll.xyz/plans" (informational link, §4.1) |
+| Quota reached | "You've used this period's transcriptions. They reset on <date>. Plan details: mutescroll.xyz/plans" |
 
 Failed jobs **never consume quota** (§20.5).
 
@@ -605,15 +605,34 @@ Named with Hormozi's MAGIC naming: **M**agnet reason (launch), **A**vatar (creat
 | Milestone | Scope | Exit criteria |
 |---|---|---|
 | **M0 — Repo & skeleton** | Monorepo (`apps/api-mcp` TS, `workers/media` Python, `packages/shared` schemas), CI, `.env.example`, lint/test | CI green on empty services |
-| **M1 — Core pipeline** | URL normalize/validate, adapters (YT, TikTok, IG, FB), captions-first, yt-dlp audio-only, Groq ASR, segments, uncertain spans, cache | CLI transcribes the golden set; numeric-fidelity test passes |
+| **M1 — Core pipeline** *(implemented 2026-10-12; see §22.1)* | URL normalize/validate, adapters (YT, TikTok, IG, FB), captions-first, yt-dlp audio-only, Groq ASR, segments, uncertain spans, cache | CLI transcribes the golden set; numeric-fidelity test passes |
 | **M2 — Remote MCP** | `transcribe_video`, `get_transcription`, async jobs, upload link, anonymous quotas | Works in Claude Desktop + ChatGPT Developer Mode end-to-end |
-| **M3 — Accounts & billing (web)** | Next.js web app, auth, OAuth for MCP, Stripe plans/credits, library, exports | Paid user flow end-to-end; entitlements enforced in MCP |
+| **M3 — Accounts & billing (web)** | Next.js web app, auth, OAuth for MCP, Paddle plans/credits, library, exports | Paid user flow end-to-end; entitlements enforced in MCP |
 | **M4 — Production hardening** | Residential egress, resolver health scoring, canaries, dashboards, failover ASR, privacy policy, ToS | 7-day canary ≥ targets in §5.3 |
 | **M5 — Directory submission** | Directory build (§4.2), widget UI, test prompts, demo account | Submitted to ChatGPT directory; Claude listing |
 | **V1.1** | `get_video_frames_at`, diarization tier, local/stdio install | — |
 | **V2** | Bulk URLs, X/Vimeo/Loom/podcasts, SRT/VTT export tool, chapters | — |
 | **V3** | Channel/profile/playlist import, searchable library, creator tracking | — |
 | **V4 — Video research agent** | "Watch these 50 videos and tell me what everyone says about X": multi-transcript retrieval + citations to timestamps | — |
+
+### 22.1 M1 build findings (2026-10-12)
+
+Verified live from a residential IP with `workers/media` (`python -m mutescroll_media.cli`):
+
+| Path | Result |
+|---|---|
+| YouTube captions, YouTube ASR, uploaded file ASR (Groq `whisper-large-v3-turbo`) | Work end to end; the 24 h file cache turns repeats into ~1 s |
+| Facebook public video | Works via audio-only download plus ASR |
+| Instagram | Posts without audio return a clear "no audio track"; most Reels need login, so expect low anonymous success and always offer upload |
+| TikTok | **Anonymous retrieval fails** without browser TLS impersonation. We do not impersonate browsers to defeat bot checks (§4.1), so TikTok is **upload-first** until a licensed vendor (§9.1 step 4) or the legal review (D2) says otherwise. The TikTok retrieval target in §5.3 is withdrawn for the connector build |
+| YouTube from datacenter IPs | Untested; known to hit "confirm you're not a bot". Production needs residential egress (M4) |
+
+Engineering notes that change the earlier plan:
+- yt-dlp needs a JavaScript runtime (Deno or Node) plus `yt-dlp-ejs` for YouTube. The worker refuses to run without one (`worker_misconfigured`).
+- Groq returns segment-level `avg_logprob` but no per-word probability, so **uncertain spans use segment confidence** (`exp(avg_logprob)` < 0.5). Word-level confidence arrives with ElevenLabs Scribe (premium tier) or a second provider.
+- Hallucinated non-speech segments are dropped (`no_speech_prob` > 0.85 and `avg_logprob` < -0.8).
+- Chunk cuts every 20 minutes are not yet silence-aware; fix before the 2 h limit is advertised.
+- Redirect hops are re-validated by DNS; a TOCTOU rebinding window remains, so the production worker also needs a network egress policy (§17).
 
 ---
 
@@ -642,7 +661,7 @@ Status as of 2026-10-12: all recommendations **accepted** and applied. Revisit o
 | D3 | Licensed third-party retrieval vendor | ✅ Accepted | Evaluate in M4 **only if** anonymous IG success < 60%. |
 | D4 | API/MCP host | ✅ Accepted | **Railway** for API + media workers. Move the API edge to Cloudflare Workers later if latency or cost demands. |
 | D5 | Anonymous usage | ✅ Accepted | **Anonymous: 5 credits**, then OAuth sign-in unlocks the free 20/month. |
-| D6 | Domain | ✅ Accepted (to register) | **mutescroll.app**: checked 2026-10-12, appears unregistered. `mutescroll.com` is already taken; `.io` and `getmutescroll.com` also appear free as defensive options. Register `.app` now. |
+| D6 | Domain | ✅ Accepted (to register) | **mutescroll.xyz**, to be registered by the owner. `mutescroll.com` is already taken; `.app`, `.io` and `getmutescroll.com` looked free on 2026-10-12 as defensive options. Contact mailbox: mutescroll.xyz@gmail.com until domain mail exists. |
 | D7 | Founding Pass | ✅ Accepted | **$79/yr, first 500 members.** Revisit after 100 sales. |
 | D8 | Follow-up analysis (summarize, translate, fact-check) | ✅ Accepted | Done by the **host LLM**, never by MuteScroll (§8.5). |
 
