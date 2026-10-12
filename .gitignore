@@ -20,3 +20,6 @@ tmp/
 *.egg-info/
 
 pilot-report.json
+pilot-urls.txt
+pilot-results.jsonl
+pilot-run.log
