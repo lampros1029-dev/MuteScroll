@@ -3,11 +3,17 @@ import { MediaWorkerError } from "../worker/errors.js";
 import type { WorkerTranscript } from "../worker/transcript-schema.js";
 import type { MediaWorker, WorkerErrorCode, WorkerTarget } from "../worker/types.js";
 import type { JobStore } from "./job-store.js";
-import type { Job } from "./types.js";
+import type { Job, JobPatch } from "./types.js";
+
+const SETTLE_ATTEMPTS = 3;
 
 export interface JobSource {
   readonly target: WorkerTarget;
   readonly language: string;
+  /** Longest media this run may process (the plan's limit, PRD 20.2). */
+  readonly maxSeconds: number;
+  /** Ends this run's credit hold exactly once: the credits charged, or 0 when the job failed (PRD 20.5). */
+  readonly settle: (creditsCharged: number) => Promise<void>;
   /** Runs once when the job leaves the runner, whatever the outcome (deletes upload temp dirs). */
   readonly cleanup?: () => Promise<void>;
 }
@@ -16,11 +22,8 @@ export interface JobRunnerOptions {
   readonly store: JobStore;
   readonly worker: MediaWorker;
   readonly concurrency: number;
-  readonly maxSeconds: number;
   /** Credits a finished transcript costs. */
   readonly creditsFor: (transcript: WorkerTranscript) => number;
-  /** Called exactly once per run: with the credits charged, or 0 when the job failed (PRD 20.5). */
-  readonly onSettled: (job: Job, creditsCharged: number) => void;
 }
 
 interface QueuedRun {
@@ -69,14 +72,18 @@ export class JobRunner {
   }
 
   private async execute({ job, source }: QueuedRun): Promise<void> {
+    let charged = 0;
     try {
       await this.options.store.update(job.id, { status: "running", failure: null });
       const outcome = await this.attempt(source);
-      await this.finish(job, outcome);
+      await this.options.store.update(job.id, terminalPatch(outcome));
+      charged = outcome.ok ? outcome.credits : 0;
+      logEvent(outcome.ok ? "job.succeeded" : "job.failed", outcome.ok ? { job_id: job.id, method: outcome.transcript.method } : { job_id: job.id, code: outcome.code });
     } catch {
-      // Store failure: the job stays "running" until it expires. Logged without details.
+      // Store failure: the job stays non-terminal until it expires. Logged without details.
       logEvent("job.store_error", { job_id: job.id });
     } finally {
+      await this.settle(job, source, charged);
       await this.cleanup(job, source);
     }
   }
@@ -86,7 +93,7 @@ export class JobRunner {
       const transcript = await this.options.worker.transcribe({
         target: source.target,
         language: source.language,
-        maxSeconds: this.options.maxSeconds,
+        maxSeconds: source.maxSeconds,
       });
       return { ok: true, transcript, credits: this.options.creditsFor(transcript) };
     } catch (error) {
@@ -94,24 +101,27 @@ export class JobRunner {
     }
   }
 
-  private async finish(job: Job, outcome: Outcome): Promise<void> {
-    if (outcome.ok) {
-      await this.options.store.update(job.id, {
-        status: "succeeded",
-        result: outcome.transcript,
-        creditsCharged: outcome.credits,
-      });
-      this.options.onSettled(job, outcome.credits);
-      logEvent("job.succeeded", { job_id: job.id, method: outcome.transcript.method });
-      return;
+  /** Settlement is idempotent upstream, so a transient ledger error is retried before giving up. */
+  private async settle(job: Job, source: JobSource, creditsCharged: number): Promise<void> {
+    for (let attempt = 1; attempt <= SETTLE_ATTEMPTS; attempt += 1) {
+      try {
+        await source.settle(creditsCharged);
+        return;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+      }
     }
-    await this.options.store.update(job.id, { status: "failed", failure: outcome.code });
-    this.options.onSettled(job, 0);
-    logEvent("job.failed", { job_id: job.id, code: outcome.code });
+    logEvent("job.settle_failed", { job_id: job.id });
   }
 
   private async cleanup(job: Job, source: JobSource): Promise<void> {
     if (source.cleanup === undefined) return;
     await source.cleanup().catch(() => logEvent("job.cleanup_failed", { job_id: job.id }));
   }
+}
+
+function terminalPatch(outcome: Outcome): JobPatch {
+  return outcome.ok
+    ? { status: "succeeded", result: outcome.transcript, creditsCharged: outcome.credits }
+    : { status: "failed", failure: outcome.code };
 }

@@ -9,7 +9,7 @@ Full spec: [`MuteScroll_PRD.md`](./MuteScroll_PRD.md).
 | Path | Purpose | Milestone |
 |---|---|---|
 | `packages/shared` | URL parsing, platform detection, URL safety, credit and timestamp rules (TypeScript) | M0 done |
-| `apps/api-mcp` | Remote MCP server (`/mcp`), async jobs, upload links, anonymous quotas | M2 (tools, jobs, uploads, quotas) |
+| `apps/api-mcp` | Remote MCP server (`/mcp`), REST API v1 (`/v1`), accounts and API keys, credit ledger, Postgres storage, async jobs, upload links, quotas | M2 (MCP, jobs, uploads, quotas), M3 backend (REST, accounts, credits, Postgres) |
 | `workers/media` | Retrieval, audio extraction, ASR routing, SSRF guard (Python) | skeleton; pipeline in M1 |
 
 ## Develop
@@ -60,3 +60,44 @@ Connect a client:
   ```
 
 Run the tests with `npm test` (TypeScript) and `npm run test:media` (Python). The opt-in worker test runs with `MUTESCROLL_MEDIA_INTEGRATION=1`.
+
+## REST API and accounts
+
+The same server also serves the REST API v1 under `/v1`. The full contract, with every status code and the list of deviations from the first draft, is in [`docs/rest-api.md`](docs/rest-api.md).
+
+- **Anonymous:** call `POST /v1/transcriptions` with no credentials. Quota is per IP.
+- **Accounts:** `POST /v1/auth/signup` and `POST /v1/auth/login` set an HttpOnly session cookie. Writes from the web app must echo the `ms_csrf` cookie in the `x-csrf-token` header.
+- **API keys:** create one in a signed-in session (`POST /v1/api-keys`, shown once), then send `Authorization: Bearer msk_...` to any `/v1` route or to `/mcp`.
+- **Credits:** free accounts get 20 credits a month (UTC). A transcription costs 1 credit per started 10 minutes. Failed jobs are free.
+
+Accounts are not email-verified yet, because no email provider exists. Sign-ups and log-ins are rate-limited per IP instead.
+
+## Postgres and migrations
+
+With `DATABASE_URL` set (`postgres://user:pass@host:5432/db`), accounts, jobs, sessions, API keys and the credit ledger live in Postgres. Without it, everything lives in memory for one process and is lost on restart. That is fine for local development.
+
+Apply the schema before the first start, and again after each upgrade that adds a migration:
+
+```bash
+npm run build
+npm run migrate -w @mutescroll/api-mcp
+```
+
+PowerShell, without a `.env` file:
+
+```powershell
+npm run build
+$env:DATABASE_URL = "postgres://postgres:pw@localhost:5432/ms"
+npm run migrate -w @mutescroll/api-mcp
+```
+
+The runner applies each file in `apps/api-mcp/migrations/` once, in name order, in its own transaction, and records a checksum. Running it again changes nothing. It refuses to run if an applied file has been edited. The server refuses to start while migrations are pending.
+
+To run the Postgres tests, point `TEST_DATABASE_URL` at a throwaway database. Each test uses its own schema, which is dropped afterwards. The suite runs against both stores when the variable is set, and only against memory when it is not:
+
+```powershell
+docker run -d --name ms-pg -e POSTGRES_PASSWORD=pw -e POSTGRES_DB=ms -p 55432:5432 postgres:16
+$env:TEST_DATABASE_URL = "postgres://postgres:pw@localhost:55432/ms"
+npm test
+docker rm -f ms-pg
+```

@@ -2,6 +2,7 @@ import type { IncomingMessage, RequestListener, ServerResponse } from "node:http
 
 import { PLATFORMS } from "@mutescroll/shared";
 
+import { handleApi } from "./api/router.js";
 import type { AppContext } from "./context.js";
 import { clientKeyFor } from "./http/client-key.js";
 import { sendJson, sendNotFound } from "./http/respond.js";
@@ -33,6 +34,7 @@ async function route(req: IncomingMessage, res: ServerResponse, ctx: AppContext)
     return sendJson(res, 200, { status: "ok", platforms: PLATFORMS });
   }
   if (path === "/mcp") return handleMcpRequest(req, res, ctx);
+  if (path === "/v1" || path.startsWith("/v1/")) return handleApi(req, res, ctx);
 
   const upload = UPLOAD_PATH.exec(path);
   const token = upload?.[1];

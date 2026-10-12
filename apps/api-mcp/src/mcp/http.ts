@@ -2,20 +2,33 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
+import type { Caller } from "../caller.js";
 import type { AppContext } from "../context.js";
+import { identify, callerOf } from "../api/identity.js";
+import { ApiError } from "../api/errors.js";
 import { BodyError, readJsonBody } from "../http/body.js";
-import { clientKeyFor } from "../http/client-key.js";
 import { sendJson } from "../http/respond.js";
 import { createMcpServer } from "./server.js";
 
 const JSON_RPC_PARSE_ERROR = -32700;
 const JSON_RPC_INVALID_REQUEST = -32600;
+const JSON_RPC_UNAUTHORIZED = -32001;
 
 /**
  * Streamable HTTP at `/mcp`, stateless: a fresh server and transport per request, so no session state
- * survives between calls. The body is read here so the size limit applies before the SDK sees it.
+ * survives between calls. A Bearer key makes the caller an account. Without one, the caller is anonymous.
+ * The body is read here so the size limit applies before the SDK sees it.
  */
 export async function handleMcpRequest(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
+  let caller: Caller;
+  try {
+    caller = callerOf(await identify(req, res, ctx, { allowSession: false }));
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    sendJson(res, 401, { jsonrpc: "2.0", error: { code: JSON_RPC_UNAUTHORIZED, message: "Unauthorized" }, id: null });
+    return;
+  }
+
   let parsedBody: unknown = undefined;
   if (req.method === "POST") {
     try {
@@ -35,8 +48,7 @@ export async function handleMcpRequest(req: IncomingMessage, res: ServerResponse
     }
   }
 
-  const clientKey = clientKeyFor(req, ctx.config.trustProxy, ctx.config.clientIpHeader);
-  const server = createMcpServer(ctx, clientKey);
+  const server = createMcpServer(ctx, caller);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();

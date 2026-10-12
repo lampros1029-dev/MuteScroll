@@ -7,7 +7,18 @@ import { createRequestHandler } from "../../src/routes.js";
 
 /** Short waits and generous quotas by default; each test overrides what it exercises. */
 export function testConfig(env: Record<string, string> = {}): Config {
-  return loadConfig({ TOOL_WAIT_MS: "300", ANON_CREDITS: "5", ANON_REQUESTS_PER_MINUTE: "100", ...env }, "linux");
+  return loadConfig(
+    {
+      TOOL_WAIT_MS: "300",
+      ANON_CREDITS: "5",
+      ANON_REQUESTS_PER_MINUTE: "100",
+      ACCOUNT_REQUESTS_PER_MINUTE: "1000",
+      AUTH_SIGNUPS_PER_IP_PER_HOUR: "1000",
+      AUTH_LOGINS_PER_IP_PER_MINUTE: "1000",
+      ...env,
+    },
+    "linux",
+  );
 }
 
 export interface RunningServer {
@@ -37,10 +48,10 @@ export async function startTestServer(config: Config, overrides: ContextOverride
   return {
     baseUrl,
     ctx,
-    close: () =>
-      new Promise<void>((resolve) => {
-        server.closeAllConnections();
-        server.close(() => resolve());
-      }),
+    close: async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await ctx.close();
+    },
   };
 }

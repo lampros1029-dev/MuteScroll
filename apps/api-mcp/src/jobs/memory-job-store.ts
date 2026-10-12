@@ -1,5 +1,6 @@
-import type { CreateOrReuseResult, JobStore } from "./job-store.js";
-import type { Job, JobPatch, JobTtls, NewJob } from "./types.js";
+import { LiveJobConflictError, type CreateOrReuseResult, type JobStore, type PageRequest } from "./job-store.js";
+import { ttlMsFor } from "./ttl.js";
+import type { Job, JobPatch, JobSummary, JobTtls, NewJob } from "./types.js";
 
 export interface MemoryJobStoreOptions {
   readonly ttl: JobTtls;
@@ -24,7 +25,8 @@ export class MemoryJobStore implements JobStore {
       key: input.key,
       status: "queued",
       language: input.language,
-      ownerKey: input.ownerKey,
+      platform: input.platform,
+      ownerUserId: input.ownerUserId,
       result: null,
       failure: null,
       creditsCharged: 0,
@@ -44,20 +46,15 @@ export class MemoryJobStore implements JobStore {
 
   async update(id: string, patch: JobPatch): Promise<Job | undefined> {
     const current = this.live(id);
-    if (current === undefined) return undefined;
-    const now = this.options.now();
-    const next: Job = {
-      ...current,
-      status: patch.status ?? current.status,
-      result: patch.result !== undefined ? patch.result : current.result,
-      failure: patch.failure !== undefined ? patch.failure : current.failure,
-      creditsCharged: patch.creditsCharged ?? current.creditsCharged,
-      updatedAt: now,
-      expiresAt: now + this.ttlFor(patch.status ?? current.status),
-    };
-    this.jobs.set(id, next);
-    this.syncIndex(next);
-    return { ...next };
+    return current === undefined ? undefined : this.write(current, patch);
+  }
+
+  async requeueFailed(id: string): Promise<Job | undefined> {
+    const current = this.live(id);
+    if (current === undefined || current.status !== "failed") return undefined;
+    const holder = this.keyIndex.get(current.key);
+    if (holder !== undefined && holder !== id && this.live(holder) !== undefined) throw new LiveJobConflictError();
+    return this.write(current, { status: "queued", failure: null });
   }
 
   async findReusable(key: string): Promise<Job | undefined> {
@@ -69,6 +66,29 @@ export class MemoryJobStore implements JobStore {
       return undefined;
     }
     return { ...job };
+  }
+
+  async listForUser(userId: string, page: PageRequest): Promise<JobSummary[]> {
+    const now = this.options.now();
+    return [...this.jobs.values()]
+      .filter((job) => job.ownerUserId === userId && job.expiresAt > now)
+      // Newest first; equal times fall back to id, as the Postgres ORDER BY does.
+      .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))
+      .slice(page.offset, page.offset + page.limit)
+      .map((job) => ({
+        id: job.id,
+        status: job.status,
+        platform: job.platform,
+        title: job.result?.source.title ?? null,
+        createdAt: job.createdAt,
+      }));
+  }
+
+  async removeFinished(id: string): Promise<boolean> {
+    const job = this.live(id);
+    if (job === undefined || job.status === "queued" || job.status === "running") return false;
+    this.remove(job);
+    return true;
   }
 
   async pruneExpired(): Promise<number> {
@@ -83,6 +103,23 @@ export class MemoryJobStore implements JobStore {
     return removed;
   }
 
+  private write(current: Job, patch: JobPatch): Job {
+    const now = this.options.now();
+    const status = patch.status ?? current.status;
+    const next: Job = {
+      ...current,
+      status,
+      result: patch.result !== undefined ? patch.result : current.result,
+      failure: patch.failure !== undefined ? patch.failure : current.failure,
+      creditsCharged: patch.creditsCharged ?? current.creditsCharged,
+      updatedAt: now,
+      expiresAt: now + ttlMsFor(status, current.ownerUserId, this.options.ttl),
+    };
+    this.jobs.set(next.id, next);
+    this.syncIndex(next);
+    return { ...next };
+  }
+
   private live(id: string): Job | undefined {
     const job = this.jobs.get(id);
     if (job === undefined) return undefined;
@@ -93,24 +130,12 @@ export class MemoryJobStore implements JobStore {
     return job;
   }
 
-  private ttlFor(status: Job["status"]): number {
-    switch (status) {
-      case "queued":
-      case "running":
-        return this.options.ttl.activeMs;
-      case "succeeded":
-        return this.options.ttl.succeededMs;
-      case "failed":
-        return this.options.ttl.failedMs;
-      default: {
-        const unreachable: never = status;
-        throw new Error(`Unhandled job status: ${String(unreachable)}`);
-      }
-    }
-  }
-
   private indexIfFree(job: Job): void {
-    if (job.status !== "failed" && !this.keyIndex.has(job.key)) this.keyIndex.set(job.key, job.id);
+    if (job.status === "failed") return;
+    const holder = this.keyIndex.get(job.key);
+    // A holder that has expired no longer blocks the key.
+    if (holder !== undefined && holder !== job.id && this.live(holder) !== undefined) return;
+    this.keyIndex.set(job.key, job.id);
   }
 
   private syncIndex(job: Job): void {

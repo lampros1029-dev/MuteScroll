@@ -23,3 +23,6 @@ pilot-report.json
 pilot-urls.txt
 pilot-results.jsonl
 pilot-run.log
+
+# TypeScript incremental build info (apps/web uses incremental: true)
+*.tsbuildinfo

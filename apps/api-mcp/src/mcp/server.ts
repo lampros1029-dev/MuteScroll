@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import type { Caller } from "../caller.js";
 import type { AppContext } from "../context.js";
 import { getTranscriptionInputShape, toolOutputShape, transcribeInputShape } from "./schemas.js";
 import { toCallToolResult } from "./output.js";
@@ -20,8 +21,8 @@ const GET_DESCRIPTION =
   "Check or fetch the transcript of a job started by transcribe_video, using its job_id. Read-only. Use after " +
   "transcribe_video returned status processing, or after the user uploaded a file for a failed job.";
 
-/** One MCP server per HTTP request (stateless transport). `clientKey` is bound into the tool handlers. */
-export function createMcpServer(ctx: AppContext, clientKey: string): McpServer {
+/** One MCP server per HTTP request (stateless transport). The caller is bound into the tool handlers. */
+export function createMcpServer(ctx: AppContext, caller: Caller): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
 
   server.registerTool(
@@ -33,7 +34,7 @@ export function createMcpServer(ctx: AppContext, clientKey: string): McpServer {
       outputSchema: toolOutputShape,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async (args) => toCallToolResult(await runTranscribeVideo(ctx, clientKey, args)),
+    async (args) => toCallToolResult(await runTranscribeVideo(ctx, caller, args)),
   );
 
   server.registerTool(
@@ -45,7 +46,7 @@ export function createMcpServer(ctx: AppContext, clientKey: string): McpServer {
       outputSchema: toolOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => toCallToolResult(await runGetTranscription(ctx, args.job_id)),
+    async (args) => toCallToolResult(await runGetTranscription(ctx, caller, args.job_id)),
   );
 
   return server;

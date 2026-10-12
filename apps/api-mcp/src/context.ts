@@ -1,12 +1,14 @@
 import { creditsForDuration } from "@mutescroll/shared";
 
+import type { Caller } from "./caller.js";
 import type { Config } from "./config.js";
+import { Billing } from "./billing/billing.js";
 import { JobRunner } from "./jobs/job-runner.js";
 import type { JobStore } from "./jobs/job-store.js";
-import { MemoryJobStore } from "./jobs/memory-job-store.js";
 import { TranscriptionService } from "./jobs/transcription-service.js";
 import { CreditQuota } from "./quota/credit-quota.js";
 import { SlidingWindowLimiter } from "./quota/sliding-window.js";
+import { createStores, type Stores } from "./stores.js";
 import { UploadTokenStore } from "./upload/tokens.js";
 import { buildWorkerEnv, SubprocessMediaWorker } from "./worker/subprocess-worker.js";
 import type { MediaWorker } from "./worker/types.js";
@@ -14,21 +16,32 @@ import type { MediaWorker } from "./worker/types.js";
 /** Everything the HTTP routes and MCP tools need. Built once per process. */
 export interface AppContext {
   readonly config: Config;
+  readonly stores: Stores;
   readonly store: JobStore;
   readonly service: TranscriptionService;
   readonly quota: CreditQuota;
+  readonly billing: Billing;
+  /** Transcribe calls per anonymous client per minute. */
   readonly rateLimiter: SlidingWindowLimiter;
+  /** Transcribe calls per account per minute. */
+  readonly accountRateLimiter: SlidingWindowLimiter;
+  readonly signupLimiter: SlidingWindowLimiter;
+  readonly loginLimiter: SlidingWindowLimiter;
   readonly uploads: UploadTokenStore;
   readonly now: () => number;
+  close(): Promise<void>;
 }
 
 export interface ContextOverrides {
   /** Defaults to the subprocess worker. Tests inject a fake. */
   readonly worker?: MediaWorker;
   readonly now?: () => number;
+  /** Defaults to stores chosen by DATABASE_URL. Tests inject memory or throwaway-schema Postgres stores. */
+  readonly stores?: Stores;
 }
 
 const RATE_WINDOW_MS = 60_000;
+const HOUR_MS = 60 * 60 * 1000;
 
 export function createContext(config: Config, overrides: ContextOverrides = {}): AppContext {
   const now = overrides.now ?? Date.now;
@@ -41,37 +54,60 @@ export function createContext(config: Config, overrides: ContextOverrides = {}):
       env: buildWorkerEnv(process.env),
     });
 
-  const store = new MemoryJobStore({ ttl: config.jobTtl, now });
+  const stores = overrides.stores ?? createStores(config, now);
   const quota = new CreditQuota({ allowance: config.anonCredits, windowMs: config.anonQuotaWindowMs, now });
+  const billing = new Billing({ quota, ledger: stores.ledger, now });
   const uploads = new UploadTokenStore({ ttlMs: config.uploadTokenTtlMs, now });
   const runner = new JobRunner({
-    store,
+    store: stores.jobs,
     worker,
     concurrency: config.jobConcurrency,
-    maxSeconds: config.mediaMaxSeconds,
     creditsFor: (transcript) => creditsForDuration(Math.max(0, transcript.source.duration_seconds ?? 0)),
-    onSettled: (job, creditsCharged) => quota.settle(job.ownerKey, creditsCharged),
   });
   const service = new TranscriptionService({
-    store,
+    store: stores.jobs,
     runner,
-    quota,
+    billing,
+    users: stores.users,
     uploads,
     now,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    mediaMaxSeconds: config.mediaMaxSeconds,
   });
-  const rateLimiter = new SlidingWindowLimiter({
-    limit: config.anonRequestsPerMinute,
-    windowMs: RATE_WINDOW_MS,
+  return {
+    config,
+    stores,
+    store: stores.jobs,
+    service,
+    quota,
+    billing,
+    rateLimiter: new SlidingWindowLimiter({ limit: config.anonRequestsPerMinute, windowMs: RATE_WINDOW_MS, now }),
+    accountRateLimiter: new SlidingWindowLimiter({ limit: config.accountRequestsPerMinute, windowMs: RATE_WINDOW_MS, now }),
+    signupLimiter: new SlidingWindowLimiter({ limit: config.signupsPerIpPerHour, windowMs: HOUR_MS, now }),
+    loginLimiter: new SlidingWindowLimiter({ limit: config.loginsPerIpPerMinute, windowMs: RATE_WINDOW_MS, now }),
+    uploads,
     now,
-  });
-  return { config, store, service, quota, rateLimiter, uploads, now };
+    close: () => stores.close(),
+  };
 }
 
-/** Periodic cleanup of expired jobs, tokens, quota ledgers and rate-limit buckets. */
+/** The transcribe-call limiter for this caller: accounts and anonymous clients are counted separately. */
+export function transcribeLimiterFor(ctx: AppContext, caller: Caller): SlidingWindowLimiter {
+  return caller.kind === "account" ? ctx.accountRateLimiter : ctx.rateLimiter;
+}
+
+/** Periodic cleanup of expired jobs, sessions, tokens, quota ledgers and rate-limit buckets. */
 export async function runMaintenance(ctx: AppContext): Promise<void> {
   await ctx.store.pruneExpired();
+  await ctx.stores.sessions.removeExpired(ctx.now());
+  // A run that never settled (the process died mid-job) would hold its credit for the rest of the month.
+  // Live runs settle well inside the active-job TTL, so holds older than that are released. A late
+  // settle still charges correctly, because it shares the release row.
+  await ctx.stores.ledger.releaseStaleHolds(ctx.now() - ctx.config.jobTtl.activeMs, ctx.now());
   ctx.uploads.prune();
   ctx.quota.prune();
   ctx.rateLimiter.prune();
+  ctx.accountRateLimiter.prune();
+  ctx.signupLimiter.prune();
+  ctx.loginLimiter.prune();
 }

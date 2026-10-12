@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
 
-import type { CreditQuota } from "../quota/credit-quota.js";
+import type { Caller, Viewer } from "../caller.js";
+import type { Billing } from "../billing/billing.js";
+import { planDefinition } from "../billing/plans.js";
+import type { UserStore } from "../accounts/types.js";
 import type { UploadTokenStore } from "../upload/tokens.js";
-import type { JobStore } from "./job-store.js";
-import type { JobRunner, JobSource } from "./job-runner.js";
-import type { Job } from "./types.js";
+import type { WorkerTarget } from "../worker/types.js";
+import { canView } from "./ownership.js";
+import { LiveJobConflictError, type CreateOrReuseResult, type JobStore, type PageRequest } from "./job-store.js";
+import type { JobRunner } from "./job-runner.js";
+import type { Job, JobSummary } from "./types.js";
 
 export type RequestOutcome =
   | { readonly kind: "job"; readonly job: Job }
@@ -12,61 +17,112 @@ export type RequestOutcome =
 
 export type UploadStart = "accepted" | "not_found" | "not_failed" | "quota_exceeded";
 
+export type DeleteOutcome = "deleted" | "in_progress" | "not_found";
+
+/** A staged upload. `cleanup` removes its temp directory. */
 export interface UploadFile {
   readonly path: string;
   readonly cleanup: () => Promise<void>;
 }
 
+export interface UrlRequest {
+  readonly canonicalUrl: string;
+  readonly platform: string;
+  readonly language: string;
+  readonly caller: Caller;
+}
+
 export interface TranscriptionServiceDeps {
   readonly store: JobStore;
   readonly runner: JobRunner;
-  readonly quota: CreditQuota;
+  readonly billing: Billing;
+  readonly users: UserStore;
   readonly uploads: UploadTokenStore;
   readonly now: () => number;
   readonly sleep: (ms: number) => Promise<void>;
+  /** Server-wide cap on media length (MEDIA_MAX_SECONDS). Plans can only lower it. */
+  readonly mediaMaxSeconds: number;
 }
 
-export function dedupeKey(canonicalUrl: string, language: string): string {
-  return `${canonicalUrl}|${language}`;
-}
-
-export function isTerminal(job: Job): boolean {
-  return job.status === "succeeded" || job.status === "failed";
+interface StartInput {
+  readonly jobId: string;
+  readonly key: string;
+  readonly platform: string;
+  readonly language: string;
+  readonly caller: Caller;
+  readonly target: WorkerTarget;
+  readonly cleanup?: () => Promise<void>;
 }
 
 /**
- * Coordinates jobs for the MCP tools and the upload route. Dedupe, anonymous quota and
- * upload continuation live here; the runner only executes work.
+ * Coordinates jobs for MCP tools and REST routes: dedupe, billing holds, upload continuation and
+ * ownership lookups. The runner only executes work.
  */
 export class TranscriptionService {
   constructor(private readonly deps: TranscriptionServiceDeps) {}
 
-  /** Starts a transcription, or joins an identical live one (dedupe). Only new work reserves quota. */
-  async request(input: { canonicalUrl: string; language: string; ownerKey: string }): Promise<RequestOutcome> {
-    const key = dedupeKey(input.canonicalUrl, input.language);
+  /** Starts a transcription of a URL, or joins an identical live one. Only new work holds credits. */
+  async request(input: UrlRequest): Promise<RequestOutcome> {
+    const key = dedupeKeyFor(input.caller, input.canonicalUrl, input.language);
     const reused = await this.deps.store.findReusable(key);
     if (reused !== undefined) return { kind: "job", job: reused };
-
-    if (!this.deps.quota.tryReserve(input.ownerKey)) {
-      return { kind: "quota_exceeded", resetAt: this.deps.quota.resetAt(input.ownerKey) };
-    }
-    const { job, created } = await this.deps.store.createOrReuse({
-      id: newJobId(),
+    return this.start({
+      jobId: newJobId(),
       key,
+      platform: input.platform,
       language: input.language,
-      ownerKey: input.ownerKey,
+      caller: input.caller,
+      target: { kind: "url", url: input.canonicalUrl },
     });
-    if (!created) {
-      // Another request created the job between our lookup and insert: give the reservation back.
-      this.deps.quota.release(input.ownerKey);
-      return { kind: "job", job };
+  }
+
+  /** Starts a transcription of an uploaded file as a new job. Uploads are never deduped. */
+  async startFileJob(caller: Caller, file: UploadFile): Promise<RequestOutcome> {
+    const jobId = newJobId();
+    return this.start({
+      jobId,
+      key: `upload|${jobId}`,
+      platform: "upload",
+      language: "auto",
+      caller,
+      target: { kind: "file", path: file.path },
+      cleanup: file.cleanup,
+    });
+  }
+
+  /** Continues a failed job with an uploaded file under the same job_id (PRD 14). The owner pays. */
+  async continueFailedJob(jobId: string, file: UploadFile, clientKey: string): Promise<UploadStart> {
+    const job = await this.deps.store.get(jobId);
+    if (job === undefined) return "not_found";
+    if (job.status !== "failed") return "not_failed";
+    const payer = await this.payerFor(job, clientKey);
+    if (payer === undefined) return "not_found";
+    const outcome = await this.deps.billing.hold(payer, jobId);
+    if (!outcome.ok) return "quota_exceeded";
+    const requeued = await this.requeue(jobId);
+    if (requeued === undefined) {
+      await outcome.hold.settle(0);
+      return "not_failed";
     }
-    this.deps.runner.submit(job, { target: { kind: "url", url: input.canonicalUrl }, language: input.language });
-    return { kind: "job", job };
+    this.deps.uploads.revokeForJob(jobId);
+    this.deps.runner.submit(requeued, {
+      target: { kind: "file", path: file.path },
+      language: requeued.language,
+      maxSeconds: this.maxSecondsFor(payer),
+      settle: outcome.hold.settle,
+      cleanup: file.cleanup,
+    });
+    return "accepted";
   }
 
   get(jobId: string): Promise<Job | undefined> {
     return this.deps.store.get(jobId);
+  }
+
+  /** The job when the viewer may read it. Unknown and someone else's jobs look the same (404, never 403). */
+  async getVisible(jobId: string, viewer: Viewer): Promise<Job | undefined> {
+    const job = await this.deps.store.get(jobId);
+    return job !== undefined && canView(job, viewer) ? job : undefined;
   }
 
   /** Polls until the job is terminal or `timeoutMs` passes. Returns the latest snapshot. */
@@ -86,23 +142,78 @@ export class TranscriptionService {
     return this.deps.uploads.issue(jobId);
   }
 
-  /** Continues an existing failed job with an uploaded file (same job_id, PRD 14). */
-  async startUpload(jobId: string, file: UploadFile): Promise<UploadStart> {
-    const job = await this.deps.store.get(jobId);
-    if (job === undefined) return "not_found";
-    if (job.status !== "failed") return "not_failed";
-    if (!this.deps.quota.tryReserve(job.ownerKey)) return "quota_exceeded";
-
-    this.deps.uploads.revokeForJob(jobId);
-    await this.deps.store.update(jobId, { status: "queued", failure: null });
-    const source: JobSource = {
-      target: { kind: "file", path: file.path },
-      language: job.language,
-      cleanup: file.cleanup,
-    };
-    this.deps.runner.submit(job, source);
-    return "accepted";
+  listLibrary(userId: string, page: PageRequest): Promise<JobSummary[]> {
+    return this.deps.store.listForUser(userId, page);
   }
+
+  /** Deletes a finished job the viewer owns (or an anonymous job they hold the id of). Running jobs cannot be deleted. */
+  async deleteJob(jobId: string, viewer: Viewer): Promise<DeleteOutcome> {
+    if ((await this.getVisible(jobId, viewer)) === undefined) return "not_found";
+    if (await this.deps.store.removeFinished(jobId)) return "deleted";
+    return (await this.deps.store.get(jobId)) === undefined ? "not_found" : "in_progress";
+  }
+
+  private async start(input: StartInput): Promise<RequestOutcome> {
+    const outcome = await this.deps.billing.hold(input.caller, input.jobId);
+    if (!outcome.ok) return { kind: "quota_exceeded", resetAt: outcome.resetAt };
+    let created: CreateOrReuseResult;
+    try {
+      created = await this.deps.store.createOrReuse({
+        id: input.jobId,
+        key: input.key,
+        language: input.language,
+        platform: input.platform,
+        ownerUserId: input.caller.kind === "account" ? input.caller.userId : null,
+      });
+    } catch (error) {
+      await outcome.hold.settle(0).catch(() => undefined);
+      throw error;
+    }
+    if (!created.created) {
+      // Another request created the job between our lookup and insert: give the hold back.
+      await outcome.hold.settle(0);
+      return { kind: "job", job: created.job };
+    }
+    this.deps.runner.submit(created.job, {
+      target: input.target,
+      language: input.language,
+      maxSeconds: this.maxSecondsFor(input.caller),
+      settle: outcome.hold.settle,
+      cleanup: input.cleanup,
+    });
+    return { kind: "job", job: created.job };
+  }
+
+  private async requeue(jobId: string): Promise<Job | undefined> {
+    try {
+      return await this.deps.store.requeueFailed(jobId);
+    } catch (error) {
+      if (error instanceof LiveJobConflictError) return undefined;
+      throw error;
+    }
+  }
+
+  private maxSecondsFor(caller: Caller): number {
+    if (caller.kind === "anonymous") return this.deps.mediaMaxSeconds;
+    return Math.min(this.deps.mediaMaxSeconds, planDefinition(caller.plan).maxVideoSeconds);
+  }
+
+  /** Anonymous jobs are paid by whoever continues them; account jobs by their owner. */
+  private async payerFor(job: Job, clientKey: string): Promise<Caller | undefined> {
+    if (job.ownerUserId === null) return { kind: "anonymous", clientKey };
+    const owner = await this.deps.users.findById(job.ownerUserId);
+    return owner === undefined ? undefined : { kind: "account", userId: owner.id, plan: owner.plan };
+  }
+}
+
+/** Anonymous requests share one dedupe scope; each account has its own, so jobs never cross owners. */
+export function dedupeKeyFor(caller: Caller, canonicalUrl: string, language: string): string {
+  const scope = caller.kind === "account" ? `user:${caller.userId}` : "anonymous";
+  return `${scope}|${canonicalUrl}|${language}`;
+}
+
+export function isTerminal(job: Job): boolean {
+  return job.status === "succeeded" || job.status === "failed";
 }
 
 function newJobId(): string {

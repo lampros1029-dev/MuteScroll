@@ -2,9 +2,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { AppContext } from "../context.js";
 import { sendHtml, sendJson } from "../http/respond.js";
-import { containerMatchesExtension, extensionOf, isAllowedMimeType, sniffContainer } from "./media-types.js";
+import { headerString } from "../http/headers.js";
+import { acceptUpload, fileNameFromHeader, type UploadRejection } from "./accept.js";
 import { messagePageHtml, uploadPageCsp, uploadPageHtml } from "./page.js";
-import { readHead, stageUpload, UploadTooLargeError, type StagedUpload } from "./receive.js";
+import type { UploadFile } from "../jobs/transcription-service.js";
 
 interface UploadResult {
   readonly status: number;
@@ -53,51 +54,31 @@ async function handleUploadPost(
     const message = lease.reason === "used" ? LINK_USED : lease.reason === "busy" ? "An upload is already in progress for this link." : LINK_INVALID;
     return sendJson(res, status, { status: "error", message });
   }
-  const result = await acceptUpload(req, lease.jobId, clientKey, ctx);
+  const result = await acceptUploadFromLink(req, lease.jobId, clientKey, ctx);
   if (result.consumed) ctx.uploads.complete(token);
   else ctx.uploads.release(token);
   sendJson(res, result.status, result.body);
 }
 
-/** Validates headers, stages the file, sniffs its bytes and hands it to the job service. */
-async function acceptUpload(req: IncomingMessage, jobId: string, clientKey: string, ctx: AppContext): Promise<UploadResult> {
-  const reject = (status: number, message: string): UploadResult => ({
-    status,
-    body: { status: "error", message },
-    consumed: false,
-  });
-
+/** Validates headers, rate-limits, stages and sniffs the file, then hands it to the job service. */
+async function acceptUploadFromLink(req: IncomingMessage, jobId: string, clientKey: string, ctx: AppContext): Promise<UploadResult> {
   const limit = ctx.rateLimiter.hit(`upload:${clientKey}`);
   if (!limit.allowed) return reject(429, "Too many upload attempts. Wait a minute and try again.");
 
-  const extension = extensionOf(decodeFileName(req.headers["x-filename"]));
-  if (extension === null || !isAllowedMimeType(headerString(req.headers["content-type"]))) {
-    return reject(415, UNSUPPORTED_TYPE);
-  }
-
-  const maxBytes = ctx.config.maxUploadBytes;
-  if (Number(req.headers["content-length"] ?? 0) > maxBytes) {
-    return reject(413, tooLargeMessage(maxBytes));
-  }
-
-  let staged: StagedUpload;
-  try {
-    staged = await stageUpload(req, extension, maxBytes);
-  } catch (error) {
-    if (error instanceof UploadTooLargeError) return reject(413, tooLargeMessage(maxBytes));
-    return reject(400, "The upload was interrupted. Try again.");
-  }
-
-  const family = sniffContainer(await readHead(staged.path));
-  if (family === null || !containerMatchesExtension(extension, family)) {
-    await staged.cleanup();
-    return reject(415, UNSUPPORTED_TYPE);
-  }
-  return startJob(ctx, jobId, staged);
+  const contentLength = Number(req.headers["content-length"] ?? 0);
+  const accepted = await acceptUpload({
+    body: req,
+    fileName: fileNameFromHeader(req.headers["x-filename"]),
+    contentType: headerString(req.headers["content-type"]),
+    contentLength,
+    maxBytes: ctx.config.maxUploadBytes,
+  });
+  if (!accepted.ok) return rejectionResult(accepted.reason, ctx.config.maxUploadBytes);
+  return startJob(ctx, jobId, accepted.staged, clientKey);
 }
 
-async function startJob(ctx: AppContext, jobId: string, staged: StagedUpload): Promise<UploadResult> {
-  const outcome = await ctx.service.startUpload(jobId, staged);
+async function startJob(ctx: AppContext, jobId: string, staged: UploadFile, clientKey: string): Promise<UploadResult> {
+  const outcome = await ctx.service.continueFailedJob(jobId, staged, clientKey);
   switch (outcome) {
     case "accepted":
       return {
@@ -129,20 +110,25 @@ async function startJob(ctx: AppContext, jobId: string, staged: StagedUpload): P
   }
 }
 
+function rejectionResult(reason: UploadRejection, maxBytes: number): UploadResult {
+  switch (reason) {
+    case "unsupported_type":
+      return reject(415, UNSUPPORTED_TYPE);
+    case "too_large":
+      return reject(413, tooLargeMessage(maxBytes));
+    case "interrupted":
+      return reject(400, "The upload was interrupted. Try again.");
+    default: {
+      const unreachable: never = reason;
+      throw new Error(`Unhandled upload rejection: ${String(unreachable)}`);
+    }
+  }
+}
+
+function reject(status: number, message: string): UploadResult {
+  return { status, body: { status: "error", message }, consumed: false };
+}
+
 function tooLargeMessage(maxBytes: number): string {
   return `This file is larger than the ${Math.round(maxBytes / (1024 * 1024))} MB upload limit.`;
-}
-
-function headerString(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-/** Only the extension is read from this name; it is never used as a path. */
-function decodeFileName(raw: string | string[] | undefined): string {
-  const value = headerString(raw) ?? "";
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
 }

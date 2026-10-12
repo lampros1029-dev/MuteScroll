@@ -20,7 +20,11 @@ RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install /app/workers/media
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/api-mcp apps/api-mcp
-RUN npm ci && npm run build && npm prune --omit=dev
+# The web app deploys separately; only its manifest is needed so the lockfile still matches.
+COPY apps/web/package.json apps/web/package.json
+RUN npm ci --workspace=@mutescroll/shared --workspace=@mutescroll/api-mcp --include-workspace-root \
+ && npm run build --workspace=@mutescroll/shared --workspace=@mutescroll/api-mcp \
+ && npm prune --omit=dev --workspace=@mutescroll/shared --workspace=@mutescroll/api-mcp --include-workspace-root
 
 # Non-root runtime; uploads and the transcript cache live under /tmp and the home directory.
 RUN useradd --create-home --uid 10001 mutescroll
