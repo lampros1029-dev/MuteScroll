@@ -1,22 +1,20 @@
 import { createServer } from "node:http";
-import { PLATFORMS } from "@mutescroll/shared";
 
-/**
- * M0 skeleton. The remote MCP endpoint (`/mcp`, tools `transcribe_video` and
- * `get_transcription`) lands in M2; see PRD §8 and §22.
- */
-const port = Number(process.env["PORT"] ?? 8080);
+import { createContext, runMaintenance } from "./context.js";
+import { loadConfig } from "./config.js";
+import { logEvent } from "./log.js";
+import { createRequestHandler } from "./routes.js";
 
-const server = createServer((req, res) => {
-  if (req.method === "GET" && req.url === "/healthz") {
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", platforms: PLATFORMS }));
-    return;
-  }
-  res.writeHead(404, { "content-type": "application/json" });
-  res.end(JSON.stringify({ error: "not_found" }));
-});
+const MAINTENANCE_INTERVAL_MS = 60_000;
 
-server.listen(port, () => {
-  console.log(`mutescroll api-mcp listening on :${port}`);
+const config = loadConfig();
+const ctx = createContext(config);
+const server = createServer(createRequestHandler(ctx));
+
+setInterval(() => {
+  runMaintenance(ctx).catch(() => logEvent("maintenance.error"));
+}, MAINTENANCE_INTERVAL_MS).unref();
+
+server.listen(config.port, () => {
+  logEvent("server.listening", { port: config.port });
 });

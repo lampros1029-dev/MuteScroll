@@ -14,10 +14,18 @@ from .cache import TranscriptCache
 from .config import load_dotenv
 from .pipeline import DEFAULT_MAX_SECONDS, transcribe_file, transcribe_url
 from .sources import RetrievalError, YtDlpSource
+from .vendors import build_source
 
 
 def _cache_dir() -> Path:
     return Path(os.environ.get("MUTESCROLL_CACHE_DIR") or Path.home() / ".mutescroll" / "cache")
+
+
+def _fail(args: argparse.Namespace, code: str, exit_code: int) -> int:
+    """In --json mode, also emit a machine-readable error object on stdout (no message, no upstream detail)."""
+    if args.json:
+        print(json.dumps({"status": "error", "error": {"code": code, "exit_code": exit_code}}))
+    return exit_code
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = transcribe_url(
                 args.target,
-                source=YtDlpSource(),
+                source=build_source(YtDlpSource(), scrapecreators_key=os.environ.get("SCRAPECREATORS_API_KEY")),
                 asr=asr,
                 language=args.language,
                 max_seconds=args.max_seconds,
@@ -58,19 +66,19 @@ def main(argv: list[str] | None = None) -> int:
         if args.verbose and exc.detail:
             print(f"  detail: {exc.detail}", file=sys.stderr)
         print("Tip: if you can access the video, upload the file instead (same pipeline).", file=sys.stderr)
-        return 2
+        return _fail(args, exc.code, 2)
     except NoSpeechError as exc:
         print(f"no speech [{exc.code}]: {exc}", file=sys.stderr)
-        return 5
+        return _fail(args, exc.code, 5)
     except MediaError as exc:
         print(f"media processing failed: {exc}", file=sys.stderr)
-        return 6
+        return _fail(args, "media_error", 6)
     except AsrError as exc:
         print(f"transcription failed: {exc}", file=sys.stderr)
-        return 3
+        return _fail(args, "asr_error", 3)
     except PermissionError as exc:
         print(f"blocked: {exc}", file=sys.stderr)
-        return 4
+        return _fail(args, "blocked", 4)
 
     if args.json:
         print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))

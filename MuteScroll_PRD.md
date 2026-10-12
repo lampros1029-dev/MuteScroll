@@ -606,7 +606,7 @@ Named with Hormozi's MAGIC naming: **M**agnet reason (launch), **A**vatar (creat
 |---|---|---|
 | **M0 — Repo & skeleton** | Monorepo (`apps/api-mcp` TS, `workers/media` Python, `packages/shared` schemas), CI, `.env.example`, lint/test | CI green on empty services |
 | **M1 — Core pipeline** *(implemented 2026-10-12; see §22.1)* | URL normalize/validate, adapters (YT, TikTok, IG, FB), captions-first, yt-dlp audio-only, Groq ASR, segments, uncertain spans, cache | CLI transcribes the golden set; numeric-fidelity test passes |
-| **M2 — Remote MCP** | `transcribe_video`, `get_transcription`, async jobs, upload link, anonymous quotas | Works in Claude Desktop + ChatGPT Developer Mode end-to-end |
+| **M2 — Remote MCP** *(built 2026-10-12; client E2E pending, see §22.3)* | `transcribe_video`, `get_transcription`, async jobs, upload link, anonymous quotas | Works in Claude Desktop + ChatGPT Developer Mode end-to-end |
 | **M3 — Accounts & billing (web)** | Next.js web app, auth, OAuth for MCP, Paddle plans/credits, library, exports | Paid user flow end-to-end; entitlements enforced in MCP |
 | **M4 — Production hardening** | Residential egress, resolver health scoring, canaries, dashboards, failover ASR, privacy policy, ToS | 7-day canary ≥ targets in §5.3 |
 | **M5 — Directory submission** | Directory build (§4.2), widget UI, test prompts, demo account | Submitted to ChatGPT directory; Claude listing |
@@ -671,6 +671,16 @@ Engineering notes that change the earlier plan:
 
 Cost at 10,000 one-minute TikTok/Reel transcripts: ≈ $17–26 for the hybrid (ScrapeCreators credits ≈ $10–19, Groq ≈ $7, bandwidth negligible) versus ≈ $47 on Supadata Mega (20,000 credits). The hybrid wins at small scale (no subscription, $47 one-off top-up) and keeps our own timestamps and fidelity checks; the two converge at volume.
 
+### 22.3 M2 build status (2026-10-12)
+
+Built in `apps/api-mcp`: stateless Streamable HTTP `/mcp` with `transcribe_video` and `get_transcription`, in-memory async jobs with in-flight dedupe, one-time upload links (extension, MIME and magic-byte checks, size cap, single use), anonymous sliding-window quota and per-minute rate limits, and a subprocess bridge to the Python worker (argument array, `--`, allow-listed child environment, output cap, timeout).
+
+Open before M2 is declared done:
+- **Client E2E:** Claude Desktop, Cursor and ChatGPT Developer Mode against a public HTTPS URL, including each client's tool-call timeout (the 25 s inline wait may need tuning).
+- **Real-key paths:** ASR with the Groq key through the API, and upload to transcript with the real worker.
+- **Capability model:** `get_transcription` has no owner check; a `job_id` (random UUID) is the capability. Acceptable for anonymous use; revisit with accounts in M3 (bind jobs to the user).
+- **Deviations accepted:** `job_id` instead of `transcription_id`; no `eta_seconds`; no paging yet; raw-body upload with `X-Filename` instead of multipart; job, quota and token stores are in-memory and single-process (Postgres in M3).
+
 ## 23. Acceptance criteria (MVP)
 
 1. **YouTube / Shorts:** paste a URL, the host invokes MuteScroll, and a timestamped transcript appears; captions are used when present (`method: "captions"`).
@@ -695,7 +705,7 @@ Status as of 2026-10-12: all recommendations **accepted** and applied. Revisit o
 | D2 | Legal review of IG/TikTok/FB retrieval | ✅ Accepted | Review **before M5** (directory submission). Connector build (web, API, Claude/Cursor, ChatGPT Developer Mode) ships first regardless. |
 | D3 | Licensed third-party retrieval vendor | ✅ Accepted | Evaluate in M4 **only if** anonymous IG success < 60%. |
 | D4 | API/MCP host | ✅ Accepted | **Railway** for API + media workers. Move the API edge to Cloudflare Workers later if latency or cost demands. |
-| D5 | Anonymous usage | ✅ Accepted | **Anonymous: 5 credits**, then OAuth sign-in unlocks the free 20/month. |
+| D5 | Anonymous usage | ✅ Accepted | **Anonymous: 5 credits per rolling 24 h per client** (implemented as a sliding window, M2), then OAuth sign-in unlocks the free 20/month. |
 | D6 | Domain | ✅ Accepted (to register) | **mutescroll.xyz**, to be registered by the owner. `mutescroll.com` is already taken; `.app`, `.io` and `getmutescroll.com` looked free on 2026-10-12 as defensive options. Contact mailbox: mutescroll.xyz@gmail.com until domain mail exists. |
 | D7 | Founding Pass | ✅ Accepted | **$79/yr, first 500 members.** Revisit after 100 sales. |
 | D8 | Follow-up analysis (summarize, translate, fact-check) | ✅ Accepted | Done by the **host LLM**, never by MuteScroll (§8.5). |
