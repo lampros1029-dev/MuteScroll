@@ -12,7 +12,7 @@ export interface PlanDefinition {
   readonly priceUsdMonthly: number;
 }
 
-/** Plan -> limits table (PRD 20.2). Only `free` is assigned until paid plans ship in M3b. */
+/** Plan -> limits table (PRD 20.2). Paid plans are assigned by the Paddle webhook. Founding Pass entitles Pro. */
 const PLANS: Readonly<Record<PlanId, PlanDefinition>> = {
   free: { id: "free", name: "Free", monthlyCredits: 20, maxVideoSeconds: 10 * 60, priceUsdMonthly: 0 },
   creator: { id: "creator", name: "Creator", monthlyCredits: 400, maxVideoSeconds: 60 * 60, priceUsdMonthly: 7.99 },

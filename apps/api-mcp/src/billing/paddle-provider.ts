@@ -1,0 +1,73 @@
+import { randomBytes } from "node:crypto";
+
+import { readPaddleId, type BillingLinkStore } from "./billing-links.js";
+import { interpretPaddleNotification } from "./paddle-events.js";
+import { priceIdForCheckout } from "./paddle-config.js";
+import { verifyPaddleSignature } from "./paddle-signature.js";
+import { PaddleApiError, PaddleClient } from "./paddle-client.js";
+import {
+  BillingCustomerMissingError,
+  BillingNotConfiguredError,
+  type BillingProvider,
+  type CheckoutInput,
+  type CheckoutSession,
+  type PortalSession,
+  type WebhookVerification,
+} from "./provider.js";
+
+/** Paddle Billing (merchant of record). Checkout opens a transaction; plan changes arrive as webhooks. */
+export class PaddleBillingProvider implements BillingProvider {
+  readonly kind = "paddle" as const;
+
+  constructor(
+    private readonly client: PaddleClient,
+    private readonly webhookSecret: string | undefined,
+    private readonly prices: Readonly<Record<string, string>>,
+    private readonly links: BillingLinkStore,
+  ) {}
+
+  async createCheckout(input: CheckoutInput): Promise<CheckoutSession> {
+    const priceId = priceIdForCheckout(this.prices, input.plan, input.interval);
+    if (priceId === undefined) throw new BillingNotConfiguredError();
+    const checkoutNonce = randomBytes(18).toString("base64url");
+    if (!(await this.links.bind(checkoutNonce, input.userId))) throw new Error("Could not record the checkout");
+    const created = await this.client.createTransaction({ priceId, userId: input.userId, checkoutNonce });
+    const transactionId = readPaddleId(created.transactionId, "txn");
+    if (transactionId === null) throw new PaddleApiError(200);
+    if (!(await this.links.bind(transactionId, input.userId))) throw new Error("Could not record the checkout");
+    const customerId = readPaddleId(created.customerId, "ctm");
+    const subscriptionId = readPaddleId(created.subscriptionId, "sub");
+    if (customerId !== null && !(await this.links.bind(customerId, input.userId))) throw new Error("Could not record the checkout");
+    if (subscriptionId !== null && !(await this.links.bind(subscriptionId, input.userId))) throw new Error("Could not record the checkout");
+    return { transactionId, url: created.url };
+  }
+
+  async createPortalSession(userId: string): Promise<PortalSession> {
+    const customerId = (await this.links.idsForUser(userId)).find((id) => id.startsWith("ctm_"));
+    if (customerId === undefined) throw new BillingCustomerMissingError();
+    return { url: await this.client.createPortalSession(customerId) };
+  }
+
+  async cancelSubscriptions(userId: string): Promise<void> {
+    const subscriptionIds = (await this.links.idsForUser(userId)).filter((id) => id.startsWith("sub_"));
+    for (const subscriptionId of subscriptionIds) {
+      await this.client.cancelSubscription(subscriptionId);
+    }
+  }
+
+  verifyWebhook(rawBody: Uint8Array, signatureHeader: string | undefined, now: number): WebhookVerification {
+    if (this.webhookSecret === undefined || this.webhookSecret.trim() === "") return { ok: false, reason: "missing_signature" };
+    const signature = verifyPaddleSignature(rawBody, signatureHeader, this.webhookSecret, now);
+    if (!signature.ok) return signature;
+    const interpreted = interpretPaddleNotification(Buffer.from(rawBody).toString("utf8"), this.prices, now);
+    if (!interpreted.ok) return { ok: false, reason: "malformed" };
+    return {
+      ok: true,
+      eventId: interpreted.eventId,
+      eventType: interpreted.eventType,
+      change: interpreted.change,
+      subject: interpreted.subject,
+      claimedUserId: interpreted.claimedUserId,
+    };
+  }
+}

@@ -13,10 +13,10 @@ const ACCOUNT: Caller = { kind: "account", userId: "usr_1", plan: "free" };
 
 describe("plans (PRD 20.2)", () => {
   it("maps each plan to its monthly credits and longest video", () => {
-    expect(planDefinition("free")).toMatchObject({ monthlyCredits: 20, maxVideoSeconds: 600 });
-    expect(planDefinition("creator")).toMatchObject({ monthlyCredits: 400, maxVideoSeconds: 3600 });
-    expect(planDefinition("pro")).toMatchObject({ monthlyCredits: 1500, maxVideoSeconds: 10_800 });
-    expect(planDefinition("team")).toMatchObject({ monthlyCredits: 6000, maxVideoSeconds: 10_800 });
+    expect(planDefinition("free")).toMatchObject({ monthlyCredits: 20, maxVideoSeconds: 600, priceUsdMonthly: 0 });
+    expect(planDefinition("creator")).toMatchObject({ monthlyCredits: 400, maxVideoSeconds: 3600, priceUsdMonthly: 7.99 });
+    expect(planDefinition("pro")).toMatchObject({ monthlyCredits: 1500, maxVideoSeconds: 10_800, priceUsdMonthly: 16.99 });
+    expect(planDefinition("team")).toMatchObject({ monthlyCredits: 6000, maxVideoSeconds: 10_800, priceUsdMonthly: 49 });
   });
 
   it("lists the four plans in order, with no checkout links", () => {
