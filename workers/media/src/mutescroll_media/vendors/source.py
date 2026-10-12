@@ -12,6 +12,7 @@ from ..models import VideoMetadata
 from ..sources import CaptionResult, MediaSource, RetrievalError, SourceInfo, platform_of
 from ..ssrf import MAX_REDIRECTS, Resolver, assert_url_safe, media_host_allowed, system_resolver
 from .scrapecreators import ResolvedMedia, ScrapeCreatorsClient
+from .supadata import SupadataClient
 
 VENDOR_PLATFORMS: frozenset[str] = frozenset({"tiktok", "instagram"})
 MAX_MEDIA_BYTES = 300 * 1024**2
@@ -30,8 +31,10 @@ class VendorSource:
         *,
         http: httpx.Client | None = None,
         resolver: Resolver = system_resolver,
+        failover: SupadataClient | None = None,
     ) -> None:
         self._client = client
+        self._failover = failover
         self._http = http or httpx.Client(timeout=60.0, follow_redirects=False)
         self._resolver = resolver
         self._resolved: dict[str, ResolvedMedia] = {}  # one vendor credit per URL per run
@@ -53,11 +56,15 @@ class VendorSource:
                 author=resolved.author,
                 duration_seconds=resolved.duration_seconds,
                 content_type=None,
-            )
+            ),
+            source_url=url,
         )
 
     def fetch_captions(self, info: SourceInfo, language: str | None, *, automatic: bool) -> CaptionResult | None:
-        return None
+        # Reached with automatic=True only after the media download failed (see pipeline).
+        if not automatic or self._failover is None or info.source_url is None:
+            return None
+        return self._failover.transcript(info.source_url, language)
 
     def download_audio(self, url: str, workdir: Path) -> Path:
         resolved = self._resolved.get(url)
@@ -128,9 +135,11 @@ def build_source(
     default: MediaSource,
     *,
     scrapecreators_key: str | None,
+    supadata_key: str | None = None,
     client_factory: Callable[[str], ScrapeCreatorsClient] = ScrapeCreatorsClient,
 ) -> MediaSource:
     """Wire the vendor in only when a key is configured; otherwise behave exactly as before."""
     if not scrapecreators_key:
         return default
-    return RoutedSource(default, VendorSource(client_factory(scrapecreators_key)))
+    failover = SupadataClient(supadata_key) if supadata_key else None
+    return RoutedSource(default, VendorSource(client_factory(scrapecreators_key), failover=failover))

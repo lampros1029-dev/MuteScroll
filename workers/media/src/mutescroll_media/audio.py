@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -100,10 +101,67 @@ def plan_chunks(duration: float, chunk_seconds: float = CHUNK_SECONDS) -> list[t
     return windows
 
 
+_SILENCE_EVENT = re.compile(r"silence_(start|end): (-?\d+(?:\.\d+)?)")
+SNAP_WINDOW_SECONDS = 30.0
+
+
+def parse_silences(stderr: str) -> list[tuple[float, float]]:
+    """(start, end) pairs from ffmpeg `silencedetect` output. A trailing open silence is dropped."""
+    silences: list[tuple[float, float]] = []
+    open_start: float | None = None
+    for kind, value in _SILENCE_EVENT.findall(stderr):
+        if kind == "start":
+            open_start = max(float(value), 0.0)
+        elif open_start is not None:
+            silences.append((open_start, float(value)))
+            open_start = None
+    return silences
+
+
+def detect_silences(path: Path) -> list[tuple[float, float]]:
+    result = _run(
+        [
+            _require("ffmpeg"), "-nostdin", "-hide_banner", "-nostats",
+            "-i", str(path), "-af", "silencedetect=noise=-35dB:d=0.4", "-f", "null", "-",
+        ],  # fmt: skip
+    )
+    if result.returncode != 0:
+        return []  # chunking still works, just at fixed boundaries
+    return parse_silences(result.stderr)
+
+
+def snap_to_silence(
+    windows: list[tuple[float, float]],
+    silences: list[tuple[float, float]],
+    max_shift: float = SNAP_WINDOW_SECONDS,
+) -> list[tuple[float, float]]:
+    """Move each interior cut to the middle of the nearest silence within `max_shift` seconds,
+    so a word is not split across two ASR requests. Windows stay contiguous and cover the same span."""
+    if len(windows) < 2 or not silences:
+        return windows
+    total_end = windows[-1][0] + windows[-1][1]
+    cuts = [start for start, _ in windows[1:]]
+    snapped: list[float] = []
+    previous = 0.0
+    for cut in cuts:
+        best = cut
+        best_distance = max_shift
+        for begin, end in silences:
+            middle = (begin + end) / 2
+            distance = abs(middle - cut)
+            if distance <= best_distance and previous + 1.0 < middle < total_end - 1.0:
+                best, best_distance = middle, distance
+        snapped.append(best)
+        previous = best
+    edges = [0.0, *snapped, total_end]
+    return [(edges[i], edges[i + 1] - edges[i]) for i in range(len(edges) - 1)]
+
+
 def split_audio(source: Path, workdir: Path, duration: float, chunk_seconds: float = CHUNK_SECONDS) -> list[Chunk]:
     windows = plan_chunks(duration, chunk_seconds)
     if len(windows) == 1:
         return [Chunk(source, 0.0)]
+    windows = snap_to_silence(windows, detect_silences(source))
     chunks: list[Chunk] = []
     for index, (start, length) in enumerate(windows):
         target = workdir / f"chunk_{index:03d}.ogg"

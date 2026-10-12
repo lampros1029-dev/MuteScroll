@@ -48,6 +48,7 @@ class SourceInfo:
     manual_captions: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     automatic_captions: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     video_language: str | None = None
+    source_url: str | None = None
 
 
 class MediaSource(Protocol):
