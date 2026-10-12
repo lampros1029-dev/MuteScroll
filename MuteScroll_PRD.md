@@ -7,7 +7,7 @@
 | Version | PRD v2.0 (MVP scope) |
 | Date | 2026-10-12 |
 | Repo | [lampros1029-dev/MuteScroll](https://github.com/lampros1029-dev/MuteScroll) (private) |
-| Status | Draft — open decisions in §24 |
+| Status | Approved for build. Decisions D1–D8 accepted (§24); starting M0 |
 
 ### Changelog
 
@@ -258,7 +258,18 @@ Starts (and, for short media, completes) a transcription.
 
 ### 8.5 Not tools (handled elsewhere)
 
-Translation, summarization, quote extraction, and hook analysis are done by the **host LLM** on the transcript. Exposing them as tools would add cost and violate "one tool, one job". In V2 we may add `export_transcript` (SRT/VTT/DOCX link).
+Translation, summarization, quote extraction, hook analysis, fact-checking and "is this correct?" are done by the **host LLM** on the transcript. **MuteScroll never runs its own LLM on transcripts.** Reasons:
+
+1. **Cost:** we'd pay for tokens the user's ChatGPT/Claude subscription already covers; our margin stays ~99% because COGS is only retrieval + ASR.
+2. **Quality and context:** the host model sees the whole conversation (the user's goal, earlier videos, their tone) and we don't, which is also what the guidelines require us not to request.
+3. **Trust:** the transcript is the source of truth; analysis built on top of it is the host's and can be checked against it.
+4. **Policy:** "one tool, one job"; extra LLM tools invite review friction and "unofficial connector"-style objections.
+
+**Boundary:** MuteScroll owns *getting reliable text* (retrieval, ASR, timestamps, confidence, frames, export). The host owns *thinking about the text*. The only transformations we do are the mechanical ones in §11.1 (punctuation, segmentation, filler removal).
+
+**Exception (web app only, later):** features that need persistent or batch LLM work the host chat can't do (V4 cross-video research over a library, scheduled creator tracking) may use our own LLM calls. These are web/API products priced for that cost (§20), and never part of the ChatGPT tool surface.
+
+In V2 we may add `export_transcript` (SRT/VTT/DOCX link).
 
 ---
 
@@ -620,17 +631,20 @@ Named with Hormozi's MAGIC naming: **M**agnet reason (launch), **A**vatar (creat
 
 ---
 
-## 24. Open decisions (owner: Lampros)
+## 24. Decisions (owner: Lampros)
 
-| # | Decision | Recommendation |
-|---|---|---|
-| D1 | Billing provider: Stripe (+ Stripe Tax, we handle VAT filings) vs. Paddle / Lemon Squeezy (Merchant of Record handles EU VAT) | **Paddle or Lemon Squeezy** for launch simplicity as an EU solo founder; Stripe if a company entity + accountant already exist |
-| D2 | Legal review of URL retrieval for IG/TikTok/FB before directory submission | **Yes**, before M5; ship the connector build first regardless |
-| D3 | Licensed third-party retrieval vendor as fallback | Evaluate in M4 only if IG success < 60% |
-| D4 | API/MCP host: Railway vs. Cloudflare Workers | **Railway** for API + workers in one place at MVP; move edge/API to Workers later if needed |
-| D5 | Anonymous usage in ChatGPT/Claude vs. login-required | **Anonymous, 5 credits**, then sign-in for the full 20 (maximizes activation; still policy-compliant) |
-| D6 | Domain | `mutescroll.app` / `mutescroll.com` (check availability) |
-| D7 | Founding Pass price/cap | $79 / first 500, revisit after 100 sales |
+Status as of 2026-10-12: all recommendations **accepted** and applied. Revisit only on the stated trigger.
+
+| # | Decision | Status | Outcome / revisit trigger |
+|---|---|---|---|
+| D1 | Billing provider | ✅ Accepted | **Paddle** (Merchant of Record: handles EU VAT, invoicing and chargebacks). Billing code sits behind a `BillingProvider` interface so Stripe can replace it. Revisit if a company entity + accountant exist and fees matter. |
+| D2 | Legal review of IG/TikTok/FB retrieval | ✅ Accepted | Review **before M5** (directory submission). Connector build (web, API, Claude/Cursor, ChatGPT Developer Mode) ships first regardless. |
+| D3 | Licensed third-party retrieval vendor | ✅ Accepted | Evaluate in M4 **only if** anonymous IG success < 60%. |
+| D4 | API/MCP host | ✅ Accepted | **Railway** for API + media workers. Move the API edge to Cloudflare Workers later if latency or cost demands. |
+| D5 | Anonymous usage | ✅ Accepted | **Anonymous: 5 credits**, then OAuth sign-in unlocks the free 20/month. |
+| D6 | Domain | ✅ Accepted (to register) | **mutescroll.app**: checked 2026-10-12, appears unregistered. `mutescroll.com` is already taken; `.io` and `getmutescroll.com` also appear free as defensive options. Register `.app` now. |
+| D7 | Founding Pass | ✅ Accepted | **$79/yr, first 500 members.** Revisit after 100 sales. |
+| D8 | Follow-up analysis (summarize, translate, fact-check) | ✅ Accepted | Done by the **host LLM**, never by MuteScroll (§8.5). |
 
 ---
 

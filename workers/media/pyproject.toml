@@ -1,0 +1,14 @@
+[project]
+name = "mutescroll-media"
+version = "0.0.0"
+description = "MuteScroll media worker: retrieval, audio extraction, ASR routing (PRD section 9, 10)."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+# Added in M1: yt-dlp, httpx, groq, faster-whisper (self-host tier)
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
