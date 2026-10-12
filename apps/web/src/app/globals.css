@@ -399,6 +399,20 @@ svg {
   text-decoration: underline;
 }
 
+.site-nav button.nav-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.975rem;
+  cursor: pointer;
+}
+
+.site-nav button.nav-link:hover {
+  text-decoration: underline;
+}
+
 .site-nav .btn {
   color: var(--paper);
 }
@@ -1314,6 +1328,11 @@ code {
   color: var(--ink-soft);
 }
 
+.plan-tax {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
 .plan-facts {
   list-style: none;
   display: grid;
@@ -1705,71 +1724,8 @@ code {
   }
 }
 
-/* Motion that explains the product: the transcript arrives line by line, then the doubtful word is marked.
-   Only when motion is welcome; the final state is the default, so nothing depends on it. */
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(0.75rem);
-    }
-  }
-
-  @keyframes mark-in {
-    from {
-      background-color: transparent;
-      text-decoration-color: transparent;
-    }
-  }
-
-  .hero-copy > * {
-    animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-  }
-
-  .hero-copy > :nth-child(2) {
-    animation-delay: 0.08s;
-  }
-
-  .hero-copy > :nth-child(3) {
-    animation-delay: 0.16s;
-  }
-
-  .hero-copy > :nth-child(4) {
-    animation-delay: 0.24s;
-  }
-
-  .hero-sheet .transcript-head {
-    animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s backwards;
-  }
-
-  .hero-sheet .segment {
-    animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-  }
-
-  .hero-sheet .segment:nth-child(1) {
-    animation-delay: 0.45s;
-  }
-
-  .hero-sheet .segment:nth-child(2) {
-    animation-delay: 0.8s;
-  }
-
-  .hero-sheet .segment:nth-child(3) {
-    animation-delay: 1.15s;
-  }
-
-  .hero-sheet .segment:nth-child(4) {
-    animation-delay: 1.5s;
-  }
-
-  .hero-sheet .segment:nth-child(5) {
-    animation-delay: 1.85s;
-  }
-
-  .hero-sheet .flag {
-    animation: mark-in 0.5s ease 2.1s backwards;
-  }
-}
+/* Hero motion is GSAP (see components/cinematic). These keyframes were the previous
+   line-by-line arrival; they are gone so one animation system owns the page. */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1785,5 +1741,424 @@ code {
     animation: none;
     width: 100%;
     opacity: 0.25;
+  }
+
+  .motion-word,
+  .caption-sheet .segment,
+  .chapter-rail-fill,
+  [data-magnetic],
+  [data-mouse-depth] {
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+}
+
+/* ---------- Cinema frame ----------
+   A dark frame opening onto a warm paper sheet. The sample transcript is the
+   hero object. No generated imagery, no extra illustration paths.
+   Motion, when allowed, is GSAP + one Lenis instance. */
+
+html.lenis,
+html.lenis body {
+  scroll-behavior: auto;
+}
+
+#how,
+#fidelity,
+#connect,
+#faq {
+  scroll-margin-top: 5.25rem;
+}
+
+.motion-word-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  line-height: inherit;
+}
+
+.motion-word {
+  display: inline-block;
+}
+
+html.has-motion .caption-sheet .segment {
+  opacity: 0;
+}
+
+body:has(.cinema-stage) {
+  background: #100e0c;
+  scroll-padding-top: 5.25rem;
+}
+
+body:has(.cinema-stage) .site-main {
+  background: var(--paper);
+}
+
+body:has(.cinema-stage) .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: #100e0c;
+  border-bottom-color: rgba(243, 239, 230, 0.14);
+  color: #f3efe6;
+}
+
+body:has(.cinema-stage) .wordmark,
+body:has(.cinema-stage) .wordmark-mark,
+body:has(.cinema-stage) .site-nav a:not(.btn),
+body:has(.cinema-stage) .site-nav button.nav-link {
+  color: #f3efe6;
+}
+
+body:has(.cinema-stage) .site-nav a:not(.btn):hover,
+body:has(.cinema-stage) .site-nav button.nav-link:hover {
+  color: #ff8a5c;
+}
+
+body:has(.cinema-stage) .site-header :focus-visible,
+body:has(.cinema-stage) .site-footer :focus-visible,
+.cinema-stage :focus-visible {
+  outline-color: #ffb089;
+}
+
+body:has(.cinema-stage) .site-nav .btn-primary {
+  background: #b3361b;
+  border-color: #b3361b;
+  color: #fffaf4;
+}
+
+body:has(.cinema-stage) .site-nav .btn-primary:hover {
+  background: #8f2c16;
+  border-color: #8f2c16;
+  color: #fffaf4;
+}
+
+body:has(.cinema-stage) .site-footer {
+  background: #100e0c;
+  color: #f3efe6;
+  border-top-color: rgba(243, 239, 230, 0.16);
+}
+
+body:has(.cinema-stage) .site-footer a,
+body:has(.cinema-stage) .footer-name {
+  color: #f3efe6;
+}
+
+body:has(.cinema-stage) .footer-line,
+body:has(.cinema-stage) .footer-fine {
+  color: #d5cec2;
+}
+
+body:has(.cinema-stage) .site-footer a:hover {
+  color: #ff8a5c;
+}
+
+.cinema-stage {
+  color-scheme: dark;
+  background: #100e0c;
+  color: #f3efe6;
+  padding: 0.7rem;
+  box-shadow: inset 0 -3px 0 #b3361b;
+}
+
+.cinema-inset {
+  border: 1px solid rgba(243, 239, 230, 0.16);
+  padding: clamp(1.25rem, 3vw, 1.75rem) 0 clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.cinema-frame {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 2.75rem);
+}
+
+.cinema-slate {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d5cec2;
+}
+
+.cinema-copy {
+  display: grid;
+  align-content: start;
+  gap: 1.15rem;
+  min-width: 0;
+}
+
+.cinema-title {
+  color: #f6f2ea;
+  font-size: clamp(2.85rem, 6.2vw, 6.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.cinema-line {
+  display: block;
+}
+
+.cinema-stage .lede {
+  max-width: 34rem;
+  color: #d5cec2;
+}
+
+.cinema-stage .fine-print {
+  color: #d5cec2;
+}
+
+.cinema-stage .fine-print a {
+  color: #f6f2ea;
+  font-weight: 600;
+  text-decoration-color: #ff8a5c;
+}
+
+.cinema-stage .fine-print a:hover {
+  color: #ff8a5c;
+}
+
+.cinema-stage .field-label,
+.cinema-stage .field-hint {
+  color: #d5cec2;
+}
+
+.cinema-stage .field-error {
+  color: #ff8a5c;
+}
+
+.cinema-stage .field-input {
+  background: #fbf9f4;
+  color: #1d1b16;
+  border-color: #1d1b16;
+}
+
+.cinema-stage .field-input::placeholder {
+  color: #6e695d;
+}
+
+.cinema-stage .paste .btn-primary {
+  background: #b3361b;
+  border-color: #b3361b;
+  color: #fffaf4;
+}
+
+.cinema-stage .paste .btn-primary:hover {
+  background: #8f2c16;
+  border-color: #8f2c16;
+  color: #fffaf4;
+}
+
+.cinema-stage .paste {
+  margin-top: 0.15rem;
+}
+
+.caption-sheet {
+  margin: 0;
+  min-width: 0;
+}
+
+.cinema-stage .sheet-caption {
+  margin-bottom: 0.7rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #d5cec2;
+}
+
+.caption-paper {
+  --paper: #f6f2ea;
+  --paper-raised: #fbf9f4;
+  --paper-sunk: #ece6d9;
+  --ink: #1d1b16;
+  --ink-soft: #4b473d;
+  --ink-faint: #6e695d;
+  --rule: #d6cebe;
+  --accent: #b3361b;
+  --accent-tint: rgba(179, 54, 27, 0.12);
+  --focus: #b3361b;
+  color-scheme: light;
+  padding: clamp(1rem, 2.4vw, 1.45rem) clamp(1rem, 2.4vw, 1.5rem) 0.4rem;
+  background: var(--paper);
+  color: var(--ink);
+  border-top: 3px solid #b3361b;
+  box-shadow: 10px 14px 0 rgba(243, 239, 230, 0.06);
+}
+
+.caption-paper :focus-visible {
+  outline-color: #b3361b;
+}
+
+.caption-paper .transcript-head {
+  gap: 0.35rem;
+  padding-bottom: 0.75rem;
+}
+
+.caption-paper .transcript-title {
+  font-size: 1.28rem;
+}
+
+.caption-paper .segment {
+  padding-block: 0.48rem;
+}
+
+.chapters.section {
+  border-top: 0;
+}
+
+.chapter-block {
+  position: relative;
+}
+
+.chapter-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule);
+}
+
+.chapter-rail-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  transform: scaleY(1);
+  transform-origin: top center;
+}
+
+html.has-motion .chapter-rail-fill {
+  transform: scaleY(0);
+}
+
+.chapter-list {
+  list-style: none;
+  display: grid;
+  margin-left: 1.15rem;
+}
+
+.chapter {
+  display: grid;
+  gap: 0.35rem 1.5rem;
+  align-items: start;
+  padding-block: clamp(1.75rem, 4.5vw, 3.25rem);
+  border-top: 1px solid var(--rule);
+}
+
+.chapter-index {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(3rem, 6vw, 5.25rem);
+  line-height: 0.8;
+  letter-spacing: -0.04em;
+  color: var(--accent);
+}
+
+.chapter-copy {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+  padding-top: 0.35rem;
+}
+
+.chapter-title {
+  font-size: clamp(1.7rem, 3vw, 2.55rem);
+  line-height: 1.08;
+}
+
+.chapter-copy p:last-child {
+  max-width: 38rem;
+  color: var(--ink-soft);
+}
+
+.connect-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.connect-card {
+  gap: 0.7rem;
+  padding-block: clamp(1.35rem, 3vw, 2rem);
+  border-top: 1px solid var(--rule);
+}
+
+.closing-band {
+  background: #100e0c;
+  color: #f3efe6;
+  border-top: 1px solid rgba(243, 239, 230, 0.16);
+  padding-block: clamp(4rem, 10vw, 7.5rem);
+}
+
+.closing-band .section-title {
+  color: #f6f2ea;
+  max-width: 12em;
+}
+
+.closing-band .section-lede {
+  color: #d5cec2;
+}
+
+.closing-band .btn-primary {
+  background: #b3361b;
+  border-color: #b3361b;
+  color: #fffaf4;
+}
+
+.closing-band .btn-primary:hover {
+  background: #8f2c16;
+  border-color: #8f2c16;
+  color: #fffaf4;
+}
+
+.closing-band :focus-visible {
+  outline-color: #ffb089;
+}
+
+@media (min-width: 720px) {
+  .cinema-line {
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 760px) {
+  .chapter {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    column-gap: clamp(1.5rem, 4vw, 3.5rem);
+    align-items: baseline;
+  }
+
+  .chapter-copy {
+    padding-top: 0;
+  }
+}
+
+@media (min-width: 840px) {
+  .cinema-inset {
+    display: flex;
+    align-items: center;
+    min-height: calc(100svh - 5.7rem);
+    padding-bottom: clamp(1.5rem, 4vh, 2.75rem);
+  }
+
+  .cinema-frame {
+    width: 100%;
+    grid-template-columns: minmax(0, 1.05fr) minmax(18.5rem, 0.95fr);
+    column-gap: clamp(1.5rem, 3vw, 3rem);
+    align-items: start;
+  }
+
+  .cinema-slate,
+  .cinema-title {
+    grid-column: 1 / -1;
+  }
+
+  .caption-sheet {
+    align-self: end;
   }
 }

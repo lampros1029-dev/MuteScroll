@@ -9,8 +9,9 @@ Full spec: [`MuteScroll_PRD.md`](./MuteScroll_PRD.md).
 | Path | Purpose | Milestone |
 |---|---|---|
 | `packages/shared` | URL parsing, platform detection, URL safety, credit and timestamp rules (TypeScript) | M0 done |
+| `apps/web` | Next.js site (plain CSS): marketing, try, pricing, and connect | live on Railway |
 | `apps/api-mcp` | Remote MCP server (`/mcp`), REST API v1 (`/v1`), accounts and API keys, credit ledger, Postgres storage, async jobs, upload links, quotas | M2 (MCP, jobs, uploads, quotas), M3 backend (REST, accounts, credits, Postgres) |
-| `workers/media` | Retrieval, audio extraction, ASR routing, SSRF guard (Python) | skeleton; pipeline in M1 |
+| `workers/media` | Implemented pipeline: retrieval, silence-aware audio chunking, ASR, SSRF guard (Python) | M1 done |
 
 ## Develop
 
@@ -61,16 +62,28 @@ Connect a client:
 
 Run the tests with `npm test` (TypeScript) and `npm run test:media` (Python). The opt-in worker test runs with `MUTESCROLL_MEDIA_INTEGRATION=1`.
 
+## Run the website locally
+
+`apps/web` is a Next.js app. From the repo root, with the API already listening on port 8080:
+
+```bash
+npm run dev -w @mutescroll/web
+```
+
+The dev server listens on port 3000. It proxies API calls to `API_BASE_URL` (default `http://localhost:8080`). `NEXT_PUBLIC_MCP_URL` and `NEXT_PUBLIC_SITE_URL` are optional public URLs baked in at build time; local defaults are `http://localhost:8080/mcp` and `https://mutescroll.xyz`.
+
 ## REST API and accounts
 
 The same server also serves the REST API v1 under `/v1`. The full contract, with every status code and the list of deviations from the first draft, is in [`docs/rest-api.md`](docs/rest-api.md).
 
 - **Anonymous:** call `POST /v1/transcriptions` with no credentials. Quota is per IP.
 - **Accounts:** `POST /v1/auth/signup` and `POST /v1/auth/login` set an HttpOnly session cookie. Writes from the web app must echo the `ms_csrf` cookie in the `x-csrf-token` header.
-- **API keys:** create one in a signed-in session (`POST /v1/api-keys`, shown once), then send `Authorization: Bearer msk_...` to any `/v1` route or to `/mcp`.
+- **API keys:** Team plan only. Create one in a signed-in session (`POST /v1/api-keys`, shown once), then send `Authorization: Bearer msk_...` to any `/v1` route or to `/mcp`. Any other plan gets 403 `plan_required`. A key whose account is not on Team is rejected.
+- **OAuth:** ChatGPT, Claude, and Cursor can connect on every plan. `GET /v1/oauth/grants` lists those connections. `POST /oauth/revoke` removes one. The account page does both.
+- **Checkout and deletion:** a signed-in session starts checkout with `POST /v1/checkout` and opens the customer portal with `POST /v1/billing/portal`. `DELETE /v1/me` deletes the account, its transcripts, its keys, and its OAuth grants.
 - **Credits:** free accounts get 20 credits a month (UTC). A transcription costs 1 credit per started 10 minutes. Failed jobs are free.
 
-Accounts are not email-verified yet, because no email provider exists. Sign-ups and log-ins are rate-limited per IP instead.
+Email verification and password reset are implemented. Those routes answer 503 `email_not_configured` when the mailer variables are missing. Once mail can be sent, the forgot-password reply is the same whether or not the address exists. This file does not claim that mail is configured in production. Sign-ups and log-ins are rate-limited per IP.
 
 ## Postgres and migrations
 
@@ -101,3 +114,23 @@ $env:TEST_DATABASE_URL = "postgres://postgres:pw@localhost:55432/ms"
 npm test
 docker rm -f ms-pg
 ```
+
+## Production
+
+Production runs on Railway. Two images, matching the Dockerfiles:
+
+- The root `Dockerfile` is the API and the media worker (Node, Python, ffmpeg). The process is `node apps/api-mcp/dist/index.js`. `PORT` comes from the platform.
+- `Dockerfile.web` is the Next.js site only. It does not include the media worker. Build args are `API_BASE_URL`, `NEXT_PUBLIC_MCP_URL`, `NEXT_PUBLIC_SITE_URL`, and `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`.
+
+Run migrations as a release step before the API process starts (`npm run migrate -w @mutescroll/api-mcp` with `DATABASE_URL` set). The API refuses to start while migrations are pending.
+
+### Uptime and Postgres backups
+
+Neither check is configured in this repo, and this repo does not create a monitoring account.
+
+- Uptime: watch `https://mutescroll.xyz/` and `https://api.mutescroll.xyz/healthz` from an account you already have.
+- Backups: in the Railway project, turn on backups for the Postgres service, or schedule `pg_dump` of that database to storage you control. Do not treat the application database as the only copy.
+
+### Errors
+
+`SENTRY_DSN` is optional. When it is set, the API sends Sentry an envelope that contains the error class name only (no message, stack, URL, or request data). When it is unset, the hook does nothing and makes no outbound call. There is no Sentry SDK dependency.

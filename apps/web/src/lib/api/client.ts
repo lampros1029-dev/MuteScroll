@@ -3,7 +3,7 @@ import { uploadContentType, asciiFileName } from "../upload";
 import { parseOutcome } from "./parse";
 import type { ExportFormat, Failure, Outcome } from "./types";
 
-/** Same-origin prefix; next.config.ts rewrites it to the REST service. */
+/** Same-origin prefix. `app/api/[...path]/route.ts` proxies it to the REST service. */
 export const API_BASE = "/api/v1";
 
 export interface TranscribeInput {

@@ -575,7 +575,7 @@ Named with Hormozi's MAGIC naming: **M**agnet reason (launch), **A**vatar (creat
 
 - ChatGPT surfaces show **none** of the above. They show only the neutral limit messages with an informational link (§4.1, §13).
 - The same feature has the **same price** regardless of surface (no ChatGPT surcharge).
-- EU consumer law: 14-day withdrawal right covered by the 30-day refund. Show VAT-inclusive prices for EU customers.
+- EU consumer law: 14-day withdrawal right, plus the commercial 30-day refund. Catalog prices stay tax-exclusive in USD. Paddle adds VAT or sales tax for the buyer's country at checkout (`tax_mode: external`). The pricing page says the sticker is before tax.
 
 ---
 
@@ -631,7 +631,7 @@ Engineering notes that change the earlier plan:
 - yt-dlp needs a JavaScript runtime (Deno or Node) plus `yt-dlp-ejs` for YouTube. The worker refuses to run without one (`worker_misconfigured`).
 - Groq returns segment-level `avg_logprob` but no per-word probability, so **uncertain spans use segment confidence** (`exp(avg_logprob)` < 0.5). Word-level confidence arrives with ElevenLabs Scribe (premium tier) or a second provider.
 - Hallucinated non-speech segments are dropped (`no_speech_prob` > 0.85 and `avg_logprob` < -0.8).
-- Chunk cuts every 20 minutes are not yet silence-aware; fix before the 2 h limit is advertised.
+- Silence-aware chunking is implemented: chunk cuts snap to nearby silence.
 - Redirect hops are re-validated by DNS; a TOCTOU rebinding window remains, so the production worker also needs a network egress policy (§17).
 
 ---

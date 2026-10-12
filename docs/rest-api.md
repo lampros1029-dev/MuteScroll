@@ -18,7 +18,7 @@ Messages are copy from `apps/api-mcp/src/mcp/messages.ts` (PRD 13). Responses ne
 | 400 | `invalid_request`, `invalid_url`, `unsupported_url`, `unsafe_url`, `invalid_language`, `blocked` | Bad body, field, query or link. No work is started. |
 | 401 | `unauthorized`, `invalid_credentials` | A presented API key is unknown or malformed, or the endpoint needs an account. Wrong email or password gives the same answer for unknown addresses. |
 | 402 | `quota_exceeded` | Account has too few credits left this period. |
-| 403 | `forbidden`, `csrf_failed` | API keys cannot manage API keys. A cookie-authenticated write lacks a matching `x-csrf-token`. |
+| 403 | `forbidden`, `csrf_failed`, `plan_required`, `insufficient_scope` | API keys cannot manage API keys. A cookie-authenticated write lacks a matching `x-csrf-token`. Creating an API key requires the Team plan. An OAuth token lacks the scope that call needs. |
 | 404 | `not_found` | Unknown id, or a job the caller may not see. Never 403. |
 | 405 | `method_not_allowed` | `Allow` header lists the methods. |
 | 409 | `email_taken`, `not_ready`, `job_failed` | Address already registered. Export or delete while a job runs. Export of a failed job. |
@@ -28,15 +28,17 @@ Messages are copy from `apps/api-mcp/src/mcp/messages.ts` (PRD 13). Responses ne
 | 429 | `rate_limited`, `quota_exceeded` | Too many requests, or an anonymous caller's quota is spent. `Retry-After` gives seconds. |
 | 500 | `internal` | Our side failed. Worker-internal codes all map here. |
 | 502 | `retrieval_failed`, `private_or_login_required`, `blocked_bot_check`, `unavailable`, `asr_error` | The platform or the speech provider failed. Retrieval failures include `upload_url` and charge nothing. |
+| 503 | `billing_not_configured`, `email_not_configured` | Checkout or the billing portal has no configured price, or a route that would send mail has no mailer configured. This document does not claim that mail is configured in production. |
 
 ## Authentication
 
 - **Anonymous:** no credentials. Quota is keyed by client IP (`ANON_CREDITS` per 24 h, `ANON_REQUESTS_PER_MINUTE`).
-- **API key:** `Authorization: Bearer msk_...`. A key that is presented but not valid is a 401, never a silent fallback to anonymous.
+- **API key:** Team plan only. `Authorization: Bearer msk_...`. A key that is presented but not valid, or whose account is not on Team, is a 401, never a silent fallback to anonymous. `POST /v1/api-keys` on any other plan is 403 `plan_required`.
+- **OAuth access token:** `Authorization: Bearer` with a token from `/oauth/token`. This works on every plan. ChatGPT, Claude, and Cursor use it. Scopes are `transcribe` and `library:read`. A token that lacks the scope for that call is 403 `insufficient_scope`. Sessions and API keys are not scope-limited.
 - **Session cookie:** `ms_session`, set by sign-up and log-in. `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` when `PUBLIC_BASE_URL` is https. 30 days, sliding on use.
 - **CSRF:** a readable `ms_csrf` cookie is set alongside the session. A cookie-authenticated `POST` or `DELETE` must send `x-csrf-token` with the same value, or it gets 403 `csrf_failed`. Read the value from `document.cookie` and echo it.
 - **JSON bodies** must be sent as `Content-Type: application/json`. A cross-site form cannot do that without a CORS preflight, which is never granted.
-- **MCP** (`/mcp`) accepts Bearer keys only. Cookies are ignored there.
+- **MCP** (`/mcp`) accepts an OAuth access token on every plan, or a Team API key. Cookies are ignored there.
 
 ## Accounts
 
@@ -47,8 +49,12 @@ Messages are copy from `apps/api-mcp/src/mcp/messages.ts` (PRD 13). Responses ne
 | `POST /v1/auth/logout` | session + CSRF when cookie present | 204, clears both cookies |
 | `GET /v1/me` | account | `Me` body |
 | `GET /v1/api-keys` | account | `{ "items": [{ id, prefix, created_at, last_used_at }] }` |
-| `POST /v1/api-keys` | session + CSRF | 201 `{ id, key }`. The key is shown once. |
+| `POST /v1/api-keys` | session + CSRF, Team plan | 201 `{ id, key }`. The key is shown once. Other plans get 403 `plan_required`. |
 | `DELETE /v1/api-keys/:id` | session + CSRF | 204. 404 for another account's id. |
+| `GET /v1/oauth/grants` | session or Bearer | `{ "grants": [{ id, client_name, scope, created_at }] }`. Names and scopes only. `id` is the OAuth client id. No tokens or hashes. |
+| `DELETE /v1/me` | session + CSRF | 204. Deletes the account. The cascade removes transcripts, API keys, and OAuth grants, and cancels a Paddle subscription when one is stored. |
+| `POST /v1/checkout` | session + CSRF | Body `{ "plan": "creator" \| "pro" \| "team" \| "founding", "interval": "month" \| "year" }`. These map to the price keys `creator_month`, `creator_year`, `pro_month`, `pro_year`, `team_month`, `team_year`, and `founding` (`founding` uses the founding price). 200 `{ "url" }` is the Paddle checkout address. 503 `billing_not_configured` when that price is not configured. |
+| `POST /v1/billing/portal` | session + CSRF | 200 `{ "url" }` opens the Paddle customer portal. 503 `billing_not_configured` when billing is not configured. |
 
 Rules: email is trimmed and lower-cased, and must be a plausible address. Password is 10 to 128 characters. Passwords are stored as scrypt hashes with a per-user salt. Sign-ups are limited per IP (`AUTH_SIGNUPS_PER_IP_PER_HOUR`, default 5). Log-in attempts are limited per IP (`AUTH_LOGINS_PER_IP_PER_MINUTE`, default 10).
 
@@ -64,7 +70,32 @@ Keys have the form `msk_` plus 43 random base64url characters. Only a SHA-256 ha
 - Anonymous callers keep the IP quota and do not use credits.
 - The plan table is `apps/api-mcp/src/billing/plans.ts`.
 
-`GET /v1/plans` (public, no auth): `{ "plans": [{ id, name, monthly_credits, max_video_minutes, price_usd_monthly }] }`. It has no checkout links. Checkout happens only on the web app (M3b).
+`GET /v1/plans` (public, no auth): `{ "plans": [{ id, name, monthly_credits, max_video_minutes, price_usd_monthly }] }`. The list has no checkout URLs. Signed-in checkout is `POST /v1/checkout` on the website.
+
+### `POST /v1/paddle/webhook`
+
+Called by Paddle, not by the browser. No session, no API key, and no CSRF cookie. The only check is the `Paddle-Signature` header: HMAC-SHA256 of `ts` + `:` + the raw body, using the notification destination secret. A timestamp older than 5 minutes is rejected.
+
+`subscription.activated` and `subscription.updated` set the account's plan from the subscription's price id (`custom_data.user_id` is the account). `subscription.canceled` returns the account to free immediately, or at period end when Paddle's `scheduled_change` (or the billing period) is still in the future. Any other event is `200` and changes nothing. A repeated `event_id` is a no-op. A bad signature is `401`.
+
+The Founding Pass price entitles the Pro plan. It is not a fifth plan id.
+
+### `GET /v1/oauth/grants`
+
+Cookie session or Bearer (an OAuth access token, or a Team API key). 200 `{ "grants": [{ "id", "client_name", "scope", "created_at" }] }`. One row per connected client. `id` is the client id the account page uses to revoke. The body has no access tokens, refresh tokens, or hashes. 401 when the caller is anonymous.
+
+### `POST /oauth/revoke`
+
+Not under `/v1`. Two ways to call it:
+
+- Session cookie plus `x-csrf-token`. Body is `{ "grant_id": "<id from GET /v1/oauth/grants>" }`, `{ "client_id": "<same id>" }`, or `{ "token": "<access or refresh token>" }`. `grant_id` and `client_id` revoke that client for the signed-in account.
+- Bearer OAuth access token, with no body. That revokes the token's own family.
+
+200 `{ "revoked": true }`. The account page lists grants and revokes by `grant_id`.
+
+### Mail
+
+Routes that would send verification or password-reset mail respond `503` with `email_not_configured` when the mailer variables are missing. The same reply is used whether or not the address exists, once mail can be sent. This document does not claim that mail is configured in production.
 
 ## Transcriptions
 
@@ -91,7 +122,7 @@ An identical request from the same account, or from anonymous callers, returns t
 - `409 not_ready` while the job is still running.
 - `404` as above. Session + CSRF when cookie auth.
 
-### `GET /v1/transcriptions/:job_id/export?format=txt|md|srt|vtt|json`
+### `GET /v1/transcriptions/:job_id/export?format=txt|md|srt|vtt|json|docx`
 
 `format` defaults to `txt`. The response is an attachment: `Content-Disposition: attachment; filename="transcript-<job_id>.<ext>"`.
 
@@ -102,6 +133,7 @@ An identical request from the same account, or from anonymous callers, returns t
 | `srt` | `application/x-subrip` | Numbered cues, `HH:MM:SS,mmm --> HH:MM:SS,mmm` |
 | `vtt` | `text/vtt` | `WEBVTT`, then cues with `HH:MM:SS.mmm`. Markup in text is escaped. |
 | `json` | `application/json` | The Transcription object |
+| `docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | A Word file: title when present, then one paragraph per segment with its timestamp |
 
 Cue rules for `srt` and `vtt`: segments longer than 7 s or 84 characters are split at word boundaries, with time shared by character count. Cues never overlap or run backwards. Empty segments are dropped. A speaker label is printed only when the worker supplied one. Names are never invented.
 
@@ -170,7 +202,7 @@ These were decided while implementing M3. Each is also called out in `README.md`
 
 ## Known limits (M3)
 
-- No email verification or password reset yet: there is no email provider. Sign-up and log-in are limited per IP only.
+- Email verification and password reset are not claimed to be configured in production. When the mailer variables are missing, those routes respond `503` `email_not_configured`.
 - Rate limits, anonymous quota and upload links are per process, even with Postgres. They reset on restart.
 - Jobs run in the process that accepted them. A restart loses in-flight work, which then expires, so clients must treat a job that stops moving as failed after its active window.
 - A run holds 1 credit. A job can overdraw the balance by up to its plan's longest-job cost minus 1 (for example 5 credits on creator). The next run is then refused.

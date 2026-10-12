@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PricingPlans } from "../../components/pricing/pricing-plans";
+import { FoundingCheckout } from "../../components/pricing/checkout-button";
 import { formatUsd } from "../../lib/format";
-import { CREDIT_PACKS, FOUNDING_PASS, PLANS, type PlanFeatures, waitlistMailto } from "../../lib/pricing";
+import { TAX_NOTE } from "../../lib/legal";
+import { CREDIT_PACKS, FOUNDING_PASS, PLANS, type PlanFeatures } from "../../lib/pricing";
 
 export const metadata: Metadata = {
   title: "Plans and prices",
-  description:
-    "Planned MuteScroll plans: Free, Creator, Pro and Team / API. Informational only while billing is not live. Join the waitlist.",
+  description: "MuteScroll plans: Free, Creator, Pro, and Team. API keys are included with Team.",
   alternates: { canonical: "/pricing" },
 };
 
@@ -21,7 +22,7 @@ const COMPARE_ROWS: ReadonlyArray<{
   { label: "Where you can use it", key: "surfaces" },
   { label: "Frame checks†", key: "frameChecks" },
   { label: "Speaker labels†", key: "speakerLabels" },
-  { label: "Transcript library†", key: "library" },
+  { label: "Transcript library", key: "library" },
   { label: "Exports", key: "exports" },
   { label: "Bulk URLs†", key: "bulk" },
   { label: "Unused credits roll over", key: "rollover" },
@@ -42,17 +43,17 @@ export default function PricingPage() {
         <p className="kicker">Pricing</p>
         <h1 className="display-small">Plans and prices</h1>
         <p className="section-lede">
-          These are the plans we are planning. Billing is not live yet, so every button here joins the waitlist.
+          Choose a plan and continue to checkout. The plan on the account updates after Paddle confirms payment.
         </p>
       </header>
 
       <aside className="notice" aria-labelledby="notice-title">
         <h2 id="notice-title" className="notice-title">
-          Informational
+          Checkout
         </h2>
         <p>
-          Nothing is charged on this page. Prices may change before billing opens. Free anonymous use is available now
-          in the <Link href="/try">transcriber</Link>.
+          A signed-in account continues to Paddle from the plan button. If billing is not open yet, the button says so.{" "}
+          {TAX_NOTE} Free anonymous use is available now in the <Link href="/try">transcriber</Link>.
         </p>
       </aside>
 
@@ -80,9 +81,7 @@ export default function PricingPage() {
             <li>Double frame checks for life (planned, once frame checks ship)</li>
           </ul>
         </div>
-        <a className="btn btn-primary btn-large" href={waitlistMailto("Founding Pass", "Please hold a Founding Pass for me.")}>
-          Join the waitlist for the Founding Pass
-        </a>
+        <FoundingCheckout />
       </section>
 
       <section className="section" aria-labelledby="guarantee-title">
@@ -92,7 +91,10 @@ export default function PricingPage() {
         <ul className="rules">
           <li className="rule">
             <h3 className="rule-title">30-day full refund.</h3>
-            <p>If a paid plan is not right for you, you get a full refund within 30 days. No questions asked.</p>
+            <p>
+              If a paid plan is not right for you, you get a full refund within 30 days of that payment. The{" "}
+              <Link href="/refunds">refunds page</Link> is the rule, including how cancellation works.
+            </p>
           </li>
           <li className="rule">
             <h3 className="rule-title">Failed jobs never use credits.</h3>
@@ -160,8 +162,9 @@ export default function PricingPage() {
           </table>
         </div>
         <p className="fine-print">
-          † Planned. Frame checks, speaker labels, library, bulk URLs and API keys ship in later releases (V1.1 to V3).
-          DOCX export is planned. EU customers will see VAT-inclusive prices at checkout.
+          † Planned. Frame checks, speaker labels, and bulk URLs ship in later releases. The transcript library is on this
+          site. API keys are included with Team. DOCX export is available. The prices in this table are before VAT and
+          sales tax.
         </p>
       </section>
     </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AccountNav } from "./account-nav";
 import { SITE_NAME } from "../lib/site";
 
 export function SiteHeader() {
@@ -25,6 +26,7 @@ export function SiteHeader() {
             <li>
               <Link href="/pricing">Pricing</Link>
             </li>
+            <AccountNav />
             <li>
               <Link href="/try" className="btn btn-primary btn-small">
                 Transcribe

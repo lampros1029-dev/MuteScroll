@@ -56,5 +56,5 @@ export type Outcome =
   | { kind: "processing"; jobId: string }
   | { kind: "error"; jobId?: string; failure: Failure };
 
-export const EXPORT_FORMATS = ["txt", "md", "srt", "vtt", "json"] as const;
+export const EXPORT_FORMATS = ["txt", "md", "srt", "vtt", "json", "docx"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];

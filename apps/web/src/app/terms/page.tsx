@@ -1,100 +1,165 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { CONTACT_EMAIL } from "../../lib/site";
+import { LegalDocument } from "../../components/legal-document";
+import {
+  CONTACT_MAILTO,
+  MIN_PAID_AGE,
+  OPERATOR_ADDRESS,
+  OPERATOR_NAME,
+  PADDLE_BUYER_TERMS_URL,
+  REFUND_DAYS,
+} from "../../lib/legal";
+import { CONTACT_EMAIL, SITE_NAME } from "../../lib/site";
 
 export const metadata: Metadata = {
-  title: "Terms (draft)",
-  description: "The terms for using MuteScroll's transcription website and API. Draft, pending legal review.",
+  title: "Terms",
+  description: "The terms for using MuteScroll's transcription website and API.",
   alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {
   return (
-    <div className="container page legal">
-      <header className="page-head">
-        <p className="draft-badge">Draft, pending legal review</p>
-        <h1 className="display-small">Terms of use</h1>
-        <p className="section-lede">
-          These terms apply to the MuteScroll website and the transcription service. Last updated 12 October 2026.
-        </p>
-      </header>
-
+    <LegalDocument
+      title="Terms of use"
+      lede={`These terms apply to the ${SITE_NAME} website, the transcription service, and the API.`}
+    >
       <section aria-labelledby="service">
         <h2 id="service">1. What MuteScroll does</h2>
         <p>
           MuteScroll turns public video links and files you upload into timestamped text. It returns text only. It does
-          not return the video or audio, and it does not summarize, translate or give advice. Your assistant does that
+          not return the video or audio, and it does not summarize, translate, or give advice. Your assistant does that
           with the text.
         </p>
       </section>
 
+      <section aria-labelledby="who">
+        <h2 id="who">2. Who operates the service</h2>
+        <p>
+          {SITE_NAME} is operated by {OPERATOR_NAME}, an individual in {OPERATOR_ADDRESS}. Contact:{" "}
+          <a href={CONTACT_MAILTO}>{CONTACT_EMAIL}</a>. A paid plan is sold by Paddle, the
+          merchant of record, under <a href={PADDLE_BUYER_TERMS_URL}>Paddle&apos;s buyer terms</a>. The receipt names
+          Paddle. MuteScroll licenses and runs the transcription service.
+        </p>
+      </section>
+
       <section aria-labelledby="content">
-        <h2 id="content">2. Content you submit</h2>
+        <h2 id="content">3. Content you submit</h2>
         <p>
           You may only submit content you have the right to process. By submitting a link or a file you confirm that you
           have that right. You are responsible for complying with the terms of the platform where the content lives. We
-          never access private, login-only, DRM-protected or paywalled content, and you must not ask us to.
+          never access private, login-only, DRM-protected, or paywalled content, and you must not ask us to.
+        </p>
+        <p>
+          You keep your file. You give us a limited licence to process the link or the file only to produce the
+          transcript, to show it to you, and to keep it for the retention period in the{" "}
+          <Link href="/privacy">privacy page</Link>. We do not use your media, uploads, or transcripts to train models.
+          We do not claim the copyright in someone else&apos;s video or in the words spoken in it.
         </p>
       </section>
 
       <section aria-labelledby="use">
-        <h2 id="use">3. Acceptable use</h2>
+        <h2 id="use">4. Acceptable use</h2>
         <ul>
-          <li>Do not try to bypass logins, bot checks, rate limits or other access controls.</li>
-          <li>Do not automate requests to the service beyond what the published API allows.</li>
+          <li>Do not try to bypass logins, bot checks, rate limits, or other access controls.</li>
+          <li>Do not automate requests beyond what the published API allows.</li>
           <li>Do not redistribute media, or publish transcripts of content you do not have the right to publish.</li>
+          <li>Do not share an API key, or use the API to resell transcription as your own service.</li>
         </ul>
       </section>
 
       <section aria-labelledby="accuracy">
-        <h2 id="accuracy">4. Accuracy</h2>
+        <h2 id="accuracy">5. Accuracy</h2>
         <p>
           Transcripts are produced by automated speech recognition. They can contain errors. Uncertain words are flagged.
-          Check names, numbers and quotes against the audio before you rely on or publish them. Transcripts are not
-          professional, legal or medical advice.
+          Check names, numbers, and quotes against the audio before you rely on them or publish them. A transcript is not
+          professional, legal, or medical advice.
+        </p>
+      </section>
+
+      <section aria-labelledby="accounts">
+        <h2 id="accounts">6. Accounts</h2>
+        <p>
+          You need an email address and a password to open an account. You are responsible for activity under that
+          account. Paid use is for people aged {MIN_PAID_AGE} or over. You can delete the account on the{" "}
+          <Link href="/account">account page</Link>. That removes the account and its transcripts. You can also ask by
+          email, and we complete that request within 30 days.
         </p>
       </section>
 
       <section aria-labelledby="credits">
-        <h2 id="credits">5. Limits, credits and failed jobs</h2>
+        <h2 id="credits">7. Credits, plans, and tax</h2>
         <p>
-          Anonymous use is limited by a rolling allowance. One credit covers up to 10 minutes of audio. A job that fails
-          does not use a credit. Plans, prices and limits shown on the pricing page are planned and informational until
-          billing opens; we will update these terms before any charge is made.
+          Anonymous use is a rolling allowance. One credit covers up to 10 minutes of audio. Each started 10 minutes
+          costs one credit. A job that fails does not use a credit. On a paid plan, unused monthly credits roll over up
+          to twice the monthly allowance. Credit packs do not expire while the subscription stays active, and they are
+          sold on the website only.
+        </p>
+        <p>
+          The prices on the <Link href="/pricing">pricing page</Link> are catalog prices in US dollars. They do not
+          include VAT or sales tax. A signed-in person starts checkout on this website. Paddle adds the tax for your
+          country at checkout and shows the total before you pay.
+        </p>
+      </section>
+
+      <section aria-labelledby="billing">
+        <h2 id="billing">8. Cancellation and refunds</h2>
+        <p>
+          You can cancel a paid plan in the Paddle portal linked from your receipt. Cancellation stops the next charge.
+          Access continues until the end of the period you have already paid for. You can ask for a refund of the last
+          payment within {REFUND_DAYS} days of that payment, and we will approve it in Paddle. The{" "}
+          <Link href="/refunds">refunds page</Link> is the full rule, including the separate statutory withdrawal right
+          that Paddle provides to consumers in the EU, the EEA, and the UK.
         </p>
       </section>
 
       <section aria-labelledby="takedown">
-        <h2 id="takedown">6. Takedown requests</h2>
+        <h2 id="takedown">9. Reports and takedown</h2>
         <p>
-          If you believe content has been processed in breach of your rights, email{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> with the link. We will remove cached results for that
-          link and respond within a reasonable time.
+          If you believe a transcript should be removed, email <a href={CONTACT_MAILTO}>{CONTACT_EMAIL}</a> with the
+          link, why you believe it should come down, and how we can reach you. The same path is on the{" "}
+          <Link href="/privacy#report">privacy page</Link>. We remove cached results for that link and reply.
         </p>
       </section>
 
       <section aria-labelledby="availability">
-        <h2 id="availability">7. Availability</h2>
+        <h2 id="availability">10. Availability and suspension</h2>
         <p>
-          The service is provided as is while it is in early access. Some platforms refuse retrieval at times, and
-          retrieval success is not guaranteed. Upload always remains available as an alternative.
+          The service is provided while it is in early access. Some platforms refuse retrieval, and retrieval success is
+          not guaranteed. Upload remains available as the alternative. We may suspend an account that breaks these terms.
+          We will tell you when we do, unless we have to stop an active attack first.
         </p>
       </section>
 
       <section aria-labelledby="liability">
-        <h2 id="liability">8. Liability</h2>
+        <h2 id="liability">11. Liability</h2>
         <p>
-          [To be completed by counsel. Limitations of liability and warranties must comply with applicable consumer law.]
+          If you are a consumer in the European Union, you keep the rights the law
+          gives you, including a digital service that matches the description we publish. Nothing in these terms limits
+          liability for fraud, for death or personal injury caused by negligence, or for any other liability the law
+          says cannot be limited.
+        </p>
+        <p>
+          For other claims, and for customers who use MuteScroll for a business, our total liability arising in a period
+          of 12 months is limited to the amount paid for your MuteScroll plan during the 3 months before the claim. We
+          are not liable for lost profits, or for a decision you take from a transcript.
         </p>
       </section>
 
       <section aria-labelledby="law">
-        <h2 id="law">9. Law and changes</h2>
+        <h2 id="law">12. Law and changes</h2>
         <p>
-          [Governing law and forum to be confirmed by counsel.] We may update these terms and will post changes here
-          before they take effect.
+          MuteScroll is offered worldwide. The operator is established in Athens, Greece. If you are a consumer, you keep
+          the mandatory consumer rights of the country where you live, and you may bring a claim in the courts of that
+          country. If you use MuteScroll for a business, these terms are governed by the laws of Greece, and the courts
+          of Athens hear the claim, except where a mandatory rule in your country requires a different court. The
+          operator's Greek tax registration is described on the <Link href="/legal">legal notice</Link>.
+        </p>
+        <p>
+          We may update these terms. We will post the new version here before it takes effect. If you have an account and
+          the change affects a paid plan, we will email you.
         </p>
       </section>
-    </div>
+    </LegalDocument>
   );
 }

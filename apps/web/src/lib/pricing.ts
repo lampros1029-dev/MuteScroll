@@ -2,8 +2,11 @@ import { CONTACT_EMAIL, SITE_NAME } from "./site";
 import { formatUsd } from "./format";
 
 /**
- * Plans exactly as written in PRD section 20.2. Billing is not live: these are informational
- * and every call to action is a waitlist email (see `waitlistMailto`).
+ * Plans exactly as written in PRD section 20.2. Amounts are USD catalog prices before VAT
+ * and sales tax. Paddle checkout adds the buyer's country tax (`tax_mode: external`).
+ * Do not raise a price to clear $10: Paddle's under-$10 note is a fee quote, and the
+ * Billing API already accepts these amounts. Signed-in checkout starts from the pricing page.
+ * `waitlistMailto` remains for notes that are not a purchase.
  */
 
 export type Cadence = "monthly" | "annual";

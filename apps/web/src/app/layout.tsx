@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { MotionRoot } from "../components/cinematic/motion-root";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "../lib/site";
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <a className="skip-link" href="#main">
           Skip to content
         </a>
+        <MotionRoot />
         <SiteHeader />
         <main id="main" tabIndex={-1} className="site-main">
           {children}

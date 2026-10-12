@@ -7,10 +7,10 @@ import {
   annualSavingsPercent,
   PLANS,
   priceFor,
-  waitlistMailto,
   type Cadence,
   type Plan,
 } from "../../lib/pricing";
+import { CheckoutButton, useSignedIn } from "./checkout-button";
 
 const CADENCE_LABELS: Readonly<Record<Cadence, string>> = {
   monthly: "Monthly",
@@ -20,6 +20,7 @@ const CADENCE_LABELS: Readonly<Record<Cadence, string>> = {
 /** Plan cards with a monthly / annual toggle. Annual is the default, as in PRD 20.4. */
 export function PricingPlans() {
   const [cadence, setCadence] = useState<Cadence>("annual");
+  const signedIn = useSignedIn();
 
   return (
     <div className="plans">
@@ -39,18 +40,25 @@ export function PricingPlans() {
 
       <ul className="plan-grid">
         {PLANS.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} cadence={cadence} />
+          <PlanCard key={plan.id} plan={plan} cadence={cadence} signedIn={signedIn} />
         ))}
       </ul>
     </div>
   );
 }
 
-function PlanCard({ plan, cadence }: { readonly plan: Plan; readonly cadence: Cadence }) {
+function PlanCard({
+  plan,
+  cadence,
+  signedIn,
+}: {
+  readonly plan: Plan;
+  readonly cadence: Cadence;
+  readonly signedIn: boolean;
+}) {
   const price = priceFor(plan, cadence);
   const saving = cadence === "annual" ? annualSavingsPercent(plan) : null;
   const isFree = plan.monthlyUsd === 0;
-  const cadenceName = cadence === "annual" ? "annual" : "monthly";
 
   return (
     <li className={plan.recommended ? "plan plan-recommended" : "plan"}>
@@ -66,11 +74,12 @@ function PlanCard({ plan, cadence }: { readonly plan: Plan; readonly cadence: Ca
       </p>
       <p className="plan-subprice">
         {isFree
-          ? "No card needed. Billing isn't live yet."
+          ? "No card needed."
           : price.perMonthUsd !== null
             ? `${formatUsd(price.perMonthUsd)} per month, billed yearly${saving !== null ? `. Save ${saving}%` : ""}`
             : "Billed monthly."}
       </p>
+      {isFree ? null : <p className="plan-tax">Plus VAT or sales tax for your country.</p>}
 
       <ul className="plan-facts">
         <li>
@@ -88,14 +97,19 @@ function PlanCard({ plan, cadence }: { readonly plan: Plan; readonly cadence: Ca
       </ul>
 
       {isFree ? (
-        <p className="plan-cta-note">Anonymous use is open now. Free accounts arrive with sign-up.</p>
-      ) : (
-        <a
+        <>
+          <p className="plan-cta-note">Anonymous use is open now.</p>
+          <a className="btn plan-cta" href="/signup">
+            Create a free account
+          </a>
+        </>
+      ) : plan.id === "free" ? null : (
+        <CheckoutButton
+          plan={plan.id}
+          interval={cadence === "annual" ? "year" : "month"}
           className={plan.recommended ? "btn btn-primary plan-cta" : "btn plan-cta"}
-          href={waitlistMailto(`${plan.name}, ${cadenceName}`, `Please tell me when ${plan.name} (${cadenceName}) is available.`)}
-        >
-          Join the waitlist
-        </a>
+          signedIn={signedIn}
+        />
       )}
     </li>
   );
