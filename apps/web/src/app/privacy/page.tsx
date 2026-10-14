@@ -110,7 +110,7 @@ export default function PrivacyPage() {
       <section aria-labelledby="processors">
         <h2 id="processors">Who processes data for us</h2>
         <p>
-          The named list, the country, and whether a contract is signed are on the{" "}
+          The named list and the country are on the{" "}
           <Link href="/subprocessors">subprocessors page</Link>. In short:
         </p>
         <ul>
@@ -138,8 +138,12 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          The contracts with these providers are not signed yet. Groq processes audio in the United States, and the
-          contract will name the safeguard for that transfer. We will update this page when a provider changes.
+          Groq, Supadata, Railway, Cloudflare, ScrapeCreators, and Paddle are accepted. Groq&apos;s data controls were
+          accepted in the Groq console, and Zero Data Retention is enabled for inference.{" "}
+          <a href="https://console.groq.com/docs/your-data">Groq&apos;s published data documentation</a> states that
+          customer data that is retained is stored in Google Cloud in the United States, and that customers can rely on
+          standard contractual clauses for that transfer. That is Groq&apos;s published position. Paddle is the merchant
+          of record. We will update this page when a provider changes.
         </p>
       </section>
 

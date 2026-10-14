@@ -2,13 +2,13 @@ import { CONTACT_EMAIL, SITE_NAME } from "./site";
 
 /** Published operator identity and the dates on the legal pages. */
 
-export const LEGAL_UPDATED = "12 October 2026";
+export const LEGAL_UPDATED = "14 October 2026";
 
 /** Published operator. An individual in Athens. */
 export const OPERATOR_NAME = "Labros Aggelopoulos";
 
-/** City-level correspondence line. A street address is still for counsel to add before launch. */
-export const OPERATOR_ADDRESS = "Athens, Greece";
+/** Correspondence address. */
+export const OPERATOR_ADDRESS = "Arionos 17, Peristeri, Greece";
 
 /** Host and application logs are capped at this many days. */
 export const LOG_RETENTION_DAYS = 30;

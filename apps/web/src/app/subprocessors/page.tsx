@@ -20,31 +20,31 @@ const ROWS: ReadonlyArray<{
     name: "Groq",
     role: "Speech-to-text on the audio we send.",
     where: "United States",
-    contract: "Not signed",
+    contract: "Accepted in the Groq console. Zero Data Retention is enabled for inference.",
   },
   {
     name: "ScrapeCreators",
     role: "Media lookup for TikTok and Instagram links, where that route is enabled.",
     where: "To be confirmed before launch",
-    contract: "Not signed",
+    contract: "Accepted by signing in to the ScrapeCreators console for mutescroll.xyz@gmail.com.",
   },
   {
     name: "Supadata",
     role: "Vendor captions when the video itself cannot be fetched.",
     where: "To be confirmed before launch",
-    contract: "Not signed",
+    contract: "Accepted in the Supadata console. The data-processing agreement applies automatically as part of the Terms.",
   },
   {
     name: "Railway",
     role: "Hosts the website, the API, and the media worker.",
     where: "The region configured for the service",
-    contract: "Not signed",
+    contract: "Accepted by signing in to the Railway account that runs the mutescroll project.",
   },
   {
     name: "Cloudflare",
     role: "DNS and HTTPS.",
     where: "Global network",
-    contract: "Not signed",
+    contract: "Accepted by signing in to the Cloudflare account for mutescroll.xyz.",
   },
 ];
 
@@ -83,7 +83,7 @@ export default function SubprocessorsPage() {
       <section aria-labelledby="paddle">
         <h2 id="paddle">Paddle</h2>
         <p>
-          Paddle is the merchant of record and the seller on a paid receipt. Paddle handles the card and is the
+          The contract is accepted through the verified Paddle seller account. Paddle is the merchant of record and the seller on a paid receipt. Paddle handles the card and is the
           controller of that payment data, under <a href={PADDLE_PRIVACY_URL}>Paddle&apos;s privacy notice</a>. MuteScroll
           stores the plan and the Paddle customer, subscription, and transaction ids. MuteScroll does not store the card
           number.

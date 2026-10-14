@@ -149,7 +149,7 @@ export default function TermsPage() {
       <section aria-labelledby="law">
         <h2 id="law">12. Law and changes</h2>
         <p>
-          MuteScroll is offered worldwide. The operator is established in Athens, Greece. If you are a consumer, you keep
+          MuteScroll is offered worldwide. The operator is established in {OPERATOR_ADDRESS}. If you are a consumer, you keep
           the mandatory consumer rights of the country where you live, and you may bring a claim in the courts of that
           country. If you use MuteScroll for a business, these terms are governed by the laws of Greece, and the courts
           of Athens hear the claim, except where a mandatory rule in your country requires a different court. The
