@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
+import { GoogleMark } from "../../components/auth/provider-marks";
 import { readCsrf } from "../../lib/csrf";
 
 export interface ConnectQuery {
@@ -23,6 +24,22 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
   const [signedIn, setSignedIn] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const googleHref = `/api/v1/auth/google?mode=${mode}&next=${encodeURIComponent(connectReturn(query))}`;
+
+  useEffect(() => {
+    if (query.clientId === "") return;
+    let cancelled = false;
+    void fetch("/api/v1/me", { headers: { accept: "application/json" }, cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok || cancelled) return;
+        const body = (await response.json()) as { email?: string };
+        if (!cancelled && typeof body.email === "string") setSignedIn(body.email);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [query.clientId]);
 
   if (query.clientId === "") {
     return (
@@ -106,6 +123,13 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
 
       {signedIn === null ? (
         <form className="paste" onSubmit={(event) => void submitAccount(event)}>
+          <div className="auth-providers">
+            <a className="btn btn-primary auth-provider" href={googleHref}>
+              <GoogleMark />
+              <span className="auth-provider-label">Continue with Google</span>
+            </a>
+          </div>
+          <p className="auth-divider">or email</p>
           <label className="field-label" htmlFor="connect-email">
             Email
           </label>
@@ -158,4 +182,17 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
       )}
     </div>
   );
+}
+
+function connectReturn(query: ConnectQuery): string {
+  const search = new URLSearchParams({
+    client_id: query.clientId,
+    redirect_uri: query.redirectUri,
+    code_challenge: query.codeChallenge,
+    code_challenge_method: query.codeChallengeMethod,
+    state: query.state,
+    scope: query.scope,
+  });
+  if (query.resource !== "") search.set("resource", query.resource);
+  return `/connect?${search.toString()}`;
 }

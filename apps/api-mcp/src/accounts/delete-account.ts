@@ -12,6 +12,7 @@ export async function deleteAccountData(stores: Stores, userId: string): Promise
   await stores.oauth.deleteGrantsForUser(userId);
   await stores.billingLinks.removeForUser(userId);
   await stores.authTokens.removeForUser(userId);
+  await stores.identities.removeForUser(userId);
   await stores.billingEvents.clearSchedule(userId);
   return stores.users.delete(userId);
 }

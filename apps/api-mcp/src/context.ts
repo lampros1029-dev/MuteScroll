@@ -11,6 +11,7 @@ import type { JobStore } from "./jobs/job-store.js";
 import { TranscriptionService } from "./jobs/transcription-service.js";
 import { CreditQuota } from "./quota/credit-quota.js";
 import { SlidingWindowLimiter } from "./quota/sliding-window.js";
+import { createGoogleAuthClient, type GoogleAuthClient } from "./accounts/google-oauth.js";
 import { createMailer, type Mailer } from "./mail/gmail.js";
 import { createStores, type Stores } from "./stores.js";
 import { UploadTokenStore } from "./upload/tokens.js";
@@ -34,6 +35,8 @@ export interface AppContext {
   readonly loginLimiter: SlidingWindowLimiter;
   readonly mailLimiter: SlidingWindowLimiter;
   readonly mailer: Mailer;
+  /** Google account sign-in. Tests inject a fake that never calls Google. */
+  readonly google: GoogleAuthClient;
   readonly uploads: UploadTokenStore;
   readonly now: () => number;
   close(): Promise<void>;
@@ -49,6 +52,8 @@ export interface ContextOverrides {
   readonly billingProvider?: BillingProvider;
   /** Defaults to Gmail when all three GMAIL_OAUTH_* names are set. */
   readonly mailer?: Mailer;
+  /** Defaults to the Google client built from GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET. */
+  readonly google?: GoogleAuthClient;
 }
 
 const RATE_WINDOW_MS = 60_000;
@@ -100,6 +105,7 @@ export function createContext(config: Config, overrides: ContextOverrides = {}):
     loginLimiter: new SlidingWindowLimiter({ limit: config.loginsPerIpPerMinute, windowMs: RATE_WINDOW_MS, now }),
     mailLimiter: new SlidingWindowLimiter({ limit: config.authMailPerIpPerHour, windowMs: HOUR_MS, now }),
     mailer: overrides.mailer ?? createMailer(config, fetch),
+    google: overrides.google ?? createGoogleAuthClient(config.google, fetch),
     uploads,
     now,
     close: () => stores.close(),

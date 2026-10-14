@@ -446,6 +446,46 @@ const server = createServer(async (req, res) => {
   };
 
   try {
+    if (path === "/v1/auth/google" && method === "GET") {
+      const mode = url.searchParams.get("mode") === "signup" ? "signup" : "login";
+      res.writeHead(302, { location: `/${mode}?error=google_not_configured`, "cache-control": "no-store" });
+      res.end();
+      return log(method, path, 302, started);
+    }
+    if (path === "/v1/auth/google/callback" && method === "GET") {
+      res.writeHead(302, { location: "/login?error=google_not_configured", "cache-control": "no-store" });
+      res.end();
+      return log(method, path, 302, started);
+    }
+    if (path === "/v1/auth/chatgpt" && method === "GET") {
+      const mode = url.searchParams.get("mode") === "signup" ? "signup" : "login";
+      const clientId = url.searchParams.get("client_id") ?? "";
+      const redirectUri = url.searchParams.get("redirect_uri") ?? "";
+      const codeChallenge = url.searchParams.get("code_challenge") ?? "";
+      const state = url.searchParams.get("state") ?? "";
+      if (clientId === "" || redirectUri === "" || codeChallenge === "" || state === "") {
+        res.writeHead(302, { location: `/${mode}?error=chatgpt_start`, "cache-control": "no-store" });
+        res.end();
+        return log(method, path, 302, started);
+      }
+      const next = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        code_challenge: codeChallenge,
+        code_challenge_method: url.searchParams.get("code_challenge_method") || "S256",
+        state,
+        scope: url.searchParams.get("scope") || "transcribe",
+      });
+      const resource = url.searchParams.get("resource");
+      if (resource) next.set("resource", resource);
+      res.writeHead(302, { location: `/${mode}?${next.toString()}`, "cache-control": "no-store" });
+      res.end();
+      return log(method, path, 302, started);
+    }
+    if (path === "/v1/auth/chatgpt" && method === "POST") {
+      sendError(res, 401, "unauthorized", "Sign in with email or Google, then continue with ChatGPT.");
+      return log(method, path, 401, started);
+    }
     if (path === "/healthz" && method === "GET") {
       return send(200, () => sendJson(res, 200, { status: "ok", mock: true }));
     }

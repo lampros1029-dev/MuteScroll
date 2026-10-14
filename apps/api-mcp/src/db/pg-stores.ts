@@ -7,6 +7,7 @@ import { PgBillingEventLog } from "./pg-billing-events.js";
 import { PgBillingLinkStore } from "./pg-billing-links.js";
 import { PgCreditLedger } from "./pg-credit-ledger.js";
 import { PgJobStore } from "./pg-job-store.js";
+import { PgExternalIdentityStore } from "./pg-identities.js";
 import { PgApiKeyStore, PgSessionStore, PgUserStore } from "./pg-accounts.js";
 import { PgOAuthStore } from "./pg-oauth.js";
 import { createPool } from "./pool.js";
@@ -42,6 +43,7 @@ export function createPostgresStores(options: PostgresStoresOptions): PostgresSt
     ledger: new PgCreditLedger(pool),
     billingEvents: new PgBillingEventLog(pool),
     billingLinks: new PgBillingLinkStore(pool),
+    identities: new PgExternalIdentityStore(pool),
     pendingMigrations: () => pendingMigrations(pool),
     close: () => pool.end(),
   };

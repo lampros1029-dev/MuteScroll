@@ -1,4 +1,5 @@
 import { MemoryAuthTokenStore, type AuthTokenStore } from "./accounts/auth-tokens.js";
+import { MemoryExternalIdentityStore, type ExternalIdentityStore } from "./accounts/external-identities.js";
 import type { ApiKeyStore, SessionStore, UserStore } from "./accounts/types.js";
 import { MemoryApiKeyStore, MemorySessionStore, MemoryUserStore } from "./accounts/memory-stores.js";
 import type { Config } from "./config.js";
@@ -25,6 +26,8 @@ export interface Stores {
   readonly billingEvents: BillingEventLog;
   /** Paddle ids this server created, each tied to the user who started checkout. */
   readonly billingLinks: BillingLinkStore;
+  /** Google subjects linked to accounts. */
+  readonly identities: ExternalIdentityStore;
   /** Names of migrations not yet applied. Always empty for memory stores. */
   pendingMigrations(): Promise<string[]>;
   close(): Promise<void>;
@@ -46,6 +49,7 @@ export function createMemoryStores(options: MemoryStoresOptions): Stores {
     ledger: new MemoryCreditLedger(),
     billingEvents: new MemoryBillingEventLog(),
     billingLinks: new MemoryBillingLinkStore(),
+    identities: new MemoryExternalIdentityStore(),
     pendingMigrations: async () => [],
     close: async () => undefined,
   };

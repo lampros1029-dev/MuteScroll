@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
+import { PHASE_PRODUCTION_SERVER } from "next/constants";
 import { describe, expect, it } from "vitest";
 
 import nextConfig from "../../../next.config";
@@ -26,7 +27,8 @@ describe("plans page", () => {
 
 describe("/plans route", () => {
   it("does not redirect to the pricing page", async () => {
-    const redirects = nextConfig.redirects === undefined ? [] : await nextConfig.redirects();
+    const config = nextConfig(PHASE_PRODUCTION_SERVER);
+    const redirects = config.redirects === undefined ? [] : await config.redirects();
     expect(redirects.some((rule) => rule.source === "/plans")).toBe(false);
   });
 });

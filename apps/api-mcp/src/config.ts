@@ -23,6 +23,12 @@ export interface GmailConfig {
   readonly refreshToken: string | undefined;
 }
 
+/** Website Google sign-in. Separate from the Gmail send client. */
+export interface GoogleOAuthConfig {
+  readonly clientId: string | undefined;
+  readonly clientSecret: string | undefined;
+}
+
 export interface Config {
   readonly port: number;
   readonly publicBaseUrl: string;
@@ -54,6 +60,11 @@ export interface Config {
    * The values are never logged. Sender is always mutescroll.xyz@gmail.com.
    */
   readonly gmail: GmailConfig;
+  /**
+   * Google sign-in for accounts. Unset means the button explains that it is not configured.
+   * Never read from GMAIL_OAUTH_CLIENT_ID: that client is gmail.send only.
+   */
+  readonly google: GoogleOAuthConfig;
   /** Session lifetime; it slides forward on use (SESSION_TTL_DAYS). */
   readonly sessionTtlMs: number;
   /** How long transcribe_video waits for a result before returning `processing`. */
@@ -94,6 +105,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJ
     loginsPerIpPerMinute: intEnv(env, "AUTH_LOGINS_PER_IP_PER_MINUTE", 10, 1, 10_000),
     authMailPerIpPerHour: intEnv(env, "AUTH_MAIL_PER_IP_PER_HOUR", 5, 1, 10_000),
     gmail: readGmailConfig(env),
+    google: readGoogleConfig(env),
     sessionTtlMs: intEnv(env, "SESSION_TTL_DAYS", 30, 1, 365) * DAY_MS,
     toolWaitMs: intEnv(env, "TOOL_WAIT_MS", 25_000, 0, 120_000),
     jobConcurrency: intEnv(env, "JOB_CONCURRENCY", 2, 1, 64),
@@ -120,6 +132,13 @@ function readGmailConfig(env: NodeJS.ProcessEnv): GmailConfig {
     clientId: nonEmpty(env["GMAIL_OAUTH_CLIENT_ID"]),
     clientSecret: nonEmpty(env["GMAIL_OAUTH_CLIENT_SECRET"]),
     refreshToken: nonEmpty(env["GMAIL_OAUTH_REFRESH_TOKEN"]),
+  };
+}
+
+function readGoogleConfig(env: NodeJS.ProcessEnv): GoogleOAuthConfig {
+  return {
+    clientId: nonEmpty(env["GOOGLE_OAUTH_CLIENT_ID"]),
+    clientSecret: nonEmpty(env["GOOGLE_OAUTH_CLIENT_SECRET"]),
   };
 }
 

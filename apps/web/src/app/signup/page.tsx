@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 
 import { AuthForm } from "../../components/auth/auth-form";
+import { connectRequestFrom } from "../../lib/connect-query";
 
 export const metadata: Metadata = {
   title: "Create account",
-  description: "Create a MuteScroll account with your email and a password.",
+  description: "Create a MuteScroll account with Google, ChatGPT, or your email and a password.",
   alternates: { canonical: "/signup" },
 };
 
@@ -19,9 +20,9 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
     <div className="container page legal">
       <header className="page-head">
         <h1 className="display-small">Create account</h1>
-        <p className="section-lede">Use your email and a password of at least 10 characters.</p>
+        <p className="section-lede">Use Google, connect ChatGPT, or your email and a password of at least 10 characters.</p>
       </header>
-      <AuthForm mode="signup" next={next} />
+      <AuthForm mode="signup" next={next} initialError={first(params["error"])} connect={connectRequestFrom(params)} />
     </div>
   );
 }

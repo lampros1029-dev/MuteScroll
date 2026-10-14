@@ -4,6 +4,7 @@ import type { AppContext } from "../context.js";
 import { logEvent } from "../log.js";
 import { ApiError, internalError, sendApiError } from "./errors.js";
 import { login, logout, me, signup } from "./auth-routes.js";
+import { approveChatgpt, finishGoogle, startChatgpt, startGoogle } from "./provider-auth.js";
 import { billingPortal, checkout, deleteAccount } from "./billing-routes.js";
 import { confirmEmailVerification, forgotPassword, requestEmailVerification, resetPassword } from "./mail-routes.js";
 import { createApiKey, deleteApiKey, listApiKeys } from "./api-key-routes.js";
@@ -32,6 +33,10 @@ const ID = "([A-Za-z0-9_-]{1,80})";
 const ROUTES: readonly Route[] = [
   { method: "POST", path: /^\/v1\/auth\/signup$/, handler: (req, res, ctx) => signup(req, res, ctx) },
   { method: "POST", path: /^\/v1\/auth\/login$/, handler: (req, res, ctx) => login(req, res, ctx) },
+  { method: "GET", path: /^\/v1\/auth\/google$/, handler: (req, res, ctx, _match, query) => startGoogle(req, res, ctx, query) },
+  { method: "GET", path: /^\/v1\/auth\/google\/callback$/, handler: (req, res, ctx, _match, query) => finishGoogle(req, res, ctx, query) },
+  { method: "GET", path: /^\/v1\/auth\/chatgpt$/, handler: (req, res, ctx, _match, query) => startChatgpt(req, res, ctx, query) },
+  { method: "POST", path: /^\/v1\/auth\/chatgpt$/, handler: (req, res, ctx) => approveChatgpt(req, res, ctx) },
   { method: "POST", path: /^\/v1\/auth\/logout$/, handler: (req, res, ctx) => logout(req, res, ctx) },
   { method: "GET", path: /^\/v1\/me$/, handler: (req, res, ctx) => me(req, res, ctx) },
   { method: "DELETE", path: /^\/v1\/me$/, handler: (req, res, ctx) => deleteAccount(req, res, ctx) },
