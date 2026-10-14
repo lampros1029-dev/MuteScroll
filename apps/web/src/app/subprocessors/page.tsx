@@ -6,7 +6,7 @@ import { PADDLE_PRIVACY_URL } from "../../lib/legal";
 
 export const metadata: Metadata = {
   title: "Subprocessors",
-  description: "The companies that process data for MuteScroll, and whether a contract is signed.",
+  description: "The companies that process data for MuteScroll, and how each arrangement was accepted.",
   alternates: { canonical: "/subprocessors" },
 };
 
@@ -20,19 +20,8 @@ const ROWS: ReadonlyArray<{
     name: "Groq",
     role: "Speech-to-text on the audio we send.",
     where: "United States",
-    contract: "Accepted in the Groq console. Zero Data Retention is enabled for inference.",
-  },
-  {
-    name: "ScrapeCreators",
-    role: "Media lookup for TikTok and Instagram links, where that route is enabled.",
-    where: "To be confirmed before launch",
-    contract: "Accepted by signing in to the ScrapeCreators console for mutescroll.xyz@gmail.com.",
-  },
-  {
-    name: "Supadata",
-    role: "Vendor captions when the video itself cannot be fetched.",
-    where: "To be confirmed before launch",
-    contract: "Accepted in the Supadata console. The data-processing agreement applies automatically as part of the Terms.",
+    contract:
+      "Accepted by electronic acceptance of Groq's services agreement. Zero Data Retention is enabled for inference.",
   },
   {
     name: "Railway",
@@ -52,7 +41,7 @@ export default function SubprocessorsPage() {
   return (
     <LegalDocument
       title="Subprocessors"
-      lede="These companies process data so MuteScroll can transcribe a video. The contract column shows whether a data-processing agreement is signed."
+      lede="These companies process data so MuteScroll can transcribe a video. The contract column says how that arrangement was accepted."
     >
       <section aria-labelledby="list">
         <h2 id="list">Processors</h2>

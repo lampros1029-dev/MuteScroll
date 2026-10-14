@@ -3,7 +3,7 @@
 import httpx
 
 from mutescroll_media.models import VideoMetadata
-from mutescroll_media.sources import SourceInfo, YtDlpSource
+from mutescroll_media.sources import SourceInfo, YtDlpSource, _NoImpersonation
 
 _JSON3 = {
     "events": [{"tStartMs": 0, "dDurationMs": 1200, "segs": [{"utf8": "hello"}]}],
@@ -71,3 +71,13 @@ def test_caption_redirect_is_not_followed() -> None:
 
     source = _source(handler, _public)
     assert source.fetch_captions(_info("https://www.youtube.com/api/timedtext?lang=en"), None, automatic=False) is None
+
+
+def test_public_fetch_does_not_impersonate_a_browser_or_send_cookies() -> None:
+    options = YtDlpSource(proxy="")._base_options()
+    assert options["cookiefile"] is None
+    assert options["cookiesfrombrowser"] is None
+    assert options["username"] is None
+    assert options["password"] is None
+    ydl = _NoImpersonation({"quiet": True, "skip_download": True, "logger": None})
+    assert ydl._parse_impersonate_targets(True) == (None, [])

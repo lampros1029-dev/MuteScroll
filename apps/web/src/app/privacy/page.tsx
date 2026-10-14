@@ -4,7 +4,6 @@ import Link from "next/link";
 import { LegalDocument } from "../../components/legal-document";
 import {
   CONTACT_MAILTO,
-  LOG_RETENTION_DAYS,
   OPERATOR_ADDRESS,
   OPERATOR_NAME,
   PADDLE_PRIVACY_URL,
@@ -52,8 +51,8 @@ export default function PrivacyPage() {
               </tr>
               <tr>
                 <td>Audio taken from the video, or the file you upload</td>
-                <td>To run speech recognition.</td>
-                <td>Deleted within 24 hours. Never returned to you, never shared between users.</td>
+                <td>To run speech recognition when the video's own captions are missing.</td>
+                <td>Deleted when the job finishes. Not returned to you, and not shared between users.</td>
               </tr>
               <tr>
                 <td>Transcript and basic details (title, author, duration, language)</td>
@@ -61,12 +60,12 @@ export default function PrivacyPage() {
                 <td>Anonymous results: 24 hours. Account transcripts: 7 days, and they are deleted when the person deletes the account.</td>
               </tr>
               <tr>
-                <td>Email address and password hash</td>
-                <td>To create the account and sign you in. We store a hash, not the password.</td>
+                <td>Email address, password hash, and a Google account link when you use Google</td>
+                <td>To create the account and sign you in. A password is stored as a hash. Google sign-in stores the Google account identifier and the email Google provides.</td>
                 <td>While the account exists. Deleting the account removes them.</td>
               </tr>
               <tr>
-                <td>API keys, and the grant when you connect ChatGPT</td>
+                <td>API keys, and the grant when you connect ChatGPT, Claude, or Cursor</td>
                 <td>To let that account call the transcription API.</td>
                 <td>While the account exists. Deleting the account removes them.</td>
               </tr>
@@ -78,16 +77,23 @@ export default function PrivacyPage() {
               <tr>
                 <td>Network address (IP address)</td>
                 <td>To apply the anonymous usage limit and to slow abusive sign-ups and logins.</td>
-                <td>For the limit window, which is 24 hours for anonymous credits, then it ages out of that limit.</td>
+                <td>The anonymous credit limit keeps it in the running process for up to 24 hours, then it ages out. A restart drops it sooner.</td>
               </tr>
               <tr>
                 <td>Server logs</td>
                 <td>Security and reliability.</td>
-                <td>Up to {LOG_RETENTION_DAYS} days, then deleted.</td>
+                <td>The application writes a line that does not include the link, the transcript, or the network address. The host keeps those lines. This service does not run its own deletion job for them.</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p>
+          For a link, the server tries to read a public video on YouTube, Facebook, TikTok, or Instagram with yt-dlp. It
+          uses the video's own captions when they exist. Otherwise it takes the audio and sends that audio to Groq. If
+          the audio cannot be fetched, and the video has automatic captions, those captions are used. The server does
+          not sign in, and it does not use a video-platform account or that account's cookies. If the video cannot be
+          read, you can upload a file. An upload is transcribed from its audio.
+        </p>
         <p>
           We store the link, the metadata, and the transcript. We do not store the content of your conversations with
           ChatGPT, Claude, or Cursor, and we do not ask for it.
@@ -118,14 +124,6 @@ export default function PrivacyPage() {
             <strong>Groq</strong>, in the United States, runs speech-to-text on the audio we send.
           </li>
           <li>
-            <strong>ScrapeCreators</strong> looks up a media address for TikTok and Instagram links, where that route is
-            enabled.
-          </li>
-          <li>
-            <strong>Supadata</strong> supplies vendor captions when the video itself cannot be fetched. Those results are
-            labelled as vendor captions.
-          </li>
-          <li>
             <strong>Railway</strong> hosts the app and the API.
           </li>
           <li>
@@ -138,8 +136,9 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          Groq, Supadata, Railway, Cloudflare, ScrapeCreators, and Paddle are accepted. Groq&apos;s data controls were
-          accepted in the Groq console, and Zero Data Retention is enabled for inference.{" "}
+          Groq, Railway, Cloudflare, and Paddle process data for MuteScroll. Groq&apos;s data-processing addendum is
+          accepted by electronic acceptance of Groq&apos;s services agreement. Zero Data Retention is enabled for
+          inference.{" "}
           <a href="https://console.groq.com/docs/your-data">Groq&apos;s published data documentation</a> states that
           customer data that is retained is stored in Google Cloud in the United States, and that customers can rely on
           standard contractual clauses for that transfer. That is Groq&apos;s published position. Paddle is the merchant
@@ -150,8 +149,8 @@ export default function PrivacyPage() {
       <section aria-labelledby="cookies">
         <h2 id="cookies">Cookies</h2>
         <p>
-          Signing in sets two cookies, described below. Both are strictly necessary for the account you asked for, so we
-          do not show a consent banner for them.
+          Signing in sets two cookies. Continue with Google sets a third cookie while that redirect is in progress. They
+          are strictly necessary for the account you asked for, so we do not show a consent banner for them.
         </p>
         <ul>
           <li>
@@ -161,6 +160,10 @@ export default function PrivacyPage() {
           <li>
             <strong>ms_csrf</strong> lets the page prove that a signed-in action came from MuteScroll and not from another
             website. It lasts {SESSION_DAYS} days.
+          </li>
+          <li>
+            <strong>ms_google_tx</strong> ties a Google sign-in redirect to this browser. The browser hides it from page
+            scripts. It lasts 10 minutes and is cleared when Google sends you back.
           </li>
         </ul>
         <p>
@@ -172,8 +175,10 @@ export default function PrivacyPage() {
       <section aria-labelledby="rights">
         <h2 id="rights">Your rights</h2>
         <p>
-          You can delete the account on the account page. That deletes the account and its transcripts. You can also ask
-          for a copy of your data, a correction, a restriction, or deletion by emailing{" "}
+          You can delete the account on the account page. That deletes the account, its transcripts, its keys, and its
+          connected apps. Credit-usage rows stay. They record an account id, a job id, the credits, and the month. They
+          do not record the email, the transcript, or the card number. That ledger does not allow those rows to be
+          deleted. You can also ask for a copy of your data, a correction, a restriction, or deletion by emailing{" "}
           <a href={CONTACT_MAILTO}>{CONTACT_EMAIL}</a>. You can also object to a use based on our operational needs, and
           you can ask for the account data in a portable form. We complete an email request within 30 days. You can
           complain to your national data protection authority. People in Greece can complain to the Hellenic Data

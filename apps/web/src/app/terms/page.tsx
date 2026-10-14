@@ -27,10 +27,19 @@ export default function TermsPage() {
       <section aria-labelledby="service">
         <h2 id="service">1. What MuteScroll does</h2>
         <p>
-          MuteScroll turns public video links and files you upload into timestamped text. It returns text only. It does
-          not return the video or audio, and it does not summarize, translate, or give advice. Your assistant does that
-          with the text.
+          MuteScroll turns a public video link, or a file you upload, into timestamped text. A link can be a public
+          YouTube video or Short, a public Facebook video, or a public TikTok or Instagram post. For a link, the server
+          tries to read the video with yt-dlp. It uses the video&apos;s own captions when they exist. Otherwise it takes
+          the audio and sends that audio to Groq for speech recognition. If the audio cannot be fetched, and the video
+          has automatic captions, those captions are used. The server does not sign in. If the video cannot be
+          retrieved, you can upload a file (MP4, MOV, WebM, M4A, MP3, or WAV). An upload is transcribed from its audio
+          in the same way.
         </p>
+        <p>
+          MuteScroll returns text only. It does not return the video or audio, and it does not summarize, translate, or
+          give advice. Your assistant does that with the text.
+        </p>
+        <p>MuteScroll does not affiliate with, endorse, or operate any video platform.</p>
       </section>
 
       <section aria-labelledby="who">
@@ -46,9 +55,13 @@ export default function TermsPage() {
       <section aria-labelledby="content">
         <h2 id="content">3. Content you submit</h2>
         <p>
-          You may only submit content you have the right to process. By submitting a link or a file you confirm that you
-          have that right. You are responsible for complying with the terms of the platform where the content lives. We
-          never access private, login-only, DRM-protected, or paywalled content, and you must not ask us to.
+          You decide which link or file to send. You are responsible for having the authority to use it, and for
+          complying with the terms of the place the video lives. By submitting a link or a file you confirm that you
+          have that right. MuteScroll may refuse a job, remove a cached transcript, and suspend an account.
+        </p>
+        <p>
+          We do not sign in to a video platform. We do not take private, login-only, DRM-protected, or paywalled videos,
+          and you must not ask us to.
         </p>
         <p>
           You keep your file. You give us a limited licence to process the link or the file only to produce the
@@ -80,20 +93,21 @@ export default function TermsPage() {
       <section aria-labelledby="accounts">
         <h2 id="accounts">6. Accounts</h2>
         <p>
-          You need an email address and a password to open an account. You are responsible for activity under that
-          account. Paid use is for people aged {MIN_PAID_AGE} or over. You can delete the account on the{" "}
-          <Link href="/account">account page</Link>. That removes the account and its transcripts. You can also ask by
-          email, and we complete that request within 30 days.
+          You can open an account with an email address and a password, or with Google. You are responsible for activity
+          under that account. Paid use is for people aged {MIN_PAID_AGE} or over. You can delete the account on the{" "}
+          <Link href="/account">account page</Link>. That removes the account, its transcripts, its keys, and its
+          connected apps. Credit-usage rows stay, as the <Link href="/privacy">privacy page</Link> describes. You can
+          also ask by email, and we complete that request within 30 days.
         </p>
       </section>
 
       <section aria-labelledby="credits">
         <h2 id="credits">7. Credits, plans, and tax</h2>
         <p>
-          Anonymous use is a rolling allowance. One credit covers up to 10 minutes of audio. Each started 10 minutes
-          costs one credit. A job that fails does not use a credit. On a paid plan, unused monthly credits roll over up
-          to twice the monthly allowance. Credit packs do not expire while the subscription stays active, and they are
-          sold on the website only.
+          Anonymous use is 5 credits in a rolling 24 hours. A signed-in account has the monthly allowance for its plan.
+          That allowance resets at the start of the next calendar month, in UTC. Unused credits do not roll over. One
+          credit covers up to 10 minutes of audio. Each started 10 minutes costs one credit. A job that fails does not
+          use a credit. Credit packs are not sold.
         </p>
         <p>
           The prices on the <Link href="/pricing">pricing page</Link> are catalog prices in US dollars. They do not

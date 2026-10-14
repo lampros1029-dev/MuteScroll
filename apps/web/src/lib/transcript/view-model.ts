@@ -66,6 +66,8 @@ export function methodLabel(method: string): string {
       return "Platform captions";
     case "captions_auto":
       return "Auto-generated captions";
+    case "captions_vendor":
+      return "Vendor captions";
     case "asr":
       return "Speech recognition";
     default:

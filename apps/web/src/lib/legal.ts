@@ -10,9 +10,6 @@ export const OPERATOR_NAME = "Labros Aggelopoulos";
 /** Correspondence address. */
 export const OPERATOR_ADDRESS = "Arionos 17, Peristeri, Greece";
 
-/** Host and application logs are capped at this many days. */
-export const LOG_RETENTION_DAYS = 30;
-
 export const PADDLE_BUYER_TERMS_URL = "https://www.paddle.com/legal/buyer-terms";
 
 export const PADDLE_REFUND_POLICY_URL = "https://www.paddle.com/legal/refund-policy";

@@ -289,7 +289,7 @@ export function TryClient({
         return (
           <WorkingPanel
             title="Transcribing"
-            detail="Retrieving the audio and running speech recognition. Platform captions are used when they exist."
+            detail="The video's own captions are used when they exist. Otherwise the audio is sent for speech recognition. Automatic captions are used only if that audio cannot be fetched."
             elapsed={elapsed}
           >
             <p className="panel-next">

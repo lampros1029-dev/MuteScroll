@@ -19,17 +19,17 @@ const FAQ: ReadonlyArray<{ readonly question: string; readonly answer: string }>
   {
     question: "Which links can I try?",
     answer:
-      "YouTube and Shorts: public videos, using captions when they exist. Facebook: public videos. TikTok and Instagram: retrieval is tried, and upload is the fallback when a platform blocks it. Upload is always available, within the size limit. We never use logins, cookies or workarounds to reach private or restricted content.",
+      "Public YouTube videos and Shorts, public Facebook videos, and public TikTok and Instagram posts. The server reads the link with yt-dlp. It uses the video's own captions when they exist. Otherwise it takes the audio. If the audio cannot be fetched, automatic captions are used when the video has them. The server does not sign in, and it does not use a video-platform account or that account's cookies. If the video cannot be read, upload a file. Upload is always available, within the size limit.",
   },
   {
     question: "Do you keep the video?",
     answer:
-      "No. We fetch only the audio needed for the transcript, never return the media file, and delete temporary media within 24 hours.",
+      "A video that already has its own captions can be transcribed from those captions. When speech recognition runs, the server takes the audio for that job, does not return the media file, and deletes the temporary file when the job finishes. Uploads are not shared between users.",
   },
   {
     question: "What do you store?",
     answer:
-      "The link, the transcript, and basic details such as title, author and duration. Anonymous results are kept for 24 hours. Uploads are never shared between users.",
+      "The link, the transcript, and basic details such as title, author and duration. Anonymous results are kept for 24 hours. Transcripts on an account are kept for 7 days. Uploads are never shared between users.",
   },
   {
     question: "Do you use my content to train AI?",
@@ -73,7 +73,7 @@ const CHAPTERS: ReadonlyArray<{
     index: "02",
     name: "Transcribe",
     title: "Get a timestamped transcript.",
-    body: "Platform captions are used when they exist. Otherwise speech recognition runs, and every line keeps its timestamp.",
+    body: "The video's own captions are used when they exist. Otherwise speech recognition runs. If the audio cannot be fetched, automatic captions are used when the video has them. Every line keeps its timestamp.",
   },
   {
     index: "03",

@@ -29,7 +29,7 @@ export interface OnScreenReference {
 export interface Transcription {
   readonly metadata: TranscriptionMetadata;
   readonly language: string | null;
-  readonly method: "captions" | "captions_auto" | "asr";
+  readonly method: "captions" | "captions_auto" | "captions_vendor" | "asr";
   readonly transcript_text: string;
   readonly segments: readonly TranscriptionSegment[];
   readonly uncertain_spans: readonly UncertainSpan[];

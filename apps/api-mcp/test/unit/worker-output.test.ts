@@ -102,8 +102,18 @@ describe("buildWorkerEnv", () => {
     expect(env).not.toHaveProperty("PADDLE_API_KEY");
   });
 
-  it("passes the vendor key so TikTok/Instagram retrieval works through the API", () => {
-    const env = buildWorkerEnv({ SCRAPECREATORS_API_KEY: "sc_test" });
-    expect(env["SCRAPECREATORS_API_KEY"]).toBe("sc_test");
+  it("does not pass removed vendor keys or flags to the worker", () => {
+    const env = buildWorkerEnv({
+      GROQ_API_KEY: "gsk_test",
+      SCRAPECREATORS_API_KEY: "sc_test",
+      SUPADATA_API_KEY: "sd_test",
+      SCRAPECREATORS_ENABLED: "true",
+      SUPADATA_ENABLED: "true",
+    });
+    expect(env["GROQ_API_KEY"]).toBe("gsk_test");
+    expect(env).not.toHaveProperty("SCRAPECREATORS_API_KEY");
+    expect(env).not.toHaveProperty("SUPADATA_API_KEY");
+    expect(env).not.toHaveProperty("SCRAPECREATORS_ENABLED");
+    expect(env).not.toHaveProperty("SUPADATA_ENABLED");
   });
 });

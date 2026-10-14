@@ -74,7 +74,7 @@ export const PLANS: readonly Plan[] = [
       library: "Included",
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "25 per batch",
-      rollover: "Up to 2×",
+      rollover: "Not included",
       seats: "1",
       priority: "Not included",
     },
@@ -95,7 +95,7 @@ export const PLANS: readonly Plan[] = [
       library: "Included",
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "200 per batch",
-      rollover: "Up to 2×",
+      rollover: "Not included",
       seats: "1",
       priority: "Included",
     },
@@ -116,7 +116,7 @@ export const PLANS: readonly Plan[] = [
       library: "Shared",
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "1,000 per batch",
-      rollover: "Up to 2×",
+      rollover: "Not included",
       seats: "3 included, +$12 per extra seat",
       priority: "Included",
     },
@@ -129,6 +129,7 @@ export const FOUNDING_PASS = {
   termMonths: 12,
 } as const;
 
+/** Amounts from the pricing model. Checkout does not sell these packs. */
 export const CREDIT_PACKS = [
   { credits: 500, priceUsd: 5 },
   { credits: 2000, priceUsd: 15 },

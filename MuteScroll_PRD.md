@@ -533,6 +533,8 @@ Built with the Hormozi knowledge base (*$100M Offers*, *$100M Leads*, *$100M Mon
 | Seats | 1 | 1 | 1 | 3 (+$12/seat) |
 | Priority queue / support | — | — | ✅ | ✅ |
 
+**Shipped billing (14 October 2026).** The ledger charges the plan's monthly allowance and resets at the next UTC month. Unused credits do not roll over. Credit packs are not in the checkout catalog. Frame checks, speaker labels, and bulk URLs are later releases. The website says so. The rows above are the pricing model, not a second description of the worker.
+
 **Rationale:**
 
 - Free at 20 credits/month costs us ≈ $0.10–0.15 per active free user, which is affordable and more generous than TransClipper (60 s cap) or TokTranscript (10/mo).
@@ -624,7 +626,7 @@ Verified live from a residential IP with `workers/media` (`python -m mutescroll_
 | YouTube captions, YouTube ASR, uploaded file ASR (Groq `whisper-large-v3-turbo`) | Work end to end; the 24 h file cache turns repeats into ~1 s |
 | Facebook public video | Works via audio-only download plus ASR |
 | Instagram | Posts without audio return a clear "no audio track"; most Reels need login, so expect low anonymous success and always offer upload |
-| TikTok | **Anonymous retrieval fails** without browser TLS impersonation. We do not impersonate browsers to defeat bot checks (§4.1), so TikTok is **upload-first** until a licensed vendor (§9.1 step 4) or the legal review (D2) says otherwise. The TikTok retrieval target in §5.3 is withdrawn for the connector build |
+| TikTok | Tried with yt-dlp, with no browser impersonation and no cookies. When that fetch fails, upload is the fallback. A retrieval vendor is not used (§22.2) |
 | YouTube from datacenter IPs | Untested; known to hit "confirm you're not a bot". Production needs residential egress (M4) |
 
 Engineering notes that change the earlier plan:
@@ -638,15 +640,17 @@ Engineering notes that change the earlier plan:
 
 ### 22.2 TikTok and Reels retrieval: options, legality, decision (proposed D9, 2026-10-12)
 
+**Live resolver (2026-10-14).** Public YouTube, Facebook, TikTok, and Instagram URLs are read with yt-dlp. Manual captions are used when the video has them. Otherwise the audio goes to Groq. If the audio cannot be fetched, automatic captions are used when the video has them. The server does not sign in, does not use cookies, and does not impersonate a browser. If retrieval fails, the API offers an upload, and that file is transcribed from its audio. The table below is the 2026-10-12 options review. It is not the live pipeline.
+
 **Not legal advice.** The sources are linked inline; D2 (legal review before M5) still applies.
 
 **Technical options, cheapest first**
 
 | Option | Cost per 1-min video | Timestamps | Verdict |
 |---|---|---|---|
-| Hybrid: licensed API resolves the media URL (ScrapeCreators `video_url` / `play_addr`), our worker downloads the audio from that CDN URL, Groq transcribes | ≈ $0.003 (1 vendor credit at [$0.99–1.88 per 1k](https://scrapecreators.com), plus Groq ≈ $0.00067/min) | Yes, plus our confidence and number-fidelity checks | **Recommended** |
-| Vendor transcript only ([ScrapeCreators](https://docs.scrapecreators.com/v2/instagram/media/transcript): 1 credit, ≤ 120 s, text only; longer = 10 credits/min) | ≈ $0.002 | No (Instagram example returns text only) | Rejected: breaks the "timestamped, trustworthy" promise |
-| Vendor transcript ([Supadata](https://supadata.ai/pricing): Instagram always AI, 2 credits/min; 100 free credits/month; Pro $17 for 3,000 credits) | ≈ $0.003 (Mega: $47 per 30,000 credits) to ≈ $0.011 (Pro) | Yes | Fallback vendor, behind the same interface; a monthly subscription, unlike ScrapeCreators' non-expiring credits |
+| Hybrid: a licensed API resolves a media URL, our worker downloads the audio from that CDN URL, Groq transcribes | ≈ $0.003 plus Groq | Yes, plus our confidence and number-fidelity checks | Not used. Removed from the product. The live resolver is yt-dlp, above |
+| Vendor transcript only (text, short clips) | ≈ $0.002 | No | Rejected: breaks the "timestamped, trustworthy" promise |
+| Vendor transcript (a second caption API) | ≈ $0.003 to ≈ $0.011 | Yes | Not used. Removed from the product |
 | Self-scrape: residential proxy ([$2.75–4/GB](https://decodo.com/proxies/residential-proxies/pricing)) + yt-dlp with TLS impersonation | ≈ $0.03 for ~8 MB of video, plus engineering time | Yes | Rejected: dearer, brittle, and the legally riskiest (evasion by us) |
 | Official APIs | n/a | n/a | No transcript or media access: [TikTok Research API](https://developers.tiktok.com/doc/research-api-faq) is non-commercial only, Display API covers a user's own videos, [Meta Content Library](https://developers.facebook.com/docs/content-library-and-api/content-library-api/overview/) is research-only inside a secure environment. Use **oEmbed** only (title, author, thumbnail, public-or-not): [TikTok](https://developers.tiktok.com/docs/en/embed-videos), [Meta tokenless](https://developers.facebook.com/blog/post/2026/06/15/tokenless-access-to-meta-oembed-apis/) |
 | User-side retrieval | $0 to us | Yes | Add: local/stdio MCP (pull V1.1 forward) fetches from the user's own device and IP; upload and share-sheet stay as the universal fallback |
@@ -656,20 +660,8 @@ Engineering notes that change the earlier plan:
 - *Contract:* [Meta v. Bright Data](https://arstechnica.com/tech-policy/2024/01/facebook-suffers-big-loss-in-lawsuit-against-data-scraping-company/) (N.D. Cal., 2024) held Meta's terms do not bar logged-off scraping of public data. It is narrow and not binding elsewhere. [TikTok's terms](https://www.tiktok.com/legal/page/us/terms-of-service/en) prohibit automated extraction "for any purpose" without written approval, and no such ruling exists for TikTok. Expect IP blocks and cease-and-desist letters, not criminal exposure.
 - *Circumvention:* a bot check on a public page is not DRM, but we never decrypt protected streams and never log in. Impersonating a browser to defeat a block is the part courts have not blessed, so we do not do it ourselves (§4.1).
 - *Copyright:* spoken content is copyrightable. User-initiated, transformative text output with short-TTL caching and a takedown path is the defensible posture. No public transcript pages, no redistribution of media.
-- *Privacy:* speech can be personal data (GDPR). No voiceprints; speakers stay "Speaker N"; vendors are listed as subprocessors.
-- *Using a vendor* moves the collection method and its ToS risk to a specialist under contract, but does not make the activity risk-free. Contract terms: no indemnity from small vendors, so keep the vendor swappable.
-
-**Proposed D9 (needs approval)**
-1. Build `VendorSource` in `workers/media` behind the existing `MediaSource` interface: ScrapeCreators first, Supadata as failover. API keys live in env only.
-2. Add a media-host allowlist for the vendor-returned CDN URLs (TikTok and Instagram CDNs) to the SSRF layer; same DNS and redirect checks.
-3. Use oEmbed for metadata and a free "is this public?" pre-check; pre-check failures cost nothing.
-4. **Connector build only** (web, API, Claude, Cursor, ChatGPT Developer Mode). The ChatGPT directory build (§4.2) keeps YouTube, uploads and user-supplied files, because directory rules forbid unauthorized scraping and circumvention.
-5. Videos over about 3 minutes from TikTok/Instagram go through the same path; the vendor charge is per call, not per minute, so long videos stay cheap (confirm in the pilot).
-6. Kill switch per platform; weekly canary; one-click takedown purge (cache already supports it).
-7. Pilot gate before relying on it: run 50 public Reels and 50 TikToks through both vendors using the free credits, and require ≥ 85% success, working signed-URL downloads from our egress IP, and correct timestamps.
-8. Revisit in M4: Instagram own-content via the Graph API with creator consent, and a licensed enterprise vendor if volume justifies it.
-
-Cost at 10,000 one-minute TikTok/Reel transcripts: ≈ $17–26 for the hybrid (ScrapeCreators credits ≈ $10–19, Groq ≈ $7, bandwidth negligible) versus ≈ $47 on Supadata Mega (20,000 credits). The hybrid wins at small scale (no subscription, $47 one-off top-up) and keeps our own timestamps and fidelity checks; the two converge at volume.
+- *Privacy:* speech can be personal data (GDPR). No voiceprints; speakers stay "Speaker N". The processors in use are Groq, Railway, Cloudflare, and Paddle.
+**Decision (14 October 2026).** The licensed-lookup and vendor-caption options are not in the product. Do not add a retrieval vendor. The customer chooses the link or file and is responsible for the authority to use it, and for the terms of the place the video lives. MuteScroll may refuse a job, remove a cached transcript, and suspend an account. That promise does not grant a video platform's permission for server-side fetching, and it does not allow bypassing a platform's access rules.
 
 ### 22.3 M2 build status (2026-10-12)
 

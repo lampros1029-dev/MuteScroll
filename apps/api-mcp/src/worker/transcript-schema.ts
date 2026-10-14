@@ -30,7 +30,7 @@ export const workerTranscriptSchema = z.object({
     duration_seconds: z.number().nullish(),
   }),
   language: z.string().nullish(),
-  method: z.enum(["captions", "captions_auto", "asr"]),
+  method: z.enum(["captions", "captions_auto", "captions_vendor", "asr"]),
   transcript_text: z.string(),
   segments: z.array(segmentSchema),
   uncertain_spans: z.array(uncertainSpanSchema),

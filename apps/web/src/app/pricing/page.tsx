@@ -5,7 +5,7 @@ import { PricingPlans } from "../../components/pricing/pricing-plans";
 import { FoundingCheckout } from "../../components/pricing/checkout-button";
 import { formatUsd } from "../../lib/format";
 import { TAX_NOTE } from "../../lib/legal";
-import { CREDIT_PACKS, FOUNDING_PASS, PLANS, type PlanFeatures } from "../../lib/pricing";
+import { FOUNDING_PASS, PLANS, type PlanFeatures } from "../../lib/pricing";
 
 export const metadata: Metadata = {
   title: "Plans and prices",
@@ -113,8 +113,8 @@ export default function PricingPage() {
             1 credit, and a 45-minute podcast costs 5.
           </p>
           <p>
-            Need more? Credit packs: {CREDIT_PACKS.map((pack) => `${pack.credits.toLocaleString("en-US")} credits for ${formatUsd(pack.priceUsd)}`).join(" or ")}. They never expire while you are subscribed.
-            Packs are sold on the web only.
+            Need more than the monthly allowance? The allowance is the plan amount, and unused credits do not roll
+            over. Credit packs are not sold.
           </p>
         </div>
       </section>

@@ -14,7 +14,6 @@ from .cache import TranscriptCache
 from .config import load_dotenv
 from .pipeline import DEFAULT_MAX_SECONDS, transcribe_file, transcribe_url
 from .sources import RetrievalError, YtDlpSource
-from .vendors import build_source
 
 
 def _cache_dir() -> Path:
@@ -54,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = transcribe_url(
                 args.target,
-                source=build_source(YtDlpSource(), scrapecreators_key=os.environ.get("SCRAPECREATORS_API_KEY"), supadata_key=os.environ.get("SUPADATA_API_KEY")),
+                source=YtDlpSource(),
                 asr=asr,
                 language=args.language,
                 max_seconds=args.max_seconds,

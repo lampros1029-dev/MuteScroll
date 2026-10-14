@@ -80,7 +80,10 @@ def _transcribe_uncached(
             if allow_auto_captions:
                 auto = source.fetch_captions(info, requested, automatic=True)
                 if auto is not None:
-                    return _from_captions(info.metadata, auto, "captions_auto")
+                    # Automatic platform captions stay captions_auto.
+                    # Groq audio transcription below is asr, never a caption method.
+                    method: Method = "captions_vendor" if auto.vendor else "captions_auto"
+                    return _from_captions(info.metadata, auto, method)
             raise
         return _transcribe_media(audio, tmp, info.metadata, asr, requested, max_seconds)
 

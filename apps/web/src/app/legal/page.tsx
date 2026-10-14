@@ -46,6 +46,15 @@ export default function LegalNoticePage() {
         </p>
       </section>
 
+      <section aria-labelledby="platforms">
+        <h2 id="platforms">Video platforms</h2>
+        <p>
+          MuteScroll does not affiliate with, endorse, or operate any video platform. YouTube, Facebook, Instagram,
+          TikTok, and any other service named on this site are where a video may live. They are not MuteScroll, and
+          MuteScroll does not speak for them.
+        </p>
+      </section>
+
       <section aria-labelledby="hosting">
         <h2 id="hosting">Hosting</h2>
         <p>The website and the API are hosted on Railway. DNS and HTTPS are provided by Cloudflare.</p>

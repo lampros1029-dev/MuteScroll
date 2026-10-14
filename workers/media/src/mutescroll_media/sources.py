@@ -41,6 +41,8 @@ class CaptionResult:
     segments: list[Segment]
     language: str
     automatic: bool
+    # Platform captions and Groq stay False. A Groq transcript is speech recognition, not captions.
+    vendor: bool = False
 
 
 @dataclass
@@ -100,6 +102,13 @@ class _SilentLogger:
     def error(self, _msg: str) -> None: ...
 
 
+class _NoImpersonation(yt_dlp.YoutubeDL):
+    """Extractors may ask for browser impersonation. Public fetches never do it."""
+
+    def _parse_impersonate_targets(self, _impersonate: object) -> tuple[None, list[object]]:
+        return None, []
+
+
 class YtDlpSource:
     def __init__(
         self,
@@ -139,7 +148,7 @@ class YtDlpSource:
                 "worker_misconfigured", "YouTube needs a JavaScript runtime (deno or node) on the worker."
             )
         try:
-            with yt_dlp.YoutubeDL({**self._base_options(), "skip_download": True}) as ydl:
+            with _NoImpersonation({**self._base_options(), "skip_download": True}) as ydl:
                 info = ydl.extract_info(url, download=False)
         except DownloadError as exc:
             raise classify_error(str(exc)) from exc
@@ -161,6 +170,7 @@ class YtDlpSource:
             manual_captions=info.get("subtitles") or {},
             automatic_captions=info.get("automatic_captions") or {},
             video_language=info.get("language"),
+            source_url=url,
         )
 
     def fetch_captions(self, info: SourceInfo, language: str | None, *, automatic: bool) -> CaptionResult | None:
@@ -195,7 +205,7 @@ class YtDlpSource:
             "overwrites": True,
         }
         try:
-            with yt_dlp.YoutubeDL(options) as ydl:
+            with _NoImpersonation(options) as ydl:
                 ydl.extract_info(url, download=True)
         except DownloadError as exc:
             raise classify_error(str(exc)) from exc

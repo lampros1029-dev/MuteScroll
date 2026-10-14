@@ -6,7 +6,7 @@ Developer Mode can be used today. In ChatGPT, turn on Developer Mode, add a cust
 
 ChatGPT connector auth for an account is OAuth. Choose OAuth, sign in on MuteScroll, and allow the connection. Transcripts then use that account. Anonymous use remains available only if authentication is left empty. That choice is separate from a directory listing.
 
-The live connector may still accept TikTok, Instagram, and Facebook links. The directory listing must not. Do not put those platform names in the directory description, the test prompts, or any other field you paste into the directory form. Do not put prices, trials, discounts, or the word "save" in any directory field.
+The live connector may still accept TikTok, Instagram, and Facebook links. A public link is read with yt-dlp. The video's own captions are used when they exist. Otherwise the audio goes to Groq. If the audio cannot be fetched, automatic captions are used when the video has them. The server does not sign in. Upload is the fallback when retrieval fails. There is no separate media-lookup or caption vendor. The directory listing must not name TikTok, Instagram, or Facebook. Do not put those platform names in the directory description, the test prompts, or any other field you paste into the directory form. Do not put prices, trials, discounts, or the word "save" in any directory field.
 
 ## Paste into the form
 
@@ -54,7 +54,7 @@ Replace the placeholders before a reviewer runs these. Use a public YouTube vide
 Do these yourself. This file does not do them.
 
 - [x] The published pages are `/privacy`, `/terms`, `/refunds`, `/legal`, and `/subprocessors`.
-- [x] Operator name is Labros Aggelopoulos, Athens, Greece, in `apps/web/src/lib/legal.ts`.
+- [x] Operator name is Labros Aggelopoulos. The published address in `apps/web/src/lib/legal.ts` is Arionos 17, Peristeri, Greece.
 - [x] Consumers keep the mandatory rights and courts of the country where they live. Business customers use Greek law and the courts of Athens. The legal notice states Article 44a of Law 5144/2024 (€10,000 Greek VAT exemption) and Article 11 of Law 5104/2024 (commencement declaration before the first business transaction).
 - [ ] Submit the listing from your own OpenAI account. Do not treat this document as a submission.
 - [ ] Confirm you accept the directory source limits: public YouTube videos, YouTube Shorts, and file upload. The directory description above is the text to paste. It does not name other platforms.

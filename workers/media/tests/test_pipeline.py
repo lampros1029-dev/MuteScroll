@@ -108,6 +108,13 @@ def test_falls_back_to_auto_captions_when_audio_blocked() -> None:
     assert result.method == "captions_auto"
 
 
+def test_vendor_transcript_is_not_labelled_as_groq() -> None:
+    vendor = CaptionResult(segments=[Segment(0.0, 2.0, "vendor line")], language="en", automatic=True, vendor=True)
+    result = pipeline.transcribe_url(URL, source=FakeSource(auto=vendor), asr=None)
+    assert result.method == "captions_vendor"
+    assert result.transcript_text == "[00:00] Vendor line"
+
+
 def test_no_auto_caption_fallback_when_disabled_reraises_retrieval_error() -> None:
     source = FakeSource(auto=captions())
     with pytest.raises(RetrievalError) as err:

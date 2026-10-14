@@ -48,7 +48,7 @@ export const toolOutputShape = {
   error: errorSchema.optional(),
   source: sourceSchema.optional(),
   language: z.string().nullish(),
-  method: z.enum(["captions", "captions_auto", "asr"]).optional(),
+  method: z.enum(["captions", "captions_auto", "captions_vendor", "asr"]).optional(),
   transcript_text: z.string().optional(),
   segments: z.array(segmentSchema).optional(),
   uncertain_spans: z

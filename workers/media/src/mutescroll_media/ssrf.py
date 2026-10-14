@@ -22,13 +22,6 @@ ALLOWED_DOMAINS: tuple[str, ...] = (
     "youtube.com", "youtu.be", "tiktok.com", "instagram.com", "facebook.com", "fb.watch", "fb.com",
 )  # fmt: skip
 
-# Media CDNs a licensed vendor may hand back (PRD 22.2). Kept separate from ALLOWED_DOMAINS so a
-# user-submitted URL can never point at a CDN host directly.
-MEDIA_CDN_DOMAINS: tuple[str, ...] = (
-    "tiktokcdn.com", "tiktokcdn-us.com", "tiktokcdn-eu.com", "tiktokv.com", "tiktokv.us", "tiktokv.eu",
-    "byteoversea.com", "ibytedtos.com", "muscdn.com", "cdninstagram.com", "fbcdn.net",
-)  # fmt: skip
-
 Resolver = Callable[[str], list[str]]
 
 
@@ -59,10 +52,6 @@ def _in_domains(host: str, domains: tuple[str, ...]) -> bool:
 
 def host_allowed(host: str) -> bool:
     return _in_domains(host, ALLOWED_DOMAINS)
-
-
-def media_host_allowed(host: str) -> bool:
-    return _in_domains(host, MEDIA_CDN_DOMAINS)
 
 
 def system_resolver(host: str) -> list[str]:
