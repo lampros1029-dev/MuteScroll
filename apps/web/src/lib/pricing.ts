@@ -20,7 +20,6 @@ export interface PlanFeatures {
   readonly library: string;
   readonly exports: string;
   readonly bulk: string;
-  readonly rollover: string;
   readonly seats: string;
   readonly priority: string;
 }
@@ -53,7 +52,6 @@ export const PLANS: readonly Plan[] = [
       library: "7-day history",
       exports: "TXT",
       bulk: "Not included",
-      rollover: "Not included",
       seats: "1",
       priority: "Not included",
     },
@@ -74,7 +72,6 @@ export const PLANS: readonly Plan[] = [
       library: "Included",
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "25 per batch",
-      rollover: "Not included",
       seats: "1",
       priority: "Not included",
     },
@@ -95,7 +92,6 @@ export const PLANS: readonly Plan[] = [
       library: "Included",
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "200 per batch",
-      rollover: "Not included",
       seats: "1",
       priority: "Included",
     },
@@ -116,7 +112,6 @@ export const PLANS: readonly Plan[] = [
       library: "Shared",
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "1,000 per batch",
-      rollover: "Not included",
       seats: "3 included, +$12 per extra seat",
       priority: "Included",
     },

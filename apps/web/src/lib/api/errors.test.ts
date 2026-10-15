@@ -7,10 +7,10 @@ describe("describeFailure", () => {
     const view = describeFailure({
       status: 400,
       code: "unsupported_url",
-      message: "This isn't a supported video link. Supported: YouTube, Shorts, TikTok, Instagram Reels, Facebook videos, or upload a file.",
+      message: "This isn't a supported video link. Paste a public video link, or upload a file.",
     });
     expect(view.title).toBe("This link isn't supported");
-    expect(view.message).toContain("Supported: YouTube");
+    expect(view.message).toContain("public video link");
     expect(view.nextStep).toContain("upload the file");
     expect(view.offerUpload).toBe(false);
   });
@@ -27,9 +27,9 @@ describe("describeFailure", () => {
 
   it("points quota and length problems at the plans page", () => {
     const quota = describeFailure({ status: 429, code: "quota_exceeded", message: "Limit reached." });
-    expect(quota.link).toEqual({ href: "/pricing", label: "See plans and limits" });
+    expect(quota.link).toEqual({ href: "/plans", label: "See plans and limits" });
     expect(quota.offerUpload).toBe(false);
-    expect(describeFailure({ status: 413, code: "too_long", message: "" }).link?.href).toBe("/pricing");
+    expect(describeFailure({ status: 413, code: "too_long", message: "" }).link?.href).toBe("/plans");
   });
 
   it("never offers a retry for input problems", () => {

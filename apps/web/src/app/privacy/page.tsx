@@ -88,11 +88,11 @@ export default function PrivacyPage() {
           </table>
         </div>
         <p>
-          For a link, the server tries to read a public video on YouTube, Facebook, TikTok, or Instagram with yt-dlp. It
-          uses the video's own captions when they exist. Otherwise it takes the audio and sends that audio to Groq. If
-          the audio cannot be fetched, and the video has automatic captions, those captions are used. The server does
-          not sign in, and it does not use a video-platform account or that account's cookies. If the video cannot be
-          read, you can upload a file. An upload is transcribed from its audio.
+          MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path. For a
+          link it can reach, the server reads the video with yt-dlp. It uses the video&apos;s own captions when they
+          exist. Otherwise it takes the audio and sends that audio to Groq. If the audio cannot be fetched, and the
+          video has automatic captions, those captions are used. The server does not sign in, and it does not use an
+          account on the video host or that account&apos;s cookies. An upload is transcribed from its audio.
         </p>
         <p>
           We store the link, the metadata, and the transcript. We do not store the content of your conversations with

@@ -140,7 +140,7 @@ describe.each(STORE_MODES)("REST accounts on $name stores", (mode) => {
     const transcribe = await api(server, "/v1/transcriptions", {
       method: "POST",
       headers: bearer(`msk_${"A".repeat(43)}`),
-      json: { url: "https://www.youtube.com/watch?v=aaaaaaaaaaa" },
+      json: { url: "https://example.com/video/aaaaaaaaaaa" },
     });
     expect(transcribe.status).toBe(401);
     expect(transcribe.body.error.code).toBe("unauthorized");

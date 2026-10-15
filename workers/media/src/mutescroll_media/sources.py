@@ -62,16 +62,16 @@ class MediaSource(Protocol):
     def download_audio(self, url: str, workdir: Path) -> Path: ...
 
 
-def platform_of(url: str) -> str:
-    host = (urlsplit(url).hostname or "").lower()
-    for domain, platform in (
-        ("youtube.com", "youtube"), ("youtu.be", "youtube"), ("tiktok.com", "tiktok"),
-        ("instagram.com", "instagram"), ("facebook.com", "facebook"), ("fb.watch", "facebook"),
-        ("fb.com", "facebook"),
-    ):  # fmt: skip
-        if host == domain or host.endswith(f".{domain}"):
-            return platform
-    return "unknown"
+# These hosts need a JavaScript runtime for yt-dlp signature challenges. The check is the
+# extractor requirement, not a list of links MuteScroll accepts.
+_SIGNATURE_HOSTS = ("youtube.com", "youtu.be")
+
+
+def _needs_js_runtime(url: str) -> bool:
+    host = (urlsplit(url).hostname or "").lower().rstrip(".")
+    if host.startswith("www."):
+        host = host[4:]
+    return any(host == domain or host.endswith(f".{domain}") for domain in _SIGNATURE_HOSTS)
 
 
 def classify_error(message: str) -> RetrievalError:
@@ -122,7 +122,7 @@ class YtDlpSource:
         self._resolver = resolver
 
     def _base_options(self) -> dict[str, Any]:
-        # YouTube extraction needs a JS runtime for signature challenges (yt-dlp EJS).
+        # Some extractors need a JS runtime for signature challenges (yt-dlp EJS).
         runtimes = {name: {} for name in ("deno", "node") if shutil.which(name)}
         return {
             "js_runtimes": runtimes or {"deno": {}},
@@ -143,9 +143,9 @@ class YtDlpSource:
         }
 
     def fetch_info(self, url: str) -> SourceInfo:
-        if platform_of(url) == "youtube" and not (shutil.which("deno") or shutil.which("node")):
+        if _needs_js_runtime(url) and not (shutil.which("deno") or shutil.which("node")):
             raise RetrievalError(
-                "worker_misconfigured", "YouTube needs a JavaScript runtime (deno or node) on the worker."
+                "worker_misconfigured", "This worker needs a JavaScript runtime (deno or node)."
             )
         try:
             with _NoImpersonation({**self._base_options(), "skip_download": True}) as ydl:
@@ -159,11 +159,11 @@ class YtDlpSource:
         if info.get("is_live"):
             raise RetrievalError("live_stream", "Live streams are not supported.")
         metadata = VideoMetadata(
-            platform=platform_of(url),
+            platform="public",
             title=info.get("title"),
             author=info.get("uploader") or info.get("channel"),
             duration_seconds=float(info["duration"]) if info.get("duration") else None,
-            content_type="short" if "/shorts/" in url else None,
+            content_type="video",
         )
         return SourceInfo(
             metadata=metadata,

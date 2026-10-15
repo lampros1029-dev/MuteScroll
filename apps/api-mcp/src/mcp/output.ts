@@ -54,12 +54,18 @@ export function failureOutput(code: ToolErrorCode, details: FailureDetails): Too
   };
 }
 
+export interface WwwAuthenticate {
+  readonly error: string;
+  readonly error_description: string;
+}
+
 /** Text for hosts that only read `content`; `structuredContent` carries the full PRD 8.1 shape. */
-export function toCallToolResult(output: ToolOutput): CallToolResult {
+export function toCallToolResult(output: ToolOutput, wwwAuthenticate?: WwwAuthenticate): CallToolResult {
   return {
     content: [{ type: "text", text: textFor(output) }],
     structuredContent: output,
     isError: output.status === "failed",
+    ...(wwwAuthenticate === undefined ? {} : { _meta: { "mcp/www_authenticate": wwwAuthenticate } }),
   };
 }
 

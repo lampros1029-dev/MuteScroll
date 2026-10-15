@@ -107,7 +107,7 @@ function copyFor(code: KnownErrorCode): Copy {
       return {
         title: "This link isn't supported",
         fallbackMessage: "This isn't a supported video link.",
-        nextStep: "Try a YouTube, TikTok, Instagram or Facebook link, or upload the file.",
+        nextStep: "Paste a public video link, or upload the file.",
       };
     case "unsafe_url":
       return {
@@ -135,9 +135,9 @@ function copyFor(code: KnownErrorCode): Copy {
       };
     case "blocked_bot_check":
       return {
-        title: "The platform blocked our request",
-        fallbackMessage: "The platform blocked the retrieval request.",
-        nextStep: "Platforms block automated retrieval at times. Upload the file: it runs through the same pipeline.",
+        title: "The host blocked our request",
+        fallbackMessage: "The host blocked the retrieval request.",
+        nextStep: "Other links get the one-time upload path. Upload the file: it runs through the same pipeline.",
       };
     case "retrieval_failed":
       return {
@@ -186,7 +186,7 @@ function copyFor(code: KnownErrorCode): Copy {
       return {
         title: "Your limit is reached",
         fallbackMessage: "You've used this period's transcriptions.",
-        nextStep: "Limits reset on the date in the message. Plan details are on the pricing page.",
+        nextStep: "Limits reset on the date in the message. Allowances are on the plans page.",
         link: PLANS_LINK,
       };
     case "rate_limited":

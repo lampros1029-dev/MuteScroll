@@ -31,8 +31,9 @@ export default async function TryPage({ searchParams }: TryPageProps) {
       <header className="page-head">
         <h1 className="display-small">Transcribe a video</h1>
         <p className="section-lede">
-          Paste a link to a public video, or upload a file. You get a timestamped transcript, with uncertain words
-          flagged, that you can copy or export.
+          Paste a public video link, or upload a file. MuteScroll reads a public video link when it can reach it. Other
+          links get the one-time upload path. You get a timestamped transcript, with uncertain words flagged, that you
+          can copy or export.
         </p>
       </header>
       <TryClient initialUrl={initialUrl} initialJobId={initialJobId} />

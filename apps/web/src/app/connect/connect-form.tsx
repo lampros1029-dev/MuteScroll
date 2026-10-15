@@ -47,11 +47,11 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
         <header className="page-head">
           <h1 className="display-small">Connect ChatGPT</h1>
           <p className="section-lede">
-            In ChatGPT, turn on Developer Mode, add a custom connector for MuteScroll, and choose OAuth. ChatGPT opens
-            this page so you can sign in and allow it to use your account.
+            Plugins → Add custom MCP server → https://api.mutescroll.xyz/mcp → OAuth. ChatGPT opens this page so you
+            can sign in and allow it to use your account.
           </p>
         </header>
-        <p>The connector address is https://api.mutescroll.xyz/mcp. Leaving authentication empty keeps the anonymous allowance.</p>
+        <p>Leaving authentication empty keeps the anonymous allowance.</p>
       </div>
     );
   }

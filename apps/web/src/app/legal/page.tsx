@@ -47,11 +47,11 @@ export default function LegalNoticePage() {
       </section>
 
       <section aria-labelledby="platforms">
-        <h2 id="platforms">Video platforms</h2>
+        <h2 id="platforms">Video hosts</h2>
         <p>
-          MuteScroll does not affiliate with, endorse, or operate any video platform. YouTube, Facebook, Instagram,
-          TikTok, and any other service named on this site are where a video may live. They are not MuteScroll, and
-          MuteScroll does not speak for them.
+          MuteScroll does not affiliate with, endorse, or operate any video host. MuteScroll reads a public video link
+          when it can reach it. Other links get the one-time upload path. A public video link is only the address of a
+          video. MuteScroll does not speak for the service that hosts it.
         </p>
       </section>
 

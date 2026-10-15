@@ -143,7 +143,7 @@ Errors: `400` for an unknown format, `409 not_ready` while running, `409 job_fai
 
 ```json
 {
-  "metadata": { "platform": "youtube", "content_type": "video", "title": "…", "author": "…", "duration_seconds": 58 },
+  "metadata": { "platform": "upload", "content_type": "file", "title": "…", "author": "…", "duration_seconds": 58 },
   "language": "en",
   "method": "asr",
   "transcript_text": "[00:00] …",

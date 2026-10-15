@@ -65,15 +65,14 @@ export default function DevelopersPage() {
       <section className="section" aria-labelledby="chatgpt-setup">
         <h2 id="chatgpt-setup">ChatGPT</h2>
         <ol>
-          <li>Open ChatGPT settings and turn on Developer Mode.</li>
           <li>
-            Add a custom MCP connector named MuteScroll. Server URL: <code>{MCP_URL}</code>.
+            Plugins → Add custom MCP server → <code>{MCP_URL}</code> → OAuth.
           </li>
           <li>
-            Set authentication to OAuth. ChatGPT opens MuteScroll so you can sign in and allow the connection. That
-            works on every plan. Leave authentication empty only for the anonymous allowance.
+            ChatGPT opens MuteScroll so you can sign in and allow the connection. That works on every plan. Leave
+            authentication empty only for the anonymous allowance.
           </li>
-          <li>Start a new chat, enable the connector, and ask it to transcribe a public link.</li>
+          <li>Start a new chat, enable the connector, and ask it to transcribe a public video link.</li>
           <li>
             If the reply is <code>processing</code> plus a job id, ask ChatGPT to call <code>get_transcription</code> with
             that id.
@@ -117,7 +116,7 @@ export default function DevelopersPage() {
         <p>
           The REST API is at <code>{restBase}</code>. This website calls it through same-origin <code>/api/v1</code>. A
           Team API key is sent as <code>Authorization: Bearer</code>. Create and revoke keys on the{" "}
-          <Link href="/account">account page</Link>. Checkout, the library, and account deletion are on this site.
+          <Link href="/account">account page</Link>. The library and account deletion are on this site.
         </p>
       </section>
     </div>

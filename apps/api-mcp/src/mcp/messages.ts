@@ -50,7 +50,7 @@ function messageFor(code: ToolErrorCode, options: CopyOptions): string {
     case "invalid_url":
       return "That doesn't look like a valid video link. Paste the full https:// link, or upload the file.";
     case "unsupported_url":
-      return "This isn't a supported video link. Supported: YouTube, Shorts, TikTok, Instagram Reels, Facebook videos, or upload a file.";
+      return "MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path.";
     case "unsafe_url":
       return "This link can't be processed. Only public http(s) video links are accepted.";
     case "invalid_language":
@@ -63,13 +63,13 @@ function messageFor(code: ToolErrorCode, options: CopyOptions): string {
       return "No transcription was found for that job_id. It may have expired; ask for the video again.";
     case "blocked_bot_check":
     case "retrieval_failed":
-      return "I couldn't retrieve this video right now. If you can see it, upload the file here and I'll transcribe it with the same quality.";
+      return "MuteScroll could not reach this video. Use the one-time upload path.";
     case "private_or_login_required":
-      return "This video needs access I don't have, and I can't bypass private-account restrictions. Upload the file and I'll transcribe it.";
+      return "This video needs access MuteScroll does not have. MuteScroll does not sign in or bypass access controls. Use the one-time upload path.";
     case "unavailable":
       return "This video is unavailable or was removed. If you have a copy you can access, upload the file and I'll transcribe it.";
     case "drm_protected":
-      return "This video is DRM-protected, so I can't retrieve it. If you have a copy you're allowed to use, upload the file and I'll transcribe it.";
+      return "This video is protected, so MuteScroll cannot read it. If you have a copy you are allowed to use, use the one-time upload path.";
     case "live_stream":
       return "Live streams can't be transcribed yet. Try again after the stream ends, or upload a recording.";
     case "too_long":

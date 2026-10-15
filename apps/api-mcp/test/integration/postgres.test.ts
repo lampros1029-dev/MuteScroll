@@ -120,7 +120,7 @@ describe.skipIf(!POSTGRES_AVAILABLE)("Postgres stores against a real database", 
       const jobs = fixture.stores.jobs;
       const outcomes = await Promise.all(
         Array.from({ length: 10 }, (_, index) =>
-          jobs.createOrReuse({ id: `job_${index}`, key: "anonymous|https://x|auto", language: "auto", platform: "youtube", ownerUserId: null }),
+          jobs.createOrReuse({ id: `job_${index}`, key: "anonymous|https://x|auto", language: "auto", platform: "public", ownerUserId: null }),
         ),
       );
       expect(outcomes.filter((outcome) => outcome.created)).toHaveLength(1);
@@ -164,13 +164,13 @@ describe.skipIf(!POSTGRES_AVAILABLE)("Postgres stores against a real database", 
     try {
       const jobs = fixture.stores.jobs;
       await fixture.stores.users.create({ id: "usr_owner", email: "owner@example.test", passwordHash: "x", plan: "free", createdAt: OCT_15 });
-      await jobs.createOrReuse({ id: "job_done", key: "user:usr_owner|v|auto", language: "auto", platform: "youtube", ownerUserId: "usr_owner" });
+      await jobs.createOrReuse({ id: "job_done", key: "user:usr_owner|v|auto", language: "auto", platform: "public", ownerUserId: "usr_owner" });
       await jobs.update("job_done", { status: "succeeded", result: transcriptFixture(), creditsCharged: 1 });
       const stored = await jobs.get("job_done");
       expect(stored?.result).toEqual(transcriptFixture());
       expect(stored?.creditsCharged).toBe(1);
       const library = await jobs.listForUser("usr_owner", { limit: 10, offset: 0 });
-      expect(library).toEqual([{ id: "job_done", status: "succeeded", platform: "youtube", title: "Demo", createdAt: OCT_15 }]);
+      expect(library).toEqual([{ id: "job_done", status: "succeeded", platform: "public", title: "Demo", createdAt: OCT_15 }]);
     } finally {
       await fixture.close();
     }

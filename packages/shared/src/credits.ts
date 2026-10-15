@@ -1,6 +1,6 @@
 /**
  * Credit accounting (PRD §19, §20.2): 1 credit per started 10 minutes of audio.
- * A Reel costs 1 credit, a 45-minute podcast costs 5.
+ * A short video costs 1 credit, a 45-minute podcast costs 5.
  */
 
 export const SECONDS_PER_CREDIT = 600;

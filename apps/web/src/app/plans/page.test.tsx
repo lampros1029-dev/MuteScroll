@@ -15,9 +15,7 @@ describe("plans page", () => {
     expect(screen.getByText(/One credit covers up to 10 minutes of audio/)).toBeTruthy();
     expect(screen.getByText("Paid plans are described on the website.")).toBeTruthy();
 
-    const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(1);
-    expect(links[0]?.getAttribute("href")).toBe("/");
+    expect(screen.queryAllByRole("link")).toHaveLength(0);
     expect(screen.queryByRole("button")).toBeNull();
 
     const text = document.body.textContent ?? "";

@@ -12,14 +12,10 @@ import {
   speakerLabel,
   speakerNumbers,
 } from "../../lib/transcript/view-model";
-import { youtubeTimeLink } from "../../lib/transcript/youtube";
-
 import { FlagMark } from "./flag-mark";
 
 interface TranscriptViewProps {
   readonly transcription: Transcription;
-  /** The link the user submitted. Used for YouTube timestamp links and the Markdown source line. */
-  readonly sourceUrl?: string | null;
   /** `sample` is the compact landing-page example: no review panel. */
   readonly variant?: "full" | "sample";
 }
@@ -29,18 +25,15 @@ interface StampTarget {
   readonly external: boolean;
 }
 
-function stampTarget(seconds: number, index: number, sourceUrl: string | null): StampTarget {
-  const external = youtubeTimeLink(sourceUrl, seconds);
-  if (external !== null) return { href: external, external: true };
+function stampTarget(index: number): StampTarget {
   return { href: `#seg-${index}`, external: false };
 }
 
 /**
- * The transcript, rendered as a reading document. Timestamps link to the moment in the source
- * (YouTube) or to the segment on this page. Text is never rewritten: uncertain spans are only
- * wrapped for highlighting.
+ * The transcript, rendered as a reading document. Timestamps link to the segment on this page.
+ * Text is never rewritten: uncertain spans are only wrapped for highlighting.
  */
-export function TranscriptView({ transcription, sourceUrl = null, variant = "full" }: TranscriptViewProps) {
+export function TranscriptView({ transcription, variant = "full" }: TranscriptViewProps) {
   const duration = durationSeconds(transcription);
   const numbers = speakerNumbers(transcription.segments);
   const flags = sortedSpans(transcription.uncertain_spans);
@@ -81,7 +74,6 @@ export function TranscriptView({ transcription, sourceUrl = null, variant = "ful
               duration={duration}
               speakers={numbers}
               flags={flags}
-              sourceUrl={sourceUrl}
             />
           ))}
         </ol>
@@ -95,7 +87,6 @@ export function TranscriptView({ transcription, sourceUrl = null, variant = "ful
           references={references}
           segments={transcription.segments}
           duration={duration}
-          sourceUrl={sourceUrl}
         />
       ) : null}
     </article>
@@ -109,12 +100,11 @@ interface SegmentRowProps {
   readonly duration: number;
   readonly speakers: ReadonlyMap<string, number>;
   readonly flags: readonly UncertainSpan[];
-  readonly sourceUrl: string | null;
 }
 
-function SegmentRow({ index, segment, previous, duration, speakers, flags, sourceUrl }: SegmentRowProps) {
+function SegmentRow({ index, segment, previous, duration, speakers, flags }: SegmentRowProps) {
   const clock = formatClock(segment.start, duration);
-  const target = stampTarget(segment.start, index, sourceUrl);
+  const target = stampTarget(index);
   const speaker =
     segment.speaker !== null && (previous === null || previous.speaker !== segment.speaker)
       ? speakerLabel(segment.speaker, speakers)
@@ -129,7 +119,7 @@ function SegmentRow({ index, segment, previous, duration, speakers, flags, sourc
         {...(target.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
         aria-label={
           target.external
-            ? `Open the video at ${clock} on YouTube, in a new tab`
+            ? `Open the video at ${clock} in a new tab`
             : `Link to the transcript line at ${clock}`
         }
       >
@@ -172,10 +162,9 @@ interface ReviewPanelProps {
   readonly references: readonly { readonly at: number; readonly phrase: string }[];
   readonly segments: readonly TranscriptSegment[];
   readonly duration: number;
-  readonly sourceUrl: string | null;
 }
 
-function ReviewPanel({ flags, references, segments, duration, sourceUrl }: ReviewPanelProps) {
+function ReviewPanel({ flags, references, segments, duration }: ReviewPanelProps) {
   return (
     <section className="review" aria-labelledby="review-title">
       <h3 id="review-title" className="review-title">
@@ -190,7 +179,7 @@ function ReviewPanel({ flags, references, segments, duration, sourceUrl }: Revie
         <ul className="review-list">
           {flags.map((flag, index) => {
             const segmentIndex = nearestSegmentIndex(segments, flag.start);
-            const target = stampTarget(flag.start, Math.max(0, segmentIndex), sourceUrl);
+            const target = stampTarget(Math.max(0, segmentIndex));
             return (
               <li key={`${flag.start}-${index}`} className="review-item">
                 <a
@@ -218,7 +207,7 @@ function ReviewPanel({ flags, references, segments, duration, sourceUrl }: Revie
           <ul className="review-list">
             {references.map((reference, index) => {
               const segmentIndex = nearestSegmentIndex(segments, reference.at);
-              const target = stampTarget(reference.at, Math.max(0, segmentIndex), sourceUrl);
+              const target = stampTarget(Math.max(0, segmentIndex));
               return (
                 <li key={`${reference.at}-${index}`} className="review-item">
                   <a

@@ -26,38 +26,17 @@ export function speakerLabel(speaker: string | null, numbers: ReadonlyMap<string
   return number === undefined ? null : `Speaker ${number}`;
 }
 
+/** Label for a person reading a transcript. Host ids stay internal and are not shown. */
 export function platformLabel(platform: string): string {
-  switch (platform) {
-    case "youtube":
-      return "YouTube";
-    case "tiktok":
-      return "TikTok";
-    case "instagram":
-      return "Instagram";
-    case "facebook":
-      return "Facebook";
-    case "upload":
-      return "Uploaded file";
-    case "unknown":
-      return "Unknown source";
-    default:
-      return platform.charAt(0).toUpperCase() + platform.slice(1);
-  }
+  if (platform === "upload") return "Uploaded file";
+  if (platform === "unknown") return "Unknown source";
+  return "Public video";
 }
 
 export function contentTypeLabel(contentType: string | null): string | null {
-  switch (contentType) {
-    case "reel":
-      return "Reel";
-    case "short":
-      return "Short";
-    case "video":
-      return "Video";
-    case "file":
-      return "File";
-    default:
-      return null;
-  }
+  if (contentType === null || contentType === "") return null;
+  if (contentType === "file") return "File";
+  return "Video";
 }
 
 export function methodLabel(method: string): string {

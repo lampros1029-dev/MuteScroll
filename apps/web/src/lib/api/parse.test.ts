@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseOutcome, parseTranscription } from "./parse";
 
 const transcript = {
-  source: { platform: "instagram", content_type: "reel", title: "Reel", author: "a", duration_seconds: 58 },
+  source: { platform: "public", content_type: "video", title: "Clip", author: "a", duration_seconds: 58 },
   language: "en",
   method: "asr",
   transcript_text: "[00:00] Hello $10",
@@ -18,7 +18,7 @@ describe("parseOutcome", () => {
     expect(outcome.kind).toBe("completed");
     if (outcome.kind !== "completed") return;
     expect(outcome.jobId).toBe("job-1");
-    expect(outcome.transcription.metadata.platform).toBe("instagram");
+    expect(outcome.transcription.metadata.platform).toBe("public");
     expect(outcome.transcription.metadata.duration_seconds).toBe(58);
     expect(outcome.transcription.segments).toHaveLength(1);
     expect(outcome.transcription.uncertain_spans).toHaveLength(1);
@@ -26,8 +26,8 @@ describe("parseOutcome", () => {
   });
 
   it("prefers `metadata` when the API sends it, as docs/rest-api.md describes", () => {
-    const parsed = parseTranscription({ ...transcript, metadata: { platform: "tiktok", title: "T" }, source: undefined });
-    expect(parsed?.metadata.platform).toBe("tiktok");
+    const parsed = parseTranscription({ ...transcript, metadata: { platform: "public", title: "T" }, source: undefined });
+    expect(parsed?.metadata.platform).toBe("public");
     expect(parsed?.metadata.title).toBe("T");
   });
 

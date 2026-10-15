@@ -1,7 +1,5 @@
 import type { IncomingMessage, RequestListener, ServerResponse } from "node:http";
 
-import { PLATFORMS } from "@mutescroll/shared";
-
 import { handleApi } from "./api/router.js";
 import type { AppContext } from "./context.js";
 import { clientKeyFor } from "./http/client-key.js";
@@ -34,7 +32,7 @@ async function route(req: IncomingMessage, res: ServerResponse, ctx: AppContext)
 
   if (path === "/healthz") {
     if (req.method !== "GET") return sendJson(res, 405, { error: "method_not_allowed" }, { allow: "GET" });
-    return sendJson(res, 200, { status: "ok", platforms: PLATFORMS });
+    return sendJson(res, 200, { status: "ok" });
   }
   if (await handleOAuth(req, res, ctx)) return;
   if (path === "/mcp") return handleMcpRequest(req, res, ctx);

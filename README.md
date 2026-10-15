@@ -26,7 +26,7 @@ npm run test:media   # Python tests (pytest)
 
 Copy `.env.example` to `.env` for local config. Never commit secrets.
 
-Public video links (YouTube, Facebook, TikTok, Instagram) are read with yt-dlp. When yt-dlp already returns platform captions, those captions are used. Otherwise the audio goes to Groq. If the audio cannot be fetched, automatic captions are used when yt-dlp already returned them. The server does not sign in, does not use cookies, and does not impersonate a browser. If that fetch fails, the API keeps the retrieval error and offers upload. An upload is transcribed from its audio. A Groq transcript is speech recognition, not platform captions.
+A public video link is read with yt-dlp. When yt-dlp already returns the video's own captions, those captions are used. Otherwise the audio goes to Groq. If the audio cannot be fetched, automatic captions are used when yt-dlp already returned them. The server does not sign in, does not use cookies, and does not impersonate a browser. If that fetch fails, the API keeps the retrieval error and offers upload. An upload is transcribed from its audio. A Groq transcript is speech recognition, not the video's own captions.
 
 ## Run the MCP server locally
 

@@ -21,7 +21,7 @@ const input = (id: string, key = "k1", ownerUserId: string | null = null) => ({
   id,
   key,
   language: "auto",
-  platform: "youtube",
+  platform: "public",
   ownerUserId,
 });
 
@@ -149,7 +149,7 @@ describe("MemoryJobStore account views", () => {
     await store.update("job_new", { status: "succeeded", result: transcriptFixture(), creditsCharged: 1 });
     const page = await store.listForUser("usr_1", { limit: 10, offset: 0 });
     expect(page.map((item) => item.id)).toEqual(["job_new", "job_old"]);
-    expect(page[0]).toMatchObject({ status: "succeeded", platform: "youtube", title: "Demo" });
+    expect(page[0]).toMatchObject({ status: "succeeded", platform: "public", title: "Demo" });
     expect(page[1]?.title).toBeNull();
   });
 

@@ -18,10 +18,10 @@ REST API keys are a Team feature. To call as a Team account with a key, send `Au
 
 | Name | What it does |
 |---|---|
-| `transcribe_video` | Transcribes a public video URL into timestamped text. |
+| `transcribe_video` | Transcribes a public video link into timestamped text when MuteScroll can reach it. Other links get the one-time upload path. |
 | `get_transcription` | Reads a transcript job by `job_id`. |
 
-Calling `transcribe_video` starts work and spends credits. The smoke script never calls it.
+Calling `transcribe_video` starts work. A finished transcript spends credits. A failed job does not. The smoke script never calls it.
 
 ## Cursor
 
@@ -85,14 +85,13 @@ Team API key (optional):
 
 Quit Claude Desktop completely and open it again so it reloads the file. The connector should list `transcribe_video` and `get_transcription`.
 
-## ChatGPT (Developer Mode)
+## ChatGPT
 
 This is the way to use MuteScroll inside ChatGPT before a directory listing exists.
 
-1. Open ChatGPT settings and turn on **Developer Mode**.
-2. Add a custom MCP connector. Name it MuteScroll. Server URL: `https://api.mutescroll.xyz/mcp`.
-3. Set authentication to **OAuth**. ChatGPT discovers MuteScroll’s sign-in, opens it, and asks the person to allow the connection. Transcripts then use that MuteScroll account. Leave authentication empty only for the anonymous allowance (5 credits per rolling 24 hours).
-4. Start a new chat, enable the MuteScroll connector, and ask: `Transcribe this: https://www.youtube.com/watch?v=...`
-5. If the reply is `processing` plus a `job_id`, ask ChatGPT to call `get_transcription` with that id. Do not ask MuteScroll to summarize; ChatGPT does that from the transcript.
+1. Plugins → Add custom MCP server → `https://api.mutescroll.xyz/mcp` → OAuth.
+2. ChatGPT discovers MuteScroll’s sign-in, opens it, and asks the person to allow the connection. Transcripts then use that MuteScroll account. Leave authentication empty only for the anonymous allowance (5 credits per rolling 24 hours). See [https://mutescroll.xyz/plans](https://mutescroll.xyz/plans).
+3. Start a new chat, enable the MuteScroll connector, and ask: `Transcribe this public video link.`
+4. If the reply is `processing` plus a `job_id`, ask ChatGPT to call `get_transcription` with that id. Do not ask MuteScroll to summarize; ChatGPT does that from the transcript.
 
-A directory submission is a separate step. It needs the privacy and terms review, a YouTube-and-upload tool description, and your own OpenAI developer account. The public listing must not mention prices, trials, or discounts.
+A directory submission is a separate step. It needs the privacy and terms review, a tool description that says a public video link or a file upload, and your own OpenAI developer account. The public listing must not mention prices, trials, or discounts.

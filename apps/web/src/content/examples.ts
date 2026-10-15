@@ -6,8 +6,8 @@ import type { Transcription } from "../lib/api/types";
  */
 export const HERO_EXAMPLE: Transcription = {
   metadata: {
-    platform: "instagram",
-    content_type: "reel",
+    platform: "public",
+    content_type: "video",
     title: "Camera setting in 30 seconds",
     author: null,
     duration_seconds: 31,

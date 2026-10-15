@@ -10,7 +10,7 @@ export interface Job {
   readonly key: string;
   readonly status: JobStatus;
   readonly language: string;
-  /** Video platform (youtube, tiktok, ...) or "upload". Null when unknown. */
+  /** "public" for a link, "upload" for a file, or null when unknown. */
   readonly platform: string | null;
   /** Account that created the job. Null = anonymous: capability by job_id only. */
   readonly ownerUserId: string | null;

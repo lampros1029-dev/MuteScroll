@@ -6,7 +6,7 @@ import { clockFromSeconds, secondsToMs, srtTimestamp, vttTimestamp } from "../..
 
 function transcription(overrides: Partial<Transcription> = {}): Transcription {
   return {
-    metadata: { platform: "youtube", content_type: "video", title: "Demo video", author: "Someone", duration_seconds: 9 },
+    metadata: { platform: "public", content_type: "video", title: "Demo video", author: "Someone", duration_seconds: 9 },
     language: "en",
     method: "asr",
     transcript_text: "[00:00] Hello there\n[00:02] Second line",
@@ -130,18 +130,18 @@ describe("SRT and VTT output", () => {
 describe("markdown, text and JSON output", () => {
   it("renders a title heading, a metadata line and timestamped paragraphs", () => {
     expect(renderExport("md", transcription()).body).toBe(
-      "# Demo video\n\nyoutube · by Someone · language en · method asr · duration 00:00:09\n\n[00:00] Hello there\n\n[00:02] Second line\n",
+      "# Demo video\n\npublic video · by Someone · language en · method asr · duration 00:00:09\n\n[00:00] Hello there\n\n[00:02] Second line\n",
     );
   });
 
   it("escapes markdown characters in the title and author", () => {
-    const body = renderExport("md", transcription({ metadata: { platform: "tiktok", content_type: null, title: "A *bold* [x]", author: "_me_", duration_seconds: null } })).body;
+    const body = renderExport("md", transcription({ metadata: { platform: "public", content_type: null, title: "A *bold* [x]", author: "_me_", duration_seconds: null } })).body;
     expect(body.startsWith("# A \\*bold\\* \\[x\\]\n")).toBe(true);
     expect(body).toContain("by \\_me\\_");
   });
 
   it("falls back to the transcript text when there are no segments, and names an untitled transcript", () => {
-    const body = renderExport("md", transcription({ segments: [], metadata: { platform: "instagram", content_type: null, title: null, author: null, duration_seconds: null } })).body;
+    const body = renderExport("md", transcription({ segments: [], metadata: { platform: "public", content_type: null, title: null, author: null, duration_seconds: null } })).body;
     expect(body.startsWith("# Transcript\n")).toBe(true);
     expect(body).toContain("[00:00] Hello there\n[00:02] Second line");
   });

@@ -29,7 +29,7 @@ function setup(worker: MediaWorker, concurrency = 2, store = new MemoryJobStore(
 
 function sourceFor(settled: Settlement[], id: string, extra: Partial<JobSource> = {}): JobSource {
   return {
-    target: { kind: "url", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+    target: { kind: "url", url: "https://example.com/video/sample" },
     language: "auto",
     maxSeconds: 3600,
     settle: async (credits: number) => {

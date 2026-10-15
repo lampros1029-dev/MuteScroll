@@ -19,7 +19,7 @@ const FAQ: ReadonlyArray<{ readonly question: string; readonly answer: string }>
   {
     question: "Which links can I try?",
     answer:
-      "Public YouTube videos and Shorts, public Facebook videos, and public TikTok and Instagram posts. The server reads the link with yt-dlp. It uses the video's own captions when they exist. Otherwise it takes the audio. If the audio cannot be fetched, automatic captions are used when the video has them. The server does not sign in, and it does not use a video-platform account or that account's cookies. If the video cannot be read, upload a file. Upload is always available, within the size limit.",
+      "MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path. For a link it can reach, the server reads it with yt-dlp. It uses the video's own captions when they exist. Otherwise it takes the audio. If the audio cannot be fetched, automatic captions are used when the video has them. The server does not sign in, and it does not use an account on the video host or that account's cookies.",
   },
   {
     question: "Do you keep the video?",
@@ -53,7 +53,7 @@ const FAQ: ReadonlyArray<{ readonly question: string; readonly answer: string }>
   {
     question: "Who is responsible for the content?",
     answer:
-      "You are. Only process content you have the right to use, and remember that each platform's terms still apply. For takedown requests, see the privacy page.",
+      "You are. Only process content you have the right to use. The host's own terms still apply to that video. For takedown requests, see the privacy page.",
   },
 ];
 
@@ -67,7 +67,7 @@ const CHAPTERS: ReadonlyArray<{
     index: "01",
     name: "Paste",
     title: "Paste a link or drop a file.",
-    body: "We try public YouTube, Shorts, Facebook, TikTok, and Instagram Reel links. When a platform blocks retrieval, upload the file. Upload is the fallback.",
+    body: "Paste a public video link, or upload a file. MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path.",
   },
   {
     index: "02",
@@ -115,14 +115,13 @@ export default function HomePage() {
             </h1>
             <div className="cinema-copy">
               <p className="lede">
-                Paste a public YouTube, Facebook, TikTok, or Reel link. Retrieval is tried, and upload is the fallback
-                when a platform blocks it. You get a timestamped transcript you can check, copy, and hand to ChatGPT,
-                Claude or Cursor. Numbers stay as spoken. Unclear words are flagged, not guessed.
+                Paste a public video link. MuteScroll reads it when it can reach it. Other links get the one-time
+                upload path. You get a timestamped transcript you can check, copy, and hand to ChatGPT, Claude, or
+                Cursor. Numbers stay as spoken. Unclear words are flagged, not guessed.
               </p>
               <PasteLinkForm />
               <p className="fine-print">
-                Or <Link href="/try">upload a file</Link> (MP4, MOV, WebM, M4A, MP3 or WAV). Uploads are always available as
-                the fallback.
+                Or <Link href="/try">upload a file</Link> (MP4, MOV, WebM, M4A, MP3 or WAV) when a link cannot be reached.
               </p>
             </div>
             <figure className="caption-sheet">
@@ -248,9 +247,8 @@ export default function HomePage() {
           <article className="connect-card" data-reveal-item>
             <h3 className="connect-title">ChatGPT</h3>
             <p>
-              Turn on Developer Mode, add a custom MCP connector with the address below, and choose OAuth. ChatGPT
-              opens MuteScroll so you can sign in and connect that account. Then ask: &ldquo;Transcribe this:
-              [link]&rdquo;.
+              Plugins → Add custom MCP server → the address below → OAuth. ChatGPT opens MuteScroll so you can sign
+              in and connect that account. Then ask: &ldquo;Transcribe this public video link.&rdquo;
             </p>
           </article>
           <article className="connect-card" data-reveal-item>

@@ -6,7 +6,7 @@ export const transcribeInputShape = {
     .string()
     .min(1)
     .max(2048)
-    .describe("Public video link: YouTube, YouTube Shorts, TikTok, Instagram Reel or post, or Facebook video."),
+    .describe("A public video link. MuteScroll reads it when it can reach it. Other links get the one-time upload path."),
   language: z
     .string()
     .max(16)
@@ -48,7 +48,10 @@ export const toolOutputShape = {
   error: errorSchema.optional(),
   source: sourceSchema.optional(),
   language: z.string().nullish(),
-  method: z.enum(["captions", "captions_auto", "captions_vendor", "asr"]).optional(),
+  method: z
+    .enum(["captions", "captions_auto", "asr"])
+    .optional()
+    .describe("How the words were read. captions_auto means automatic captions from the public page."),
   transcript_text: z.string().optional(),
   segments: z.array(segmentSchema).optional(),
   uncertain_spans: z

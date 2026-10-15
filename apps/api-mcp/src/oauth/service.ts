@@ -170,7 +170,7 @@ export async function beginAuthorization(deps: OAuthDeps, input: AuthorizeInput)
     code_challenge: input.codeChallenge,
     code_challenge_method: "S256",
     state: input.state,
-    scope: normalizeScope(input.scope) ?? "transcribe",
+    scope: normalizeScope(input.scope, scopeAllowList(deps, input.resource)) ?? "transcribe",
   });
   if (input.resource !== undefined && input.resource !== "") params.set("resource", input.resource);
   return { kind: "consent", location: `${deps.webOrigin}/connect?${params.toString()}` };
@@ -184,7 +184,7 @@ export interface ApprovalInput extends AuthorizeInput {
 export async function approveAuthorization(deps: OAuthDeps, input: ApprovalInput): Promise<string> {
   const decision = await beginAuthorization(deps, input);
   if (decision.kind === "reject") throw new OAuthFailure(decision.status, decision.code, decision.description);
-  const scope = normalizeScope(input.scope);
+  const scope = normalizeScope(input.scope, scopeAllowList(deps, input.resource));
   if (scope === undefined) throw new OAuthFailure(400, "invalid_scope", "The requested scope is not available.");
   const code = `msc_${randomBytes(32).toString("base64url")}`;
   await deps.store.saveGrant({
@@ -291,15 +291,23 @@ async function authenticatedClient(deps: OAuthDeps, clientId: string, clientSecr
 function authorizeProblem(deps: OAuthDeps, input: AuthorizeInput): string | undefined {
   if (input.codeChallengeMethod !== "S256" || !PKCE_PATTERN.test(input.codeChallenge)) return "invalid_request";
   if (input.state.trim() === "" || input.state.length > 512 || /[\r\n]/.test(input.state)) return "invalid_request";
-  if (normalizeScope(input.scope) === undefined) return "invalid_scope";
+  if (normalizeScope(input.scope, scopeAllowList(deps, input.resource)) === undefined) return "invalid_scope";
   if (input.resource !== undefined && input.resource !== "" && input.resource !== mcpResource(deps.issuer)) return "invalid_target";
   return undefined;
 }
 
-function normalizeScope(raw: string | undefined): string | undefined {
+/** The MCP resource is what ChatGPT authorizes. It receives transcribe and nothing else. */
+function scopeAllowList(deps: OAuthDeps, resource: string | undefined): ReadonlySet<string> {
+  if (resource === mcpResource(deps.issuer)) return new Set(["transcribe"]);
+  return SCOPES;
+}
+
+function normalizeScope(raw: string | undefined, allowed: ReadonlySet<string> = SCOPES): string | undefined {
   const parts = (raw === undefined || raw.trim() === "" ? "transcribe" : raw).split(" ").filter((part) => part !== "");
   if (parts.length === 0 || parts.some((part) => !SCOPES.has(part))) return undefined;
-  return [...new Set(parts)].join(" ");
+  const granted = [...new Set(parts.filter((part) => allowed.has(part)))];
+  if (granted.length === 0) return undefined;
+  return granted.join(" ");
 }
 
 function cleanName(name: string | undefined): string {

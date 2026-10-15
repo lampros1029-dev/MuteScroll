@@ -19,7 +19,7 @@ export function PasteLinkForm() {
     event.preventDefault();
     const link = normalizeLink(value);
     if (link === null) {
-      setError("Paste a full link, for example https://www.youtube.com/watch?v=…");
+      setError("Paste a full public video link, starting with https://.");
       return;
     }
     setError(null);
@@ -43,7 +43,7 @@ export function PasteLinkForm() {
           autoComplete="off"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="https://www.tiktok.com/@name/video/…"
+          placeholder="https://"
           value={value}
           onChange={(event) => {
             setValue(event.currentTarget.value);

@@ -83,7 +83,7 @@ function protectedResource(ctx: AppContext): unknown {
     resource,
     authorization_servers: [ctx.config.publicBaseUrl],
     bearer_methods_supported: ["header"],
-    scopes_supported: ["transcribe", "library:read"],
+    scopes_supported: ["transcribe"],
   };
 }
 

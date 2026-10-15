@@ -1,0 +1,43 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mutescroll",
+  "version": "0.1.0",
+  "description": "MuteScroll turns a public video link, or a file you upload, into timestamped text of the spoken words. It reads a public video link when it can reach it. Other links get a one-time upload path.",
+  "author": {
+    "name": "Labros Aggelopoulos",
+    "email": "mutescroll.xyz@gmail.com",
+    "url": "https://mutescroll.xyz"
+  },
+  "homepage": "https://mutescroll.xyz",
+  "repository": "https://github.com/lampros1029-dev/MuteScroll",
+  "keywords": ["transcript", "subtitles", "public video"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "MuteScroll",
+        "shortDescription": "Transcribe a public video",
+        "longDescription": "MuteScroll turns a public video link, or a file you upload, into timestamped text of the spoken words. MuteScroll reads a public video link when it can reach it. Other links get a one-time upload path. It returns the transcript and stops. Summaries, translations, and checks of claims stay in the chat. Support: mutescroll.xyz@gmail.com.",
+        "developerName": "Labros Aggelopoulos",
+        "category": "Productivity",
+        "capabilities": ["Transcribe a public video link"],
+        "websiteURL": "https://mutescroll.xyz",
+        "supportURL": "https://mutescroll.xyz",
+        "privacyPolicyURL": "https://mutescroll.xyz/privacy",
+        "termsOfServiceURL": "https://mutescroll.xyz/terms",
+        "defaultPrompt": [
+          "Transcribe this public video link.",
+          "Transcribe this public video link and keep the timestamps.",
+          "Transcribe this public video link. Flag uncertain spans."
+        ],
+        "brandColor": "#1d1b16",
+        "brandColorDark": "#ff8a5c",
+        "composerIcon": "./assets/logo.svg",
+        "logo": "./assets/logo.svg"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "This plugin does not take payment inside ChatGPT."
+      }
+    }
+  }
+}

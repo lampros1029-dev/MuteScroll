@@ -7,7 +7,7 @@ import type { Transcription } from "../../lib/api/types";
 import { TranscriptView } from "./transcript-view";
 
 const transcription: Transcription = {
-  metadata: { platform: "tiktok", content_type: "video", title: "Two voices", author: "@creator", duration_seconds: 74 },
+  metadata: { platform: "public", content_type: "video", title: "Two voices", author: "@creator", duration_seconds: 74 },
   language: "en",
   method: "asr",
   transcript_text: "",
@@ -26,7 +26,7 @@ describe("TranscriptView", () => {
     render(<TranscriptView transcription={transcription} />);
     expect(screen.getByRole("heading", { level: 2, name: "Two voices" })).toBeTruthy();
     expect(screen.getByText("By @creator")).toBeTruthy();
-    expect(screen.getByText(/TikTok · Video · 1:14 · English · Speech recognition/)).toBeTruthy();
+    expect(screen.getByText(/Public video · Video · 1:14 · English · Speech recognition/)).toBeTruthy();
   });
 
   it("labels speakers as Speaker N and never shows raw diarization labels", () => {
@@ -44,17 +44,11 @@ describe("TranscriptView", () => {
     expect(container.querySelector("#seg-2")).not.toBeNull();
   });
 
-  it("opens the source video at the line time for YouTube links", () => {
-    const { container } = render(
-      <TranscriptView
-        transcription={{ ...transcription, metadata: { ...transcription.metadata, platform: "youtube" } }}
-        sourceUrl="https://youtu.be/abcdefghijk"
-      />,
-    );
+  it("keeps timestamp links on this page", () => {
+    const { container } = render(<TranscriptView transcription={transcription} />);
     const first = container.querySelector("a.stamp");
-    expect(first?.getAttribute("href")).toBe("https://www.youtube.com/watch?v=abcdefghijk&t=0s");
-    expect(first?.getAttribute("target")).toBe("_blank");
-    expect(first?.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(first?.getAttribute("href")).toBe("#seg-0");
+    expect(first?.getAttribute("target")).toBeNull();
   });
 
   it("highlights the uncertain words in place, with an explanation linked to them", () => {

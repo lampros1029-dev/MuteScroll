@@ -17,6 +17,7 @@ pytestmark = pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg n
 def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     # URL safety is covered in test_ssrf; here DNS must not be touched.
     monkeypatch.setattr(pipeline, "assert_url_safe", lambda url, *a, **k: None)
+    monkeypatch.setattr(pipeline, "resolve_redirects", lambda url, *a, **k: url)
 
 
 def make_tone(path: Path, seconds: float = 3.0) -> Path:
@@ -54,7 +55,7 @@ class FakeSource:
         self.downloaded = False
 
     def fetch_info(self, url: str) -> SourceInfo:
-        return SourceInfo(metadata=VideoMetadata(platform="youtube", title="T", duration_seconds=self.duration))
+        return SourceInfo(metadata=VideoMetadata(platform="public", title="T", duration_seconds=self.duration))
 
     def fetch_captions(self, info, language, *, automatic: bool):
         return self.auto if automatic else self.manual
@@ -66,7 +67,7 @@ class FakeSource:
         return self.audio
 
 
-URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+URL = "https://example.com/video/sample"
 
 
 def captions(text: str = "hello there") -> CaptionResult:

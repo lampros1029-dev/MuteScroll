@@ -9,7 +9,8 @@ export const MCP_URL = process.env.NEXT_PUBLIC_MCP_URL || "http://localhost:8080
 
 export const CONTACT_EMAIL = "mutescroll.xyz@gmail.com";
 
-export const PLANS_PATH = "/pricing";
+/** Quota and length messages link here. Tool-facing copy must not point at /pricing or /checkout. */
+export const PLANS_PATH = "/plans";
 
 export const SITE_DESCRIPTION =
-  "Paste a link to a public TikTok, Instagram Reel, YouTube or Facebook video, or upload a file, and get a timestamped transcript you can check, copy and use in ChatGPT, Claude or Cursor.";
+  "Paste a public video link. MuteScroll reads it when it can reach it. Other links get the one-time upload path. You get a timestamped transcript you can check, copy, and use in ChatGPT, Claude, or Cursor.";

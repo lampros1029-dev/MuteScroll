@@ -7,7 +7,7 @@ import type { Transcription } from "../src/export/model.js";
 
 function transcription(overrides: Partial<Transcription> = {}): Transcription {
   return {
-    metadata: { platform: "youtube", content_type: "video", title: "Demo video", author: "Someone", duration_seconds: 9 },
+    metadata: { platform: "public", content_type: "video", title: "Demo video", author: "Someone", duration_seconds: 9 },
     language: "en",
     method: "asr",
     transcript_text: "unused for docx",
@@ -88,7 +88,7 @@ describe("docx export", () => {
 
   it("omits the title paragraph when the title is missing", () => {
     const xml = unzip(renderExport("docx", transcription({
-      metadata: { platform: "youtube", content_type: null, title: "   ", author: null, duration_seconds: 9 },
+      metadata: { platform: "public", content_type: null, title: "   ", author: null, duration_seconds: 9 },
     })).body).get("word/document.xml")?.toString("utf8") ?? "";
     expect(xml).not.toContain("<w:b/>");
     expect(xml).not.toContain("Transcript");
@@ -107,7 +107,7 @@ describe("docx export", () => {
 
   it("uses an hour clock once the transcript is an hour or longer", () => {
     const xml = unzip(renderExport("docx", transcription({
-      metadata: { platform: "youtube", content_type: "video", title: null, author: null, duration_seconds: 3661 },
+      metadata: { platform: "public", content_type: "video", title: null, author: null, duration_seconds: 3661 },
       segments: [{ start: 61, end: 62, speaker: null, text: "still 42 words here" }],
     })).body).get("word/document.xml")?.toString("utf8") ?? "";
     expect(xml).toContain("[00:01:01]");

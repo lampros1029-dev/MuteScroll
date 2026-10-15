@@ -17,7 +17,7 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
   throw new Error("expected a MediaWorkerError");
 }
 
-const request = { target: { kind: "url", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } as const, language: "auto", maxSeconds: 60 };
+const request = { target: { kind: "url", url: "https://example.com/video/sample" } as const, language: "auto", maxSeconds: 60 };
 
 describe("SubprocessMediaWorker process failures", () => {
   it("reports worker_unavailable when the interpreter cannot be started", async () => {

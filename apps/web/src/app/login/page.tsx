@@ -5,7 +5,8 @@ import { connectRequestFrom } from "../../lib/connect-query";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your MuteScroll account with Google, ChatGPT, or your email and password.",
+  description:
+    "Continue with ChatGPT is MuteScroll's OAuth connector, not an OpenAI identity provider. Sign in with Google, or with your email and password.",
   alternates: { canonical: "/login" },
 };
 
@@ -20,7 +21,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <div className="container page legal">
       <header className="page-head">
         <h1 className="display-small">Sign in</h1>
-        <p className="section-lede">Use Google, connect ChatGPT, or the email and password for your MuteScroll account.</p>
+        <p className="section-lede">
+          Continue with ChatGPT is MuteScroll&apos;s OAuth connector, not an OpenAI identity provider. Sign in with
+          Google, or with the email and password for your MuteScroll account.
+        </p>
       </header>
       <AuthForm mode="login" next={next} initialError={first(params["error"])} connect={connectRequestFrom(params)} />
     </div>

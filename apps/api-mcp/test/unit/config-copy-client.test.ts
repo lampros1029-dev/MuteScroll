@@ -85,6 +85,16 @@ describe("tool failure copy (PRD 13)", () => {
     }
   });
 
+  it("sends unreachable links to the one-time upload path without naming a video platform", () => {
+    const platformName = /youtube|tiktok|instagram|facebook|reels|shorts|fb\.watch|developer mode/i;
+    for (const code of ["unsupported_url", "private_or_login_required", "drm_protected", "blocked_bot_check"] as const) {
+      const message = copyFor(code, { plansUrl: PLANS }).message;
+      expect(message).toContain("one-time upload path");
+      expect(message).not.toMatch(/any public video link/i);
+      expect(message).not.toMatch(platformName);
+    }
+  });
+
   it("links to the plans page on quota and length messages, never a checkout link", () => {
     const quota = copyFor("quota_exceeded", { plansUrl: PLANS, resetsAt: new Date("2026-10-13T10:00:00Z") });
     expect(quota.message).toContain(PLANS);

@@ -12,7 +12,7 @@ from mutescroll_media.asr import AsrError
 from mutescroll_media.audio import MediaError, NoSpeechError
 from mutescroll_media.sources import RetrievalError
 
-URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+URL = "https://example.com/video/sample"
 
 
 def _raise(exc: BaseException) -> Callable[..., object]:

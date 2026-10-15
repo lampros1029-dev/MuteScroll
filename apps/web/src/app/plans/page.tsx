@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Limits",
@@ -21,9 +20,6 @@ export default function PlansPage() {
       <section aria-labelledby="paid-plans">
         <h2 id="paid-plans">Paid plans</h2>
         <p>Paid plans are described on the website.</p>
-        <p>
-          <Link href="/">MuteScroll home</Link>
-        </p>
       </section>
     </div>
   );

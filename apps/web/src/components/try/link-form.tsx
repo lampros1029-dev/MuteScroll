@@ -24,7 +24,7 @@ export function LinkForm({ defaultUrl, onSubmit }: LinkFormProps) {
     event.preventDefault();
     const link = normalizeLink(value);
     if (link === null) {
-      setError("Paste a full link that starts with https://, for example https://www.youtube.com/watch?v=…");
+      setError("Paste a full public video link, starting with https://.");
       return;
     }
     setError(null);
@@ -48,7 +48,7 @@ export function LinkForm({ defaultUrl, onSubmit }: LinkFormProps) {
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder="https://www.youtube.com/watch?v=…"
+            placeholder="https://"
             value={value}
             onChange={(event) => {
               setValue(event.currentTarget.value);

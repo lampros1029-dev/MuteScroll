@@ -5,13 +5,12 @@ import type { Transcription } from "../api/types";
 import { buildMarkdown, buildPlainText } from "./markdown";
 import { splitByUncertainty } from "./uncertainty";
 import { nearestSegmentIndex, reasonExplanation, speakerLabel, speakerNumbers } from "./view-model";
-import { youtubeTimeLink, youtubeVideoId } from "./youtube";
 
 const SPOKEN = "Set the Lumix S5 to ISO 400, then pay $10 for the kit.";
 
 function sample(overrides: Partial<Transcription> = {}): Transcription {
   return {
-    metadata: { platform: "tiktok", content_type: "video", title: "Hooks", author: "@creator", duration_seconds: 74 },
+    metadata: { platform: "public", content_type: "video", title: "Hooks", author: "@creator", duration_seconds: 74 },
     language: "en",
     method: "asr",
     transcript_text: "[00:00] Speaker 1: Hello\n[00:07] Speaker 2: Hi",
@@ -109,11 +108,11 @@ describe("reasonExplanation", () => {
 
 describe("buildMarkdown", () => {
   it("writes a title heading, a metadata line and timestamped lines", () => {
-    const markdown = buildMarkdown(sample(), { sourceUrl: "https://www.tiktok.com/@creator/video/123456789" });
+    const markdown = buildMarkdown(sample(), { sourceUrl: "https://example.com/video/123456789" });
     const lines = markdown.split("\n");
     expect(lines[0]).toBe("# Hooks");
     expect(lines[2]).toBe(
-      "Platform: TikTok · Author: @creator · Duration: 1:14 · Language: English · Method: Speech recognition · Source: https://www.tiktok.com/@creator/video/123456789",
+      "Platform: Public video · Author: @creator · Duration: 1:14 · Language: English · Method: Speech recognition · Source: https://example.com/video/123456789",
     );
     expect(lines).toContain("[00:00] Speaker 1: Hello $10");
     expect(lines).toContain("[00:07] Speaker 2: Hi");
@@ -130,7 +129,7 @@ describe("buildMarkdown", () => {
   it("uses hour timestamps for long videos and a fallback title", () => {
     const markdown = buildMarkdown(
       sample({
-        metadata: { platform: "facebook", content_type: null, title: null, author: null, duration_seconds: 3725 },
+        metadata: { platform: "public", content_type: null, title: null, author: null, duration_seconds: 3725 },
         segments: [{ start: 3700, end: 3725, speaker: null, text: "Thank you." }],
       }),
     );
@@ -152,22 +151,5 @@ describe("buildPlainText", () => {
   it("builds text from segments when the transcript text is empty", () => {
     const text = buildPlainText(sample({ transcript_text: " " }));
     expect(text.split("\n")[0]).toBe("[00:00] Hello $10");
-  });
-});
-
-describe("YouTube timestamp links", () => {
-  it("recognises watch, short-link, shorts and embed URLs", () => {
-    expect(youtubeVideoId("https://www.youtube.com/watch?v=abcdefghijk&t=5")).toBe("abcdefghijk");
-    expect(youtubeVideoId("https://youtu.be/abcdefghijk")).toBe("abcdefghijk");
-    expect(youtubeVideoId("https://www.youtube.com/shorts/abcdefghijk")).toBe("abcdefghijk");
-    expect(youtubeVideoId("https://www.youtube.com/embed/abcdefghijk")).toBe("abcdefghijk");
-    expect(youtubeVideoId("https://www.youtube.com/@channel")).toBeNull();
-    expect(youtubeVideoId("https://example.com/watch?v=abcdefghijk")).toBeNull();
-  });
-
-  it("builds a link that opens the video at the segment time", () => {
-    expect(youtubeTimeLink("https://youtu.be/abcdefghijk", 12.7)).toBe("https://www.youtube.com/watch?v=abcdefghijk&t=12s");
-    expect(youtubeTimeLink("https://www.tiktok.com/@a/video/123456789", 3)).toBeNull();
-    expect(youtubeTimeLink(null, 3)).toBeNull();
   });
 });

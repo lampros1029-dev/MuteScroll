@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# ffmpeg/ffprobe for audio, python for the worker. Node (already present) is the JS runtime yt-dlp needs for YouTube.
+# ffmpeg/ffprobe for audio, python for the worker. Node (already present) is the JS runtime yt-dlp needs for signature challenges.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv ca-certificates \
  && rm -rf /var/lib/apt/lists/*

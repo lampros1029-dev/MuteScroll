@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TryClient } from "./try-client";
 
-const LINK = "https://www.youtube.com/watch?v=abcdefghijk";
+const LINK = "https://example.com/video/abcdefghijk";
 
 const transcription = {
-  metadata: { platform: "youtube", content_type: "video", title: "Captions example", author: null, duration_seconds: 58 },
+  metadata: { platform: "public", content_type: "video", title: "Captions example", author: null, duration_seconds: 58 },
   language: "en",
   method: "captions",
   transcript_text: "[00:00] Hello $10 world",
@@ -68,7 +68,7 @@ describe("TryClient", () => {
     );
 
     render(<TryClient />);
-    fireEvent.change(screen.getByLabelText("Video link"), { target: { value: "https://www.tiktok.com/@a/video/123456789" } });
+    fireEvent.change(screen.getByLabelText("Video link"), { target: { value: "https://example.com/video/123456789" } });
     fireEvent.click(screen.getByRole("button", { name: "Transcribe" }));
 
     expect(await screen.findByRole("heading", { level: 2, name: "We couldn't retrieve this video" })).toBeTruthy();
@@ -88,14 +88,14 @@ describe("TryClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "Transcribe" }));
 
     expect(await screen.findByRole("heading", { level: 2, name: "Your limit is reached" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "See plans and limits" }).getAttribute("href")).toBe("/pricing");
+    expect(screen.getByRole("link", { name: "See plans and limits" }).getAttribute("href")).toBe("/plans");
   });
 
   it("rejects an invalid link before calling the API", () => {
     render(<TryClient />);
     fireEvent.change(screen.getByLabelText("Video link"), { target: { value: "not a link" } });
     fireEvent.click(screen.getByRole("button", { name: "Transcribe" }));
-    expect(screen.getByText(/Paste a full link that starts with https/)).toBeTruthy();
+    expect(screen.getByText(/Paste a full public video link, starting with https/)).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

@@ -182,9 +182,9 @@ Platform adapters live behind one interface (§9.2), so adding a source is a sin
 **ChatGPT example:**
 
 ```
-User:  Transcribe this https://www.instagram.com/reel/XXXX/
+User:  Transcribe this <public video link>
 App:   (tool call → widget shows progress for >5 s jobs)
-GPT:   Transcript — 0:58 · English · Instagram Reel
+GPT:   Transcript — 0:58 · English · Public video
        [00:00] Today I'm going to show you the one setting that…
        [00:06] First, open your camera app and…
        ⚠ Low confidence at 00:21 ("the Lumix… S5?"). I can check the frame if you want.
@@ -381,7 +381,7 @@ This is a **visible quality differentiator** vs. commodity transcript sites, and
 
 | Case | Message (model-facing, rephrased naturally by host) |
 |---|---|
-| Unsupported URL | "This isn't a supported video link. Supported: YouTube, Shorts, TikTok, Instagram Reels, Facebook videos, or upload a file." |
+| Unsupported URL | "This isn't a supported video link. Paste a public video link, or upload a file." |
 | Private / login-required | "This video needs access I don't have, and I can't bypass private-account restrictions. Upload the file and I'll transcribe it." |
 | Retrieval failed (platform blocked) | "I couldn't retrieve this video right now. If you can see it, upload the file here and I'll transcribe it with the same quality." |
 | No speech | "I processed the video but found no meaningful speech (music or sound only)." |
@@ -587,11 +587,11 @@ Named with Hormozi's MAGIC naming: **M**agnet reason (launch), **A**vatar (creat
 
 **Landing page headline candidates (A/B):**
 
-1. "Stop rewatching. Start reading." — Turn any TikTok, Reel or YouTube video into text inside ChatGPT.
+1. "Stop rewatching. Start reading." — Turn a public video, or a file you upload, into text inside ChatGPT.
 2. "Your competitors' scripts, in 10 seconds."
 3. "Read any video. Right in your AI chat."
 
-**Directory listing** (no pricing words, no comparisons): "Transcribe public YouTube, TikTok, Instagram and Facebook videos, or uploaded files, into timestamped text you can summarize, translate and analyze."
+**Directory listing** (no pricing words, no comparisons): "Transcribe a public video link, or a file you upload, into timestamped text you can summarize, translate and analyze."
 
 **Channels (from $100M Leads, the "core four"):**
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 import tempfile
 from dataclasses import replace
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from .asr import AsrError, TranscriptionProvider
 from .audio import NoSpeechError, extract_audio, probe_duration, split_audio
@@ -21,11 +20,10 @@ from .postprocess import (
     find_uncertain_spans,
     render_transcript,
 )
-from .sources import CaptionResult, MediaSource, RetrievalError, SourceInfo, platform_of
+from .sources import CaptionResult, MediaSource, RetrievalError, SourceInfo
 from .ssrf import assert_url_safe, resolve_redirects
 
 DEFAULT_MAX_SECONDS = 2 * 60 * 60
-_SHORT_LINK_HOSTS = {"vm.tiktok.com", "vt.tiktok.com", "fb.watch"}
 
 
 def transcribe_url(
@@ -106,15 +104,10 @@ def transcribe_file(
 
 
 def _prepare_url(url: str) -> str:
+    """Reject private targets, follow redirects safely, then hand the final link to yt-dlp."""
     url = url.strip()
     assert_url_safe(url)
-    host = (urlsplit(url).hostname or "").lower()
-    path = urlsplit(url).path
-    if host in _SHORT_LINK_HOSTS or path.startswith(("/t/", "/share/")):
-        url = resolve_redirects(url)
-    if platform_of(url) == "unknown":
-        raise PermissionError("unsupported host after redirect resolution")
-    return url
+    return resolve_redirects(url)
 
 
 class _workspace:

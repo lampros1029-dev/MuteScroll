@@ -119,15 +119,14 @@ function srtTime(seconds, separator) {
   return `${pad(h)}:${pad(m)}:${pad(s)}${separator}${rest.toString().padStart(3, "0")}`;
 }
 
-const FIXTURES = {
-  youtube: {
-    metadata: {
-      platform: "youtube",
-      content_type: "video",
-      title: "How to read a transcript in 60 seconds (mock)",
-      author: "Mock Channel",
-      duration_seconds: 58,
-    },
+const PUBLIC_FIXTURE = {
+  metadata: {
+    platform: "public",
+    content_type: "video",
+    title: "How to read a transcript in 60 seconds (mock)",
+    author: "Mock Channel",
+    duration_seconds: 58,
+  },
     method: "captions",
     segments: [
       { start: 0, end: 6.1, speaker: null, text: "Welcome back. In this clip I'll show you how to read a transcript quickly." },
@@ -137,69 +136,8 @@ const FIXTURES = {
       { start: 36.0, end: 58, speaker: null, text: "That's it. Copy the text, export it, or ask your assistant for a summary." },
     ],
     uncertain: [],
-    refs: [],
-  },
-  instagram: {
-    metadata: {
-      platform: "instagram",
-      content_type: "reel",
-      title: "Lumix S5 settings in 60 seconds (mock)",
-      author: null,
-      duration_seconds: 58,
-    },
-    method: "asr",
-    segments: [
-      { start: 0, end: 5.2, speaker: null, text: "Stop scrolling. This setting takes ten seconds and saves your night shots." },
-      { start: 5.2, end: 12.6, speaker: null, text: "The kit costs $10 more with the grip, so skip it if you shoot in daylight." },
-      { start: 12.6, end: 21.9, speaker: null, text: "Open the menu, pick Picture Style, then set the Lumix S5 preset to Neutral." },
-      { start: 21.9, end: 34.4, speaker: null, text: "Set ISO to 400 and turn on long exposure noise reduction for the sky." },
-      { start: 34.4, end: 58, speaker: null, text: "Full notes are in the link in my bio. Save this for your next shoot." },
-    ],
-    uncertain: [{ start: 12.6, end: 13.4, text: "Lumix S5", reason: "low_confidence" }],
-    refs: [{ at: 34.5, phrase: "link in my bio" }],
-  },
-  tiktok: {
-    metadata: {
-      platform: "tiktok",
-      content_type: "video",
-      title: "Two voices on hooks (mock)",
-      author: "@mock.creator",
-      duration_seconds: 74,
-    },
-    method: "asr",
-    segments: [
-      { start: 0, end: 7.5, speaker: "SPEAKER_0", text: "Here is the hook that got three million views last week." },
-      { start: 7.5, end: 15.2, speaker: "SPEAKER_1", text: "Which one? The one with the blue kettle, right?" },
-      { start: 15.2, end: 27.8, speaker: "SPEAKER_0", text: "Yes. The first line is a question, and the second line gives the answer." },
-      { start: 27.8, end: 41.0, speaker: "SPEAKER_1", text: "We used Kestrel's pricing page as the example, which is mostly clean copy." },
-      { start: 41.0, end: 74, speaker: "SPEAKER_0", text: "Try it on your own product. Write the question first, then the answer." },
-    ],
-    uncertain: [{ start: 27.8, end: 33.4, text: "Kestrel's pricing page", reason: "low_confidence_segment" }],
-    refs: [],
-  },
-  facebook: {
-    metadata: {
-      platform: "facebook",
-      content_type: "video",
-      title: "A long public lecture (mock)",
-      author: "Mock Page",
-      duration_seconds: 3725,
-    },
-    method: "asr",
-    segments: [
-      { start: 0, end: 12, speaker: null, text: "Thanks for coming. The talk runs about an hour, with questions at the end." },
-      { start: 1500, end: 1512, speaker: null, text: "Half way through, the budget was 2 million and the team was four people." },
-      { start: 3000, end: 3012, speaker: null, text: "The result, after one year, was 37 percent fewer support tickets." },
-      { start: 3700, end: 3725, speaker: null, text: "Thank you. We will take questions now." },
-    ],
-    uncertain: [],
-    refs: [],
-  },
+  refs: [],
 };
-
-function fixtureFor(platform) {
-  return FIXTURES[platform] ?? null;
-}
 
 function buildTranscription({ metadata, method, segments, uncertain, refs }) {
   const duration = metadata.duration_seconds ?? (segments.at(-1)?.end ?? 0);
@@ -248,13 +186,14 @@ function uploadFixture(fileName) {
   });
 }
 
-function platformFromHost(hostname) {
-  const host = hostname.toLowerCase().replace(/^www\./, "");
-  if (host === "youtube.com" || host.endsWith(".youtube.com") || host === "youtu.be") return "youtube";
-  if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return "tiktok";
-  if (host === "instagram.com" || host.endsWith(".instagram.com")) return "instagram";
-  if (host === "facebook.com" || host.endsWith(".facebook.com") || host === "fb.watch") return "facebook";
-  return null;
+function isPublicLink(url) {
+  if (url.username || url.password) return false;
+  if (url.port && url.port !== "80" && url.port !== "443") return false;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (!host.includes(".")) return false;
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  if (host.startsWith("[") || /^\d+(\.\d+){0,3}$/.test(host)) return false;
+  return true;
 }
 
 function resetsAt() {
@@ -319,12 +258,10 @@ async function handleTranscriptions(req, res) {
     return sendError(res, 502, "retrieval_failed", "I couldn't retrieve this video right now. If you can see it, upload the file here and I'll transcribe it with the same quality.", { upload_url: uploadLink() });
   }
 
-  const platform = platformFromHost(url.hostname);
-  if (platform === null) {
-    return sendError(res, 400, "unsupported_url", "This isn't a supported video link. Supported: YouTube, Shorts, TikTok, Instagram Reels, Facebook videos, or upload a file.");
+  if (!isPublicLink(url)) {
+    return sendError(res, 400, "unsafe_url", "Only public http(s) video links are accepted.");
   }
-  const fixture = fixtureFor(platform);
-  const transcription = buildTranscription({ ...fixture, metadata: { ...fixture.metadata } });
+  const transcription = buildTranscription({ ...PUBLIC_FIXTURE, metadata: { ...PUBLIC_FIXTURE.metadata } });
 
   if (mode === "async-fail") {
     const jobId = newJob(failedOutcome("retrieval_failed", "I couldn't retrieve this video right now.", uploadLink()), 3000);

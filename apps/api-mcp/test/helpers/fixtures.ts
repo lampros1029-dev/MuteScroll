@@ -4,7 +4,7 @@ export function transcriptFixture(durationSeconds = 60): WorkerTranscript {
   return {
     status: "completed",
     source: {
-      platform: "youtube",
+      platform: "public",
       content_type: "video",
       title: "Demo",
       author: "Someone",
@@ -24,6 +24,6 @@ export function mp4Bytes(): Buffer {
   return Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42"), Buffer.alloc(64)]);
 }
 
-export function sampleUrl(id = "dQw4w9WgXcQ"): string {
-  return `https://www.youtube.com/watch?v=${id}`;
+export function sampleUrl(id = "video"): string {
+  return `https://example.com/video/${id}`;
 }

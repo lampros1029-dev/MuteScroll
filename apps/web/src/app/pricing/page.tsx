@@ -25,7 +25,6 @@ const COMPARE_ROWS: ReadonlyArray<{
   { label: "Transcript library", key: "library" },
   { label: "Exports", key: "exports" },
   { label: "Bulk URLs†", key: "bulk" },
-  { label: "Unused credits roll over", key: "rollover" },
   { label: "Seats", key: "seats" },
   { label: "Priority queue and support", key: "priority" },
 ];
@@ -109,8 +108,8 @@ export default function PricingPage() {
         </h2>
         <div className="credit-grid">
           <p>
-            <strong>1 credit = up to 10 minutes of audio.</strong> Each started 10 minutes costs one credit. A Reel costs
-            1 credit, and a 45-minute podcast costs 5.
+            <strong>1 credit = up to 10 minutes of audio.</strong> Each started 10 minutes costs one credit. A short video
+            costs 1 credit, and a 45-minute podcast costs 5.
           </p>
           <p>
             Need more than the monthly allowance? The allowance is the plan amount, and unused credits do not roll

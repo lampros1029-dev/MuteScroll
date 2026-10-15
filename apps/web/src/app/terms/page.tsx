@@ -27,13 +27,11 @@ export default function TermsPage() {
       <section aria-labelledby="service">
         <h2 id="service">1. What MuteScroll does</h2>
         <p>
-          MuteScroll turns a public video link, or a file you upload, into timestamped text. A link can be a public
-          YouTube video or Short, a public Facebook video, or a public TikTok or Instagram post. For a link, the server
-          tries to read the video with yt-dlp. It uses the video&apos;s own captions when they exist. Otherwise it takes
-          the audio and sends that audio to Groq for speech recognition. If the audio cannot be fetched, and the video
-          has automatic captions, those captions are used. The server does not sign in. If the video cannot be
-          retrieved, you can upload a file (MP4, MOV, WebM, M4A, MP3, or WAV). An upload is transcribed from its audio
-          in the same way.
+          MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path. For a
+          link it can reach, the server reads the video with yt-dlp. It uses the video&apos;s own captions when they
+          exist. Otherwise it takes the audio and sends that audio to Groq for speech recognition. If the audio cannot
+          be fetched, and the video has automatic captions, those captions are used. The server does not sign in. An
+          upload is a file you provide (MP4, MOV, WebM, M4A, MP3, or WAV), transcribed from its audio in the same way.
         </p>
         <p>
           MuteScroll returns text only. It does not return the video or audio, and it does not summarize, translate, or
@@ -139,8 +137,9 @@ export default function TermsPage() {
       <section aria-labelledby="availability">
         <h2 id="availability">10. Availability and suspension</h2>
         <p>
-          The service is provided while it is in early access. Some platforms refuse retrieval, and retrieval success is
-          not guaranteed. Upload remains available as the alternative. We may suspend an account that breaks these terms.
+          The service is provided while it is in early access. MuteScroll reads a public video link when it can reach
+          it. Some hosts refuse retrieval, and retrieval success is not guaranteed. Other links get the one-time upload
+          path. We may suspend an account that breaks these terms.
           We will tell you when we do, unless we have to stop an active attack first.
         </p>
       </section>

@@ -12,12 +12,12 @@ from mutescroll_media.models import (
 )
 from mutescroll_media.sources import CaptionResult, SourceInfo
 
-URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+URL = "https://example.com/video/sample"
 
 
 def sample() -> TranscriptResult:
     return TranscriptResult(
-        metadata=VideoMetadata("youtube", "T", "A", 12.5, "short"),
+        metadata=VideoMetadata("public", "T", "A", 12.5, "video"),
         language="el",
         method="asr",
         segments=[Segment(0.0, 2.0, "Σήμερα $10", confidence=0.9, words=(Word(0.0, 0.5, "Σήμερα", 0.8),))],
@@ -74,7 +74,7 @@ class CountingSource:
 
     def fetch_info(self, url: str) -> SourceInfo:
         self.calls += 1
-        return SourceInfo(metadata=VideoMetadata("youtube", "T", duration_seconds=10))
+        return SourceInfo(metadata=VideoMetadata("public", "T", duration_seconds=10))
 
     def fetch_captions(self, info, language, *, automatic: bool):
         return None if automatic else CaptionResult([Segment(0.0, 2.0, "hello")], "en", False)
@@ -85,6 +85,7 @@ class CountingSource:
 
 def test_pipeline_uses_cache_and_skips_the_source_on_a_hit(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(pipeline, "assert_url_safe", lambda *a, **k: None)
+    monkeypatch.setattr(pipeline, "resolve_redirects", lambda url, *a, **k: url)
     cache = TranscriptCache(tmp_path)
     source = CountingSource()
     first = pipeline.transcribe_url(URL, source=source, asr=None, cache=cache)

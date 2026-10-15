@@ -37,7 +37,7 @@ describe.each(STORE_MODES)("REST transcriptions on $name stores", (mode) => {
       status: "completed",
       job_id: expect.stringMatching(/^job_/),
       transcription: {
-        metadata: { platform: "youtube", content_type: "video", title: "Demo", duration_seconds: 60 },
+        metadata: { platform: "public", content_type: "video", title: "Demo", duration_seconds: 60 },
         language: "en",
         method: "asr",
         transcript_text: "[00:00] Hello there",
@@ -128,12 +128,12 @@ describe.each(STORE_MODES)("REST transcriptions on $name stores", (mode) => {
     await eventually(async () => (await remainingFor(server, account)) === 19);
   });
 
-  it("refuses invalid, unsupported and unsafe links before doing any work", async () => {
+  it("refuses invalid and unsafe links before doing any work", async () => {
     const worker = new FakeWorker();
     const server = await start({}, worker);
     const cases: Array<[string, string]> = [
       ["not a link", "invalid_url"],
-      ["https://www.tiktok.com/@someone", "unsupported_url"],
+      ["ftp://example.com/video.mp4", "unsafe_url"],
       ["http://127.0.0.1/video.mp4", "unsafe_url"],
     ];
     for (const [url, code] of cases) {
@@ -309,7 +309,7 @@ describe.each(STORE_MODES)("REST transcriptions on $name stores", (mode) => {
     expect(library.body.items[0]).toMatchObject({
       id: newest.body.job_id,
       title: "Demo",
-      platform: "youtube",
+      platform: "public",
       status: "succeeded",
       created_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
     });

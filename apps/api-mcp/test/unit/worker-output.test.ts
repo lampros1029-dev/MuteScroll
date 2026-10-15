@@ -21,6 +21,11 @@ describe("parseWorkerOutput", () => {
     expect(parseWorkerOutput(stdout, 0).transcript_text).toBe("[00:00] Hello there");
   });
 
+  it("rejects a vendor caption method the live reader does not emit", () => {
+    const payload = { ...transcriptFixture(), method: "captions_vendor" };
+    expect(codeOf(() => parseWorkerOutput(JSON.stringify(payload), 0))).toBe("invalid_output");
+  });
+
   it("rejects exit 0 with a payload that does not match the contract", () => {
     expect(codeOf(() => parseWorkerOutput('{"status":"completed"}', 0))).toBe("invalid_output");
     expect(codeOf(() => parseWorkerOutput("not json", 0))).toBe("invalid_output");
@@ -56,7 +61,7 @@ describe("errorCodeForExitCode", () => {
 describe("buildCliArgs", () => {
   it("passes the URL as a separate argument after '--' and never through a shell", () => {
     const args = buildCliArgs({
-      target: { kind: "url", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+      target: { kind: "url", url: "https://example.com/video/dQw4w9WgXcQ" },
       language: "auto",
       maxSeconds: 7200,
     });
@@ -69,7 +74,7 @@ describe("buildCliArgs", () => {
       "--max-seconds",
       "7200",
       "--",
-      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://example.com/video/dQw4w9WgXcQ",
     ]);
   });
 

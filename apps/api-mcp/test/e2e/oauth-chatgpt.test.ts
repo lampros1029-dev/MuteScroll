@@ -19,6 +19,9 @@ describe("ChatGPT OAuth account linking", () => {
     const metadata = await api(server, "/.well-known/oauth-authorization-server");
     expect(metadata.status).toBe(200);
     expect(metadata.body.registration_endpoint).toBe(`${server.baseUrl}/oauth/register`);
+    const resource = await api(server, "/.well-known/oauth-protected-resource/mcp");
+    expect(resource.status).toBe(200);
+    expect(resource.body.scopes_supported).toEqual(["transcribe"]);
 
     const registered = await api(server, "/oauth/register", {
       method: "POST",
@@ -76,6 +79,40 @@ describe("ChatGPT OAuth account linking", () => {
     expect(refreshed.status).toBe(200);
   });
 
+  it("grants the MCP resource only the transcribe scope", async () => {
+    server = await startTestServer(testConfig());
+    const registered = await api(server, "/oauth/register", {
+      method: "POST",
+      json: { client_name: "ChatGPT", redirect_uris: [REDIRECT], token_endpoint_auth_method: "none" },
+    });
+    const clientId = registered.body.client_id as string;
+    const verifier = randomBytes(32).toString("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const authorize = await fetch(authorizeUrl(server.baseUrl, clientId, challenge, "scope-state", "transcribe library:read"), {
+      redirect: "manual",
+    });
+    const location = authorize.headers.get("location") ?? "";
+    expect(new URL(location).searchParams.get("scope")).toBe("transcribe");
+
+    const session = await signUp(server);
+    const approved = await api(server, "/oauth/approve", {
+      method: "POST",
+      headers: sessionHeaders(session),
+      json: {
+        client_id: clientId,
+        redirect_uri: REDIRECT,
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "scope-state",
+        scope: "transcribe library:read",
+        resource: `${server.baseUrl}/mcp`,
+      },
+    });
+    const code = new URL(approved.body.redirect_to as string).searchParams.get("code") ?? "";
+    const token = await exchange(server.baseUrl, clientId, code, verifier);
+    expect(token.body.scope).toBe("transcribe");
+  });
+
   it("rejects a redirect that is not an assistant host", async () => {
     server = await startTestServer(testConfig());
     const registered = await api(server, "/oauth/register", {
@@ -87,7 +124,7 @@ describe("ChatGPT OAuth account linking", () => {
   });
 });
 
-function authorizeUrl(baseUrl: string, clientId: string, challenge: string, state: string): string {
+function authorizeUrl(baseUrl: string, clientId: string, challenge: string, state: string, scope = "transcribe"): string {
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
@@ -95,13 +132,13 @@ function authorizeUrl(baseUrl: string, clientId: string, challenge: string, stat
     code_challenge: challenge,
     code_challenge_method: "S256",
     state,
-    scope: "transcribe",
+    scope,
     resource: `${baseUrl}/mcp`,
   });
   return `${baseUrl}/oauth/authorize?${params.toString()}`;
 }
 
-function exchange(baseUrl: string, clientId: string, code: string, verifier: string): Promise<{ status: number; body: { access_token?: string; refresh_token?: string } }> {
+function exchange(baseUrl: string, clientId: string, code: string, verifier: string): Promise<{ status: number; body: { access_token?: string; refresh_token?: string; scope?: string } }> {
   return fetch(`${baseUrl}/oauth/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },

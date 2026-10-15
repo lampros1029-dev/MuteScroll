@@ -1,8 +1,8 @@
-"""SSRF guard for the media worker (PRD section 17).
+"""SSRF guard for the media worker.
 
-TypeScript validates the URL shape and host allow-list (`@mutescroll/shared`). The worker
-must additionally check where a hostname actually *resolves* before connecting, and again
-for every redirect hop, because DNS can point an allowed-looking name at an internal address.
+TypeScript validates the URL shape (`@mutescroll/shared`). The worker checks that the
+hostname is a public DNS name and that every resolved address is a public IP, including
+on each redirect hop. A name can still point at an internal address.
 
 Known limit: resolve-then-connect leaves a DNS rebinding window. That window is accepted
 for this launch; no extra network policy is added here.
@@ -18,9 +18,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 MAX_REDIRECTS = 5
-ALLOWED_DOMAINS: tuple[str, ...] = (
-    "youtube.com", "youtu.be", "tiktok.com", "instagram.com", "facebook.com", "fb.watch", "fb.com",
-)  # fmt: skip
+_FETCH_HEADERS = {"user-agent": "MuteScrollBot/1.0 (+https://mutescroll.xyz)"}
 
 Resolver = Callable[[str], list[str]]
 
@@ -45,13 +43,23 @@ def assert_all_public(addresses: list[str]) -> None:
             raise PermissionError(f"blocked non-public address: {address}")
 
 
-def _in_domains(host: str, domains: tuple[str, ...]) -> bool:
-    host = host.lower().rstrip(".")
-    return any(host == d or host.endswith(f".{d}") for d in domains)
-
-
 def host_allowed(host: str) -> bool:
-    return _in_domains(host, ALLOWED_DOMAINS)
+    """True for a public DNS name. IP literals and local names are refused before DNS."""
+    host = host.lower().rstrip(".")
+    if not host or host.startswith("[") or ":" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    if host.replace(".", "").isdigit():
+        return False
+    if "." not in host:
+        return False
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
+        return False
+    return True
 
 
 def system_resolver(host: str) -> list[str]:
@@ -67,7 +75,7 @@ def assert_url_safe(
     *,
     host_check: Callable[[str], bool] = host_allowed,
 ) -> None:
-    """Scheme, allow-listed host, no credentials, and every resolved address is public."""
+    """Scheme, public DNS name, no credentials, and every resolved address is public."""
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https"):
         raise PermissionError("only http(s) URLs are allowed")
@@ -87,17 +95,17 @@ def resolve_redirects(
     client: httpx.Client | None = None,
     resolver: Resolver = system_resolver,
 ) -> str:
-    """Follow short-link redirects manually, re-validating every hop. Returns the final URL."""
+    """Follow redirects manually, re-validating every hop. Returns the final URL. The body is not read."""
     owns_client = client is None
     http = client or httpx.Client(timeout=15.0, follow_redirects=False)
     try:
         current = url
         for _ in range(MAX_REDIRECTS + 1):
             assert_url_safe(current, resolver)
-            response = http.get(current, headers={"user-agent": "MuteScrollBot/1.0 (+https://mutescroll.xyz)"})
-            if response.status_code not in (301, 302, 303, 307, 308):
-                return current
-            location = response.headers.get("location")
+            with http.stream("GET", current, headers=_FETCH_HEADERS) as response:
+                if response.status_code not in (301, 302, 303, 307, 308):
+                    return current
+                location = response.headers.get("location")
             if not location:
                 return current
             current = urljoin(current, location)

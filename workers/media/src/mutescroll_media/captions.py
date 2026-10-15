@@ -1,4 +1,4 @@
-"""Parse platform caption tracks (YouTube json3) into segments (PRD 9.3 step 1: captions first)."""
+"""Parse json3 caption tracks into segments. Captions are used when the fetch already returned them."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ _WHITESPACE = re.compile(r"\s+")
 
 
 def parse_json3(payload: dict[str, Any]) -> list[Segment]:
-    """Convert a YouTube `json3` caption document to segments.
+    """Convert a json3 caption document to segments.
 
     Auto-generated tracks contain rolling, overlapping events; we merge events that start inside
     the previous one so the text is not duplicated, and clamp segment ends to the next start.

@@ -247,20 +247,15 @@ export function TryClient({
               </h2>
               <dl className="support-list">
                 <div>
-                  <dt>YouTube and Shorts</dt>
-                  <dd>Public videos. Captions are used when the video has them, which is the fastest path.</dd>
-                </div>
-                <div>
-                  <dt>Facebook</dt>
-                  <dd>Public videos. Private or login-only videos need an upload.</dd>
-                </div>
-                <div>
-                  <dt>TikTok and Instagram</dt>
-                  <dd>Public posts, on a best-effort basis. If retrieval fails, upload the file.</dd>
+                  <dt>Public video link</dt>
+                  <dd>
+                    MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path.
+                    Captions are used when the video has them.
+                  </dd>
                 </div>
                 <div>
                   <dt>Uploads</dt>
-                  <dd>MP4, MOV, WebM, M4A, MP3 or WAV. Always available as the fallback, within the size limit shown if a file is too big.</dd>
+                  <dd>MP4, MOV, WebM, M4A, MP3 or WAV, within the size limit shown if a file is too big.</dd>
                 </div>
               </dl>
             </section>
@@ -305,7 +300,7 @@ export function TryClient({
               Transcript ready.
             </p>
             <TranscriptToolbar transcription={phase.transcription} jobId={phase.jobId} sourceUrl={phase.sourceUrl} />
-            <TranscriptView transcription={phase.transcription} sourceUrl={phase.sourceUrl} />
+            <TranscriptView transcription={phase.transcription} />
             <div className="result-footer">
               <p>
                 Paste this into ChatGPT, Claude or Cursor and ask for a summary, a translation or the three strongest

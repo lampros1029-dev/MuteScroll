@@ -67,12 +67,19 @@ export function escapeVtt(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Host ids stay in the JSON object. A person reading Markdown sees a general source label. */
+function sourceLabel(platform: string): string {
+  if (platform === "upload") return "uploaded file";
+  if (platform === "unknown") return "unknown source";
+  return "public video";
+}
+
 /** Title heading, a metadata line, then one timestamped paragraph per segment. */
 function markdownOf(transcription: Transcription): string {
   const title = escapeMarkdown(collapseWhitespace(transcription.metadata.title ?? "") || "Transcript");
   const duration = transcription.metadata.duration_seconds ?? lastEnd(transcription.segments);
   const facts = [
-    transcription.metadata.platform,
+    sourceLabel(transcription.metadata.platform),
     transcription.metadata.author ? `by ${transcription.metadata.author}` : null,
     transcription.language ? `language ${transcription.language}` : null,
     `method ${transcription.method}`,

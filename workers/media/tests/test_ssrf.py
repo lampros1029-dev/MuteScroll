@@ -48,21 +48,25 @@ def public(_host: str) -> list[str]:
     return ["8.8.8.8"]
 
 
-def test_host_allow_list_blocks_lookalikes() -> None:
-    assert host_allowed("www.youtube.com")
-    assert host_allowed("VM.TikTok.com.")
-    assert not host_allowed("evilyoutube.com")
-    assert not host_allowed("youtube.com.evil.example")
+def test_host_allowed_accepts_public_names_and_blocks_local_ones() -> None:
+    assert host_allowed("example.com")
+    assert host_allowed("WWW.Example.com.")
+    assert not host_allowed("localhost")
+    assert not host_allowed("printer.local")
+    assert not host_allowed("foo.internal")
+    assert not host_allowed("127.0.0.1")
+    assert not host_allowed("intranet")
 
 
 @pytest.mark.parametrize(
     "url",
     [
-        "ftp://www.youtube.com/x",
-        "https://user:pw@www.youtube.com/x",
-        "https://www.youtube.com:8443/x",
-        "https://example.com/x",
+        "ftp://example.com/x",
+        "https://user:pw@example.com/x",
+        "https://example.com:8443/x",
+        "file:///etc/passwd",
         "http://127.0.0.1/x",
+        "http://localhost/x",
     ],
 )
 def test_assert_url_safe_rejects(url: str) -> None:
@@ -70,9 +74,13 @@ def test_assert_url_safe_rejects(url: str) -> None:
         assert_url_safe(url, public)
 
 
+def test_public_link_with_public_addresses_is_allowed() -> None:
+    assert_url_safe("https://example.com/video", public)
+
+
 def test_allowed_host_resolving_to_private_ip_is_blocked() -> None:
     with pytest.raises(PermissionError, match="non-public"):
-        assert_url_safe("https://www.youtube.com/x", lambda _h: ["10.0.0.7"])
+        assert_url_safe("https://example.com/x", lambda _h: ["10.0.0.7"])
 
 
 def client_for(routes: dict[str, httpx.Response]) -> httpx.Client:
@@ -85,24 +93,24 @@ def client_for(routes: dict[str, httpx.Response]) -> httpx.Client:
 def test_follows_short_link_to_final_url() -> None:
     client = client_for(
         {
-            "https://vm.tiktok.com/ZMabc/": httpx.Response(301, headers={"location": "https://www.tiktok.com/@u/video/123"}),
-            "https://www.tiktok.com/@u/video/123": httpx.Response(200),
+            "https://go.example/abc/": httpx.Response(301, headers={"location": "https://www.example.com/video/123"}),
+            "https://www.example.com/video/123": httpx.Response(200),
         }
     )
-    assert resolve_redirects("https://vm.tiktok.com/ZMabc/", client=client, resolver=public) == (
-        "https://www.tiktok.com/@u/video/123"
+    assert resolve_redirects("https://go.example/abc/", client=client, resolver=public) == (
+        "https://www.example.com/video/123"
     )
 
 
 def test_blocks_redirect_to_internal_host() -> None:
     client = client_for(
-        {"https://vm.tiktok.com/ZMabc/": httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data"})}
+        {"https://go.example/abc/": httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data"})}
     )
     with pytest.raises(PermissionError):
-        resolve_redirects("https://vm.tiktok.com/ZMabc/", client=client, resolver=public)
+        resolve_redirects("https://go.example/abc/", client=client, resolver=public)
 
 
 def test_blocks_redirect_loops() -> None:
-    client = client_for({"https://fb.watch/a/": httpx.Response(302, headers={"location": "https://fb.watch/a/"})})
+    client = client_for({"https://go.example/a/": httpx.Response(302, headers={"location": "https://go.example/a/"})})
     with pytest.raises(PermissionError, match="too many"):
-        resolve_redirects("https://fb.watch/a/", client=client, resolver=public)
+        resolve_redirects("https://go.example/a/", client=client, resolver=public)

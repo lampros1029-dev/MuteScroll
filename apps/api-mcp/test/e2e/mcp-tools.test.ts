@@ -17,16 +17,58 @@ async function start(env: Record<string, string> = {}, worker?: FakeWorker): Pro
   return session;
 }
 
+const PLATFORM_NAME = /youtube|tiktok|instagram|facebook|reels|shorts|fb\.watch|developer mode/i;
+const SALES_COPY = /checkout|\/pricing|\/checkout|upgrade|discount|trial|\bprices?\b|\bplans?\b|\bsave\b/i;
+
 describe("tool registration", () => {
   it("exposes both tools with explicit annotations and minimal inputs", async () => {
     const s = await start();
+    const instructions = s.client.getInstructions() ?? "";
+    expect(instructions.slice(0, 512)).toContain("Read a public video link.");
+    expect(instructions.slice(0, 512)).toContain("Call transcribe_video once.");
+    expect(instructions.slice(0, 512)).toContain("poll get_transcription");
+    expect(instructions.slice(0, 512)).toContain("summarize, translate, or check claims");
+    expect(instructions.slice(0, 512)).toContain("Do not change numbers.");
+    expect(instructions.slice(0, 512)).toContain("Flag uncertain spans.");
+    expect(instructions.slice(0, 512)).toContain('Speakers are "Speaker N".');
+    expect(instructions.slice(0, 512)).toContain("captions_auto means automatic captions from the public page");
+    expect(instructions.slice(0, 512)).toContain("return the upload link");
+    expect(instructions.slice(0, 512)).toContain("Do not sign in or bypass access controls.");
+    expect(instructions.slice(0, 512)).toContain("Do not mention prices, plans, or upgrades.");
+    expect(instructions).not.toMatch(/any public video link/i);
+    expect(instructions).not.toMatch(PLATFORM_NAME);
+
     const { tools } = await s.client.listTools();
     const transcribe = tools.find((t) => t.name === "transcribe_video");
     const get = tools.find((t) => t.name === "get_transcription");
+    expect(transcribe?.title).toBe("Transcribe a public video link");
+    expect(transcribe?.description).toContain("public video link");
+    expect(transcribe?.description).toContain("one-time upload path");
+    expect(transcribe?.description).not.toMatch(/any public video link/i);
+    expect(transcribe?.description).not.toMatch(SALES_COPY);
+    expect(transcribe?.description).not.toMatch(PLATFORM_NAME);
+    expect(get?.description).toContain("transcribe_video");
+    expect(get?.description).toContain("one-time upload");
+    expect(get?.description).not.toMatch(SALES_COPY);
+    expect(get?.description).not.toMatch(PLATFORM_NAME);
+    const urlField = transcribe?.inputSchema.properties?.["url"] as { description?: string } | undefined;
+    expect(urlField?.description).toContain("public video link");
+    expect(urlField?.description).not.toMatch(/any public video link/i);
+    expect(urlField?.description).not.toMatch(PLATFORM_NAME);
     expect(transcribe?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, openWorldHint: true });
     expect(get?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(Object.keys(transcribe?.inputSchema.properties ?? {}).sort()).toEqual(["language", "url"]);
     expect(Object.keys(get?.inputSchema.properties ?? {})).toEqual(["job_id"]);
+    expect(JSON.stringify(transcribe?.outputSchema)).not.toContain("captions_vendor");
+
+    const raw = await listToolsRaw(s.server.baseUrl);
+    const rawTools = raw.result?.tools ?? [];
+    for (const tool of rawTools) {
+      expect(tool.securitySchemes).toEqual([
+        { type: "noauth" },
+        { type: "oauth2", scopes: ["transcribe"] },
+      ]);
+    }
   });
 });
 
@@ -72,9 +114,18 @@ describe("transcribe_video", () => {
     expect(worker.requests).toHaveLength(1);
   });
 
+  it("does not charge a second transcribe_video for the same url", async () => {
+    const s = await start();
+    const first = await call(s, "transcribe_video", { url: sampleUrl() });
+    const second = await call(s, "transcribe_video", { url: sampleUrl() });
+    expect(second.output.job_id).toBe(first.output.job_id);
+    expect(second.output.quota?.remaining_this_period).toBe(first.output.quota?.remaining_this_period);
+    expect(s.worker.requests).toHaveLength(1);
+  });
+
   it.each([
     ["not a link", "invalid_url"],
-    ["https://www.tiktok.com/@someone", "unsupported_url"],
+    ["ftp://example.com/video.mp4", "unsafe_url"],
     ["http://127.0.0.1/video.mp4", "unsafe_url"],
   ])("rejects %j before doing any work (%s)", async (url, code) => {
     const s = await start();
@@ -99,6 +150,13 @@ describe("transcribe_video", () => {
     expect(blocked.isError).toBe(true);
     expect(blocked.output.error?.code).toBe("quota_exceeded");
     expect(blocked.output.error?.message).toContain("https://mutescroll.xyz/plans");
+    expect(blocked.output.error?.message).not.toMatch(/checkout|\/pricing|upgrade/i);
+    expect(blocked._meta).toMatchObject({
+      "mcp/www_authenticate": {
+        error: "invalid_token",
+        error_description: blocked.output.error?.message,
+      },
+    });
     expect(blocked.output.error?.resets_at).toBeDefined();
     expect(blocked.output.error?.upload_url).toBeUndefined();
     expect(s.worker.requests).toHaveLength(1);
@@ -164,7 +222,7 @@ describe("HTTP surface", () => {
     const s = await start();
     const health = await fetch(`${s.server.baseUrl}/healthz`);
     expect(health.status).toBe(200);
-    expect(await health.json()).toMatchObject({ status: "ok" });
+    expect(await health.json()).toEqual({ status: "ok" });
     expect((await fetch(`${s.server.baseUrl}/nope`)).status).toBe(404);
   });
 
@@ -190,3 +248,16 @@ describe("HTTP surface", () => {
     expect(await response.json()).toMatchObject({ error: { code: -32700 } });
   });
 });
+
+async function listToolsRaw(baseUrl: string): Promise<{ result?: { tools?: Array<{ securitySchemes?: unknown }> } }> {
+  const response = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+  });
+  const text = await response.text();
+  const json = text.trimStart().startsWith("{")
+    ? text
+    : (text.split("\n").find((line) => line.startsWith("data:"))?.slice("data:".length) ?? text);
+  return JSON.parse(json) as { result?: { tools?: Array<{ securitySchemes?: unknown }> } };
+}

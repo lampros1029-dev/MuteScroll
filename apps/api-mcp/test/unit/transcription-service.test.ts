@@ -14,8 +14,8 @@ import { transcriptFixture } from "../helpers/fixtures.js";
 
 const WINDOW_MS = 86_400_000;
 const OCT_15_2026 = Date.UTC(2026, 9, 15, 12);
-const URL_A = "https://www.youtube.com/watch?v=aaaaaaaaaaa";
-const URL_B = "https://www.youtube.com/watch?v=bbbbbbbbbbb";
+const URL_A = "https://example.com/video/aaaaaaaaaaa";
+const URL_B = "https://example.com/video/bbbbbbbbbbb";
 const ANON = (clientKey: string): Caller => ({ kind: "anonymous", clientKey });
 
 function build(worker: FakeWorker, allowance = 5) {
@@ -72,8 +72,8 @@ describe("TranscriptionService.request (anonymous)", () => {
     const worker = new FakeWorker(() => delay(30, transcriptFixture()));
     const fixture = build(worker);
     const outcomes = await Promise.all([
-      fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") }),
-      fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") }),
+      fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") }),
+      fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") }),
     ]);
     const ids = outcomes.map((o) => (o.kind === "job" ? o.job.id : "none"));
     expect(ids[0]).toBe(ids[1]);
@@ -85,9 +85,9 @@ describe("TranscriptionService.request (anonymous)", () => {
   it("returns a finished job for free: a repeat does not reserve or charge again", async () => {
     const worker = new FakeWorker();
     const fixture = build(worker);
-    const first = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") });
+    const first = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") });
     await settleRuns(fixture);
-    const again = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c2") });
+    const again = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c2") });
     expect(first.kind === "job" && again.kind === "job" && first.job.id === again.job.id).toBe(true);
     expect(fixture.quota.remaining("c1")).toBe(4);
     expect(fixture.quota.remaining("c2")).toBe(5);
@@ -96,9 +96,9 @@ describe("TranscriptionService.request (anonymous)", () => {
   it("refuses new work once the anonymous allowance is spent, with the reset time", async () => {
     const worker = new FakeWorker();
     const fixture = build(worker, 1);
-    await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") });
+    await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") });
     await settleRuns(fixture);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_B, platform: "youtube", language: "auto", caller: ANON("c1") });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_B, platform: "public", language: "auto", caller: ANON("c1") });
     expect(outcome.kind).toBe("quota_exceeded");
     if (outcome.kind === "quota_exceeded") expect(outcome.resetAt).toBeGreaterThan(OCT_15_2026);
   });
@@ -108,7 +108,7 @@ describe("TranscriptionService.request (anonymous)", () => {
       throw new MediaWorkerError("blocked_bot_check");
     });
     const fixture = build(worker);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") });
     if (outcome.kind !== "job") throw new Error("expected a job");
     await fixture.service.waitForSettled(outcome.job.id, 2000, 5);
     await settleRuns(fixture);
@@ -117,7 +117,7 @@ describe("TranscriptionService.request (anonymous)", () => {
 
   it("gives an anonymous job no owner, so anyone holding the job_id can read it", async () => {
     const fixture = build(new FakeWorker());
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") });
     if (outcome.kind !== "job") throw new Error("expected a job");
     expect(outcome.job.ownerUserId).toBeNull();
     expect(await fixture.service.getVisible(outcome.job.id, { userId: null })).toBeDefined();
@@ -130,7 +130,7 @@ describe("TranscriptionService.request (accounts)", () => {
     const worker = new FakeWorker(() => delay(20, transcriptFixture()));
     const fixture = build(worker);
     const caller = await accountCaller(fixture);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller });
     if (outcome.kind !== "job") throw new Error("expected a job");
     expect(await fixture.billing.remaining(caller)).toBe(19);
     await fixture.service.waitForSettled(outcome.job.id, 2000, 5);
@@ -145,7 +145,7 @@ describe("TranscriptionService.request (accounts)", () => {
     });
     const fixture = build(worker);
     const caller = await accountCaller(fixture);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller });
     if (outcome.kind !== "job") throw new Error("expected a job");
     await fixture.service.waitForSettled(outcome.job.id, 2000, 5);
     await settleRuns(fixture);
@@ -157,7 +157,7 @@ describe("TranscriptionService.request (accounts)", () => {
     const caller = await accountCaller(fixture);
     const ok = await fixture.stores.ledger.reserve({ userId: caller.userId, jobId: "job_x", runKey: "run_x", period: periodKey(OCT_15_2026), credits: 20, allowance: 20, now: OCT_15_2026 });
     expect(ok.ok).toBe(true);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_B, platform: "youtube", language: "auto", caller });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_B, platform: "public", language: "auto", caller });
     expect(outcome).toEqual({ kind: "quota_exceeded", resetAt: nextPeriodStart(OCT_15_2026) });
   });
 
@@ -165,7 +165,7 @@ describe("TranscriptionService.request (accounts)", () => {
     const worker = new FakeWorker();
     const fixture = build(worker);
     const caller = await accountCaller(fixture);
-    await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller });
+    await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller });
     await settleRuns(fixture);
     expect(worker.requests[0]?.maxSeconds).toBe(600);
   });
@@ -174,9 +174,9 @@ describe("TranscriptionService.request (accounts)", () => {
     const fixture = build(new FakeWorker());
     const alice = await accountCaller(fixture);
     const bob = await accountCaller(fixture);
-    const first = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: alice });
-    const repeat = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: alice });
-    const other = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: bob });
+    const first = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: alice });
+    const repeat = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: alice });
+    const other = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: bob });
     const ids = [first, repeat, other].map((o) => (o.kind === "job" ? o.job.id : "none"));
     expect(ids[0]).toBe(ids[1]);
     expect(ids[2]).not.toBe(ids[0]);
@@ -186,8 +186,8 @@ describe("TranscriptionService.request (accounts)", () => {
   it("never lets an anonymous request join an account's job", async () => {
     const fixture = build(new FakeWorker());
     const caller = await accountCaller(fixture);
-    const owned = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller });
-    const anonymous = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c9") });
+    const owned = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller });
+    const anonymous = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c9") });
     if (owned.kind !== "job" || anonymous.kind !== "job") throw new Error("expected jobs");
     expect(anonymous.job.id).not.toBe(owned.job.id);
     expect(anonymous.job.ownerUserId).toBeNull();
@@ -197,7 +197,7 @@ describe("TranscriptionService.request (accounts)", () => {
   it("shows an account's job only to that account", async () => {
     const fixture = build(new FakeWorker());
     const caller = await accountCaller(fixture);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller });
     if (outcome.kind !== "job") throw new Error("expected a job");
     expect(await fixture.service.getVisible(outcome.job.id, { userId: caller.userId })).toBeDefined();
     expect(await fixture.service.getVisible(outcome.job.id, { userId: "usr_intruder" })).toBeUndefined();
@@ -209,7 +209,7 @@ describe("TranscriptionService.request (accounts)", () => {
     const worker = new FakeWorker(() => delay(60, transcriptFixture()));
     const fixture = build(worker);
     const caller = await accountCaller(fixture);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller });
     if (outcome.kind !== "job") throw new Error("expected a job");
     expect(await fixture.service.deleteJob(outcome.job.id, { userId: caller.userId })).toBe("in_progress");
     expect(await fixture.service.deleteJob(outcome.job.id, { userId: "usr_intruder" })).toBe("not_found");
@@ -226,7 +226,7 @@ describe("TranscriptionService.request (accounts)", () => {
     });
     const fixture = build(worker);
     const owner = await accountCaller(fixture);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: owner });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: owner });
     if (outcome.kind !== "job") throw new Error("expected a job");
     await fixture.service.waitForSettled(outcome.job.id, 2000, 5);
     await settleRuns(fixture);
@@ -246,7 +246,7 @@ describe("TranscriptionService upload continuation", () => {
       return transcriptFixture();
     });
     const fixture = build(worker);
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") });
     if (outcome.kind !== "job") throw new Error("expected a job");
     await fixture.service.waitForSettled(outcome.job.id, 2000, 5);
     await settleRuns(fixture);
@@ -276,7 +276,7 @@ describe("TranscriptionService upload continuation", () => {
     const fixture = build(worker);
     const missing = await fixture.service.continueFailedJob("job_missing", { path: "/tmp/x", cleanup: async () => undefined }, "c1");
     expect(missing).toBe("not_found");
-    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "youtube", language: "auto", caller: ANON("c1") });
+    const outcome = await fixture.service.request({ canonicalUrl: URL_A, platform: "public", language: "auto", caller: ANON("c1") });
     if (outcome.kind !== "job") throw new Error("expected a job");
     const running = await fixture.service.continueFailedJob(outcome.job.id, { path: "/tmp/x", cleanup: async () => undefined }, "c1");
     expect(running).toBe("not_failed");
