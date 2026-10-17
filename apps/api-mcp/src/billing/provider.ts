@@ -18,6 +18,16 @@ export interface CheckoutSession {
   readonly url: string | null;
 }
 
+/** One-time credit packs and the monthly extra seat. These do not change the subscription plan. */
+export const ADDON_KEYS = ["pack_500", "pack_2000", "seat"] as const;
+export type AddonKey = (typeof ADDON_KEYS)[number];
+
+export interface AddonCheckoutInput {
+  readonly userId: string;
+  readonly email: string;
+  readonly addon: AddonKey;
+}
+
 /**
  * Ids on a Paddle notification. `checkoutNonce` is issued here when checkout is created; Paddle only echoes it.
  * A bare `custom_data.user_id` is not one of these ids.
@@ -39,6 +49,8 @@ export type SubscriptionChange =
       readonly kind: "assign";
       readonly userId: string;
       readonly plan: PlanId;
+      /** Null when the event did not say month or year. Callers must not treat that as yearly. */
+      readonly interval: BillingInterval | null;
       readonly freeAt: number | null;
       readonly subject: PaddleSubject;
     }
@@ -47,6 +59,25 @@ export type SubscriptionChange =
       readonly userId: string;
       readonly when: "immediate" | "period_end";
       readonly effectiveAt: number | null;
+      readonly subject: PaddleSubject;
+    }
+  | {
+      readonly kind: "grant_pack";
+      readonly userId: string;
+      readonly credits: number;
+      readonly grantKey: string;
+      readonly subject: PaddleSubject;
+    }
+  | {
+      readonly kind: "add_seat";
+      readonly userId: string;
+      readonly grantKey: string;
+      readonly subject: PaddleSubject;
+    }
+  | {
+      readonly kind: "remove_seat";
+      readonly userId: string;
+      readonly grantKey: string;
       readonly subject: PaddleSubject;
     };
 
@@ -75,6 +106,8 @@ export interface PortalSession {
 export interface BillingProvider {
   readonly kind: "fake" | "paddle";
   createCheckout(input: CheckoutInput): Promise<CheckoutSession>;
+  /** Opens a pack or extra-seat checkout. Does not change the subscription plan by itself. */
+  createAddonCheckout(input: AddonCheckoutInput): Promise<CheckoutSession>;
   /** Opens the Paddle customer portal. The fake provider never returns a URL. */
   createPortalSession(userId: string): Promise<PortalSession>;
   /**
@@ -82,6 +115,11 @@ export interface BillingProvider {
    * The fake provider does nothing: there is no merchant to call.
    */
   cancelSubscriptions(userId: string): Promise<void>;
+  /**
+   * Month or year on a linked Paddle subscription. Null when there is no subscription,
+   * the cycle is missing, or it is not month or year. Never guesses year.
+   */
+  subscriptionInterval(userId: string): Promise<BillingInterval | null>;
   /** Signature first. Unknown event types verify and return `change: null`. */
   verifyWebhook(rawBody: Uint8Array, signatureHeader: string | undefined, now: number): WebhookVerification;
 }

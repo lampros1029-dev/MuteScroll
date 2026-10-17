@@ -21,21 +21,28 @@ const CADENCE_LABELS: Readonly<Record<Cadence, string>> = {
 export function PricingPlans() {
   const [cadence, setCadence] = useState<Cadence>("annual");
   const signedIn = useSignedIn();
+  const saving = maxAnnualSavings();
 
   return (
     <div className="plans">
-      <div className="cadence" role="group" aria-label="Billing period">
-        {(["monthly", "annual"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            className="cadence-option"
-            aria-pressed={cadence === option}
-            onClick={() => setCadence(option)}
-          >
-            {CADENCE_LABELS[option]}
-          </button>
-        ))}
+      <div className="cadence-row">
+        <div className="cadence" role="group" aria-label="Billing period">
+          {(["monthly", "annual"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="cadence-option"
+              aria-pressed={cadence === option}
+              onClick={() => setCadence(option)}
+            >
+              {CADENCE_LABELS[option]}
+            </button>
+          ))}
+        </div>
+        {saving === null ? null : <p className="cadence-save">Annual saves up to {saving}%.</p>}
+        <a className="cadence-compare" href="#compare">
+          Compare plans
+        </a>
       </div>
 
       <ul className="plan-grid">
@@ -45,6 +52,15 @@ export function PricingPlans() {
       </ul>
     </div>
   );
+}
+
+function maxAnnualSavings(): number | null {
+  let max: number | null = null;
+  for (const plan of PLANS) {
+    const saving = annualSavingsPercent(plan);
+    if (saving !== null && (max === null || saving > max)) max = saving;
+  }
+  return max;
 }
 
 function PlanCard({

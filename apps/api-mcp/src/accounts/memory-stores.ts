@@ -2,6 +2,7 @@ import {
   EmailTakenError,
   type ApiKeyRecord,
   type ApiKeyStore,
+  type GrantKind,
   type NewUser,
   type SessionRecord,
   type SessionStore,
@@ -13,10 +14,17 @@ import {
 export class MemoryUserStore implements UserStore {
   private readonly byId = new Map<string, UserRecord>();
   private readonly idByEmail = new Map<string, string>();
+  private readonly grants = new Map<string, { readonly userId: string; readonly kind: GrantKind }>();
 
   async create(input: NewUser): Promise<UserRecord> {
     if (this.idByEmail.has(input.email)) throw new EmailTakenError();
-    const user: UserRecord = { ...input, emailVerifiedAt: input.emailVerifiedAt ?? null };
+    const user: UserRecord = {
+      ...input,
+      emailVerifiedAt: input.emailVerifiedAt ?? null,
+      bonusCredits: input.bonusCredits ?? 0,
+      extraSeats: input.extraSeats ?? 0,
+      billingInterval: input.billingInterval ?? null,
+    };
     this.byId.set(user.id, user);
     this.idByEmail.set(user.email, user.id);
     return { ...user };
@@ -39,6 +47,13 @@ export class MemoryUserStore implements UserStore {
     return true;
   }
 
+  async setBillingInterval(id: string, interval: UserRecord["billingInterval"]): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined) return false;
+    this.byId.set(id, { ...user, billingInterval: interval });
+    return true;
+  }
+
   async setPassword(id: string, passwordHash: string): Promise<boolean> {
     const user = this.byId.get(id);
     if (user === undefined) return false;
@@ -58,6 +73,49 @@ export class MemoryUserStore implements UserStore {
     if (user === undefined) return false;
     this.byId.delete(id);
     this.idByEmail.delete(user.email);
+    for (const [key, grant] of this.grants) {
+      if (grant.userId === id) this.grants.delete(key);
+    }
+    return true;
+  }
+
+  async addBonusCredits(id: string, credits: number): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined || credits <= 0) return false;
+    this.byId.set(id, { ...user, bonusCredits: user.bonusCredits + credits });
+    return true;
+  }
+
+  async consumeBonus(id: string, credits: number): Promise<void> {
+    const user = this.byId.get(id);
+    if (user === undefined || credits <= 0) return;
+    this.byId.set(id, { ...user, bonusCredits: Math.max(0, user.bonusCredits - credits) });
+  }
+
+  async addExtraSeat(id: string): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined) return false;
+    this.byId.set(id, { ...user, extraSeats: user.extraSeats + 1 });
+    return true;
+  }
+
+  async removeExtraSeat(id: string): Promise<boolean> {
+    const user = this.byId.get(id);
+    if (user === undefined) return false;
+    this.byId.set(id, { ...user, extraSeats: Math.max(0, user.extraSeats - 1) });
+    return true;
+  }
+
+  async claimGrant(key: string, userId: string, kind: GrantKind, _now: number): Promise<boolean> {
+    if (key.length === 0 || this.grants.has(key) || this.byId.get(userId) === undefined) return false;
+    this.grants.set(key, { userId, kind });
+    return true;
+  }
+
+  async releaseGrant(key: string): Promise<boolean> {
+    const grant = this.grants.get(key);
+    if (grant === undefined || grant.kind !== "seat") return false;
+    this.grants.delete(key);
     return true;
   }
 }

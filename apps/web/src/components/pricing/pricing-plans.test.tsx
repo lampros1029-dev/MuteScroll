@@ -36,6 +36,8 @@ describe("PricingPlans", () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(401, { error: { code: "unauthorized", message: "Sign in required." } })));
     render(<PricingPlans />);
     expect(screen.getByRole("button", { name: "Annual" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("Annual saves up to 42%."));
+    expect(screen.getByRole("link", { name: "Compare plans" }).getAttribute("href")).toBe("#compare");
     expect(screen.getByRole("button", { name: "Monthly" }).getAttribute("aria-pressed")).toBe("false");
     const pro = findCard("Pro");
     expect(within(pro).getByText("$119")).toBeTruthy();

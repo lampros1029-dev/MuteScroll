@@ -4,7 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { describe, expect, it } from "vitest";
 
-import type { BillingProvider, CheckoutInput, CheckoutSession, PortalSession, WebhookVerification } from "../../src/billing/provider.js";
+import type { AddonCheckoutInput, BillingProvider, CheckoutInput, CheckoutSession, PortalSession, WebhookVerification } from "../../src/billing/provider.js";
 import { PaddleApiError } from "../../src/billing/paddle-client.js";
 import { MailNotConfiguredError, type OutboundMail } from "../../src/mail/gmail.js";
 import { FakeWorker } from "../helpers/fake-worker.js";
@@ -26,6 +26,11 @@ class RecordingBilling implements BillingProvider {
     return { transactionId: "txn_test", url: "https://checkout.paddle.com/test" };
   }
 
+  async createAddonCheckout(input: AddonCheckoutInput): Promise<CheckoutSession> {
+    void input;
+    return { transactionId: "txn_addon", url: "https://checkout.paddle.com/addon" };
+  }
+
   async createPortalSession(userId: string): Promise<PortalSession> {
     void userId;
     return { url: "https://customer-portal.paddle.com/cpl_test" };
@@ -34,6 +39,10 @@ class RecordingBilling implements BillingProvider {
   async cancelSubscriptions(userId: string): Promise<void> {
     if (this.failCancel) throw new PaddleApiError(500);
     this.cancelled.push(userId);
+  }
+
+  async subscriptionInterval(_userId: string): Promise<null> {
+    return null;
   }
 
   verifyWebhook(): WebhookVerification {

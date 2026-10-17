@@ -19,15 +19,39 @@ export interface Hold {
 
 export type HoldOutcome = { readonly ok: true; readonly hold: Hold } | { readonly ok: false; readonly resetAt: number };
 
+/** Pack balance for one account. Missing users read as zero. */
+export interface BonusBalance {
+  get(userId: string): Promise<number>;
+  consume(userId: string, credits: number): Promise<void>;
+}
+
+const NO_BONUS: BonusBalance = {
+  get: async () => 0,
+  consume: async () => undefined,
+};
+
 export interface BillingDeps {
   readonly quota: CreditQuota;
   readonly ledger: CreditLedger;
   readonly now: () => number;
+  readonly bonus?: BonusBalance;
+}
+
+export interface AccountCreditSnapshot {
+  readonly remaining: number;
+  readonly allowance: number;
+  readonly used: number;
+  readonly bonus: number;
+  readonly resetsAt: number;
 }
 
 /** Anonymous runs pay from the sliding-window quota; account runs pay from the plan's monthly credits. */
 export class Billing {
-  constructor(private readonly deps: BillingDeps) {}
+  private readonly bonus: BonusBalance;
+
+  constructor(private readonly deps: BillingDeps) {
+    this.bonus = deps.bonus ?? NO_BONUS;
+  }
 
   async hold(caller: Caller, jobId: string): Promise<HoldOutcome> {
     if (caller.kind === "anonymous") return this.holdAnonymous(caller.clientKey);
@@ -36,8 +60,21 @@ export class Billing {
 
   async remaining(caller: Caller): Promise<number> {
     if (caller.kind === "anonymous") return this.deps.quota.remaining(caller.clientKey);
-    const used = await this.deps.ledger.used(caller.userId, periodKey(this.deps.now()));
-    return Math.max(0, planDefinition(caller.plan).monthlyCredits - used);
+    return (await this.accountSnapshot(caller.userId, caller.plan)).remaining;
+  }
+
+  /** Monthly allowance, period usage, and pack credits for a signed-in account. */
+  async accountSnapshot(userId: string, plan: PlanId): Promise<AccountCreditSnapshot> {
+    const used = await this.deps.ledger.used(userId, periodKey(this.deps.now()));
+    const allowance = planDefinition(plan).monthlyCredits;
+    const bonus = Math.max(0, await this.bonus.get(userId));
+    return {
+      remaining: Math.max(0, allowance - used) + bonus,
+      allowance,
+      used,
+      bonus,
+      resetsAt: nextPeriodStart(this.deps.now()),
+    };
   }
 
   resetAt(caller: Caller): number {
@@ -55,27 +92,38 @@ export class Billing {
     const now = this.deps.now();
     const period = periodKey(now);
     const runKey = randomUUID();
+    const monthly = planDefinition(plan).monthlyCredits;
+    const bonus = Math.max(0, await this.bonus.get(userId));
+    const budget = monthly + bonus;
     const reserved = await this.deps.ledger.reserve({
       userId,
       jobId,
       runKey,
       period,
       credits: RUN_HOLD_CREDITS,
-      allowance: planDefinition(plan).monthlyCredits,
+      allowance: budget,
       now,
     });
     if (!reserved.ok) return { ok: false, resetAt: nextPeriodStart(now) };
     const hold: Hold = {
-      settle: (creditsCharged) =>
-        this.deps.ledger.settle({
+      settle: async (creditsCharged) => {
+        const usedBefore = await this.deps.ledger.used(userId, period);
+        const committedBefore = Math.max(0, usedBefore - RUN_HOLD_CREDITS);
+        const room = Math.max(0, budget - committedBefore);
+        const charged = Math.max(0, Math.min(creditsCharged, room));
+        await this.deps.ledger.settle({
           userId,
           jobId,
           runKey,
           period,
           reserved: RUN_HOLD_CREDITS,
-          charged: creditsCharged,
+          charged,
           now: this.deps.now(),
-        }),
+        });
+        const monthlyRoom = Math.max(0, monthly - committedBefore);
+        const fromBonus = Math.max(0, charged - monthlyRoom);
+        if (fromBonus > 0) await this.bonus.consume(userId, fromBonus);
+      },
     };
     return { ok: true, hold };
   }

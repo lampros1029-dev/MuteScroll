@@ -72,7 +72,15 @@ export function createContext(config: Config, overrides: ContextOverrides = {}):
 
   const stores = overrides.stores ?? createStores(config, now);
   const quota = new CreditQuota({ allowance: config.anonCredits, windowMs: config.anonQuotaWindowMs, now });
-  const billing = new Billing({ quota, ledger: stores.ledger, now });
+  const billing = new Billing({
+    quota,
+    ledger: stores.ledger,
+    now,
+    bonus: {
+      get: async (userId) => (await stores.users.findById(userId))?.bonusCredits ?? 0,
+      consume: (userId, credits) => stores.users.consumeBonus(userId, credits),
+    },
+  });
   const billingProvider = overrides.billingProvider ?? createBillingProvider(config, fetch, stores.billingLinks);
   const uploads = new UploadTokenStore({ ttlMs: config.uploadTokenTtlMs, now });
   const runner = new JobRunner({

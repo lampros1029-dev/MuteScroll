@@ -1,3 +1,5 @@
+import { normalizeEmail } from "../accounts/email.js";
+
 /** Paddle returned a non-success status, or a success body we could not read. The message never includes the response body. */
 export class PaddleApiError extends Error {
   constructor(readonly status: number) {
@@ -28,7 +30,12 @@ export class PaddleClient {
     readonly priceId: string;
     readonly userId: string;
     readonly checkoutNonce: string;
+    readonly email?: string;
+    /** An existing `ctm_` id. An email or a MuteScroll user id is ignored. */
+    readonly customerId?: string;
   }): Promise<PaddleTransaction> {
+    const email = input.email === undefined ? null : normalizeEmail(input.email);
+    const customerId = input.customerId !== undefined && isPaddleId(input.customerId, "ctm") ? input.customerId : undefined;
     const response = await this.fetchImpl(`${this.baseUrl}/transactions`, {
       method: "POST",
       headers: {
@@ -38,6 +45,8 @@ export class PaddleClient {
       body: JSON.stringify({
         items: [{ price_id: input.priceId, quantity: 1 }],
         custom_data: { user_id: input.userId, checkout_nonce: input.checkoutNonce },
+        collection_mode: "automatic",
+        ...(customerId !== undefined ? { customer_id: customerId } : email === null ? {} : { customer: { email } }),
       }),
     });
     if (!response.ok) {
@@ -54,12 +63,12 @@ export class PaddleClient {
     const id = data?.["id"];
     if (data === undefined || typeof id !== "string" || id.length === 0) throw new PaddleApiError(response.status);
     const checkoutUrl = asRecord(data["checkout"])?.["url"];
-    const customerId = data["customer_id"];
+    const returnedCustomerId = data["customer_id"];
     const subscriptionId = data["subscription_id"];
     return {
       transactionId: id,
       url: typeof checkoutUrl === "string" ? checkoutUrl : null,
-      customerId: typeof customerId === "string" ? customerId : null,
+      customerId: typeof returnedCustomerId === "string" ? returnedCustomerId : null,
       subscriptionId: typeof subscriptionId === "string" ? subscriptionId : null,
     };
   }
@@ -109,6 +118,31 @@ export class PaddleClient {
     }
     await response.arrayBuffer().catch(() => undefined);
   }
+
+  /** Subscription body, or null when Paddle does not return one. The body is never placed on an error. */
+  async readSubscription(subscriptionId: string): Promise<Record<string, unknown> | null> {
+    if (!isPaddleId(subscriptionId, "sub")) return null;
+    const response = await this.fetchImpl(`${this.baseUrl}/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${this.apiKey}` },
+    });
+    if (!response.ok) {
+      await response.arrayBuffer().catch(() => undefined);
+      return null;
+    }
+    let payload: unknown;
+    try {
+      payload = (await response.json()) as unknown;
+    } catch {
+      return null;
+    }
+    const data = asRecord(asRecord(payload)?.["data"]);
+    return data ?? null;
+  }
+}
+
+function isPaddleId(value: string, prefix: "ctm" | "sub"): boolean {
+  return new RegExp(`^${prefix}_[A-Za-z0-9]{1,60}$`).test(value);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

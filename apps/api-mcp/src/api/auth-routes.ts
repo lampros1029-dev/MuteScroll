@@ -6,6 +6,7 @@ import { hashPassword, passwordPolicyError, spendPasswordCheck, verifyPassword }
 import { newCsrfToken } from "../accounts/secrets.js";
 import { closeSession, openSession } from "../accounts/sessions.js";
 import { EmailTakenError, type UserRecord } from "../accounts/types.js";
+import { rememberBillingInterval } from "../billing/remember-interval.js";
 import type { Caller } from "../caller.js";
 import type { AppContext } from "../context.js";
 import { clientKeyFor } from "../http/client-key.js";
@@ -79,16 +80,16 @@ export async function logout(req: IncomingMessage, res: ServerResponse, ctx: App
 export async function me(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
   const requester = requireAccount(await identify(req, res, ctx, { allowSession: true }));
   const caller = callerOf(requester);
-  const remaining = await ctx.billing.remaining(caller);
-  sendJson(res, 200, meView(requester.user, { remaining, resetsAt: ctx.billing.resetAt(caller) }));
+  if (caller.kind !== "account") throw new ApiError(401, "unauthorized", "Sign in to see this account.");
+  const user = await rememberBillingInterval(ctx.stores.users, ctx.billingProvider, requester.user);
+  sendJson(res, 200, meView(user, await ctx.billing.accountSnapshot(caller.userId, caller.plan)));
 }
 
 async function openAccountSession(ctx: AppContext, res: ServerResponse, user: UserRecord, status: number): Promise<void> {
   const token = await openSession({ store: ctx.stores.sessions, ttlMs: ctx.config.sessionTtlMs, now: ctx.now }, user.id);
   const cookies = sessionCookies(token, newCsrfToken(), cookieSettingsFor(ctx));
   const caller: Caller = { kind: "account", userId: user.id, plan: user.plan };
-  const remaining = await ctx.billing.remaining(caller);
-  sendJson(res, status, meView(user, { remaining, resetsAt: ctx.billing.resetAt(caller) }), { "set-cookie": cookies });
+  sendJson(res, status, meView(user, await ctx.billing.accountSnapshot(caller.userId, caller.plan)), { "set-cookie": cookies });
 }
 
 function invalidCredentials(): ApiError {

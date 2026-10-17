@@ -8,8 +8,8 @@ import { TAX_NOTE } from "../../lib/legal";
 import { FOUNDING_PASS, PLANS, type PlanFeatures } from "../../lib/pricing";
 
 export const metadata: Metadata = {
-  title: "Plans and prices",
-  description: "MuteScroll plans: Free, Creator, Pro, and Team. API keys are included with Team.",
+  title: "Pricing — timestamped transcripts",
+  description: "MuteScroll plans for a timestamped transcript of a public video link. Creator starts at $7.99 a month, or $59 a year.",
   alternates: { canonical: "/pricing" },
 };
 
@@ -40,9 +40,10 @@ export default function PricingPage() {
     <div className="container page">
       <header className="page-head">
         <p className="kicker">Pricing</p>
-        <h1 className="display-small">Plans and prices</h1>
+        <h1 className="display-small">Start small. Upgrade when the month runs out.</h1>
         <p className="section-lede">
-          Choose a plan and continue to checkout. The plan on the account updates after Paddle confirms payment.
+          A timestamped transcript of a public video link, or of a file you upload. Monthly and annual are the same
+          three paid plans. Annual costs less than twelve monthly payments.
         </p>
       </header>
 
@@ -112,13 +113,13 @@ export default function PricingPage() {
             costs 1 credit, and a 45-minute podcast costs 5.
           </p>
           <p>
-            Need more than the monthly allowance? The allowance is the plan amount, and unused credits do not roll
-            over. Credit packs are not sold.
+            Need more than the monthly allowance? A pack adds 500 credits for $5 or 2,000 for $15. A pack does not change
+            the plan. Unused monthly credits do not roll over.
           </p>
         </div>
       </section>
 
-      <section className="section" aria-labelledby="compare-title">
+      <section className="section" id="compare" aria-labelledby="compare-title">
         <h2 id="compare-title" className="section-title-small">
           Compare plans
         </h2>
@@ -166,6 +167,74 @@ export default function PricingPage() {
           sales tax.
         </p>
       </section>
+
+      <section className="section" aria-labelledby="pricing-faq-title">
+        <h2 id="pricing-faq-title" className="section-title-small">
+          Questions
+        </h2>
+        <div className="faq">
+          {PRICING_FAQ.map((item) => (
+            <details key={item.question} className="faq-item">
+              <summary>{item.question}</summary>
+              <p>{item.answer}</p>
+            </details>
+          ))}
+        </div>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema()) }} />
+      </section>
     </div>
   );
+}
+
+const PRICING_FAQ: ReadonlyArray<{ readonly question: string; readonly answer: string }> = [
+  {
+    question: "Can I cancel anytime?",
+    answer:
+      "Yes. Cancel from the account, and the paid plan stays until the end of the period you already paid for. A payment can be refunded in full within 30 days. The refunds page is the rule.",
+  },
+  {
+    question: "What happens when I use the credits?",
+    answer:
+      "A new transcription needs credits still on the account. When the monthly allowance is gone, a credit pack adds more and does not change the plan. Unused monthly credits do not roll over.",
+  },
+  {
+    question: "What counts as a credit?",
+    answer: "One credit is up to 10 minutes of audio. A short video costs 1 credit. A 45-minute recording costs 5.",
+  },
+  {
+    question: "Should I pay monthly or annually?",
+    answer:
+      "They are the same plans. Monthly renews each month. Annual is one payment for the year and costs less than twelve monthly payments. An upgrade on the account uses the interval you already pay.",
+  },
+  {
+    question: "Is this for one person or a team?",
+    answer:
+      "Creator and Pro are for one person. Team includes three seats, a shared library, and REST API keys. An extra seat is $12 a month, on Team only, and it does not replace the plan.",
+  },
+  {
+    question: "Do you offer a discount?",
+    answer:
+      "Annual billing costs less than paying monthly. The Founding Pass is $79 for 12 months of Pro, for the first 500 members, and that price stays while the subscription stays.",
+  },
+  {
+    question: "What if a transcription fails?",
+    answer: "The job fails for free and the credit goes back. A failed job does not use the allowance.",
+  },
+  {
+    question: "Where do card details go?",
+    answer:
+      "Paddle is the merchant of record and charges the card. MuteScroll does not store the card number or the security code. VAT or sales tax is added for your country at checkout.",
+  },
+];
+
+function faqSchema(): { "@context": string; "@type": string; mainEntity: { "@type": string; name: string; acceptedAnswer: { "@type": string; text: string } }[] } {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: PRICING_FAQ.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: { "@type": "Answer", text: item.answer },
+    })),
+  };
 }

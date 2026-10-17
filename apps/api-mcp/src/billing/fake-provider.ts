@@ -1,4 +1,12 @@
-import { BillingNotConfiguredError, type BillingProvider, type CheckoutInput, type CheckoutSession, type PortalSession, type WebhookVerification } from "./provider.js";
+import {
+  BillingNotConfiguredError,
+  type AddonCheckoutInput,
+  type BillingProvider,
+  type CheckoutInput,
+  type CheckoutSession,
+  type PortalSession,
+  type WebhookVerification,
+} from "./provider.js";
 
 /**
  * No merchant. Used when PADDLE_API_KEY is unset so the process still starts.
@@ -7,10 +15,16 @@ import { BillingNotConfiguredError, type BillingProvider, type CheckoutInput, ty
 export class FakeBillingProvider implements BillingProvider {
   readonly kind = "fake" as const;
   readonly checkouts: CheckoutInput[] = [];
+  readonly addons: AddonCheckoutInput[] = [];
 
   async createCheckout(input: CheckoutInput): Promise<CheckoutSession> {
     this.checkouts.push(input);
     return { transactionId: `fake_${this.checkouts.length}`, url: null };
+  }
+
+  async createAddonCheckout(input: AddonCheckoutInput): Promise<CheckoutSession> {
+    this.addons.push(input);
+    return { transactionId: `fake_addon_${this.addons.length}`, url: null };
   }
 
   async createPortalSession(_userId: string): Promise<PortalSession> {
@@ -19,6 +33,10 @@ export class FakeBillingProvider implements BillingProvider {
 
   async cancelSubscriptions(_userId: string): Promise<void> {
     return undefined;
+  }
+
+  async subscriptionInterval(_userId: string): Promise<null> {
+    return null;
   }
 
   verifyWebhook(_rawBody: Uint8Array, _signatureHeader: string | undefined, _now: number): WebhookVerification {

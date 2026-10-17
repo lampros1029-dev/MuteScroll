@@ -16,6 +16,7 @@ import { BillingCustomerMissingError, BillingNotConfiguredError, type PaddleSubj
 import { loadConfig } from "../../src/config.js";
 import { createContext, runMaintenance } from "../../src/context.js";
 import { startTestServer, testConfig, type RunningServer } from "../helpers/harness.js";
+import { api, signUp } from "../helpers/rest.js";
 
 const SECRET = "whsec_test";
 const KNOWN_BODY = '{"event_id":"evt_test","event_type":"subscription.activated"}';
@@ -61,6 +62,7 @@ describe("Paddle notification mapping", () => {
       kind: "assign",
       userId: "usr_1",
       plan: "pro",
+      interval: "year",
       freeAt: null,
       subject: SUBJECT,
     });
@@ -92,7 +94,21 @@ describe("Paddle notification mapping", () => {
   it("on update, sets the plan and remembers a future cancel", () => {
     expect(
       change("subscription.updated", { ...data("usr_1", "pri_creator"), scheduled_change: { action: "cancel", effective_at: future, resume_at: null } }, now),
-    ).toEqual({ kind: "assign", userId: "usr_1", plan: "creator", freeAt: Date.parse(future), subject: SUBJECT });
+    ).toEqual({ kind: "assign", userId: "usr_1", plan: "creator", interval: null, freeAt: Date.parse(future), subject: SUBJECT });
+  });
+
+  it("uses the subscription cycle, and does not treat a bare price or a missing cycle as yearly", () => {
+    const prices = { ...PRICES, pro_month: "pri_pro_month", pro_year: "pri_pro_year", creator_month: "pri_creator" };
+    const month = change("subscription.activated", { ...data("usr_1", "pri_pro_year"), billing_cycle: { interval: "month", frequency: 1 } }, now, prices);
+    expect(month).toMatchObject({ kind: "assign", plan: "pro", interval: "month" });
+    const fromKey = change("subscription.activated", data("usr_1", "pri_pro_month"), now, prices);
+    expect(fromKey).toMatchObject({ kind: "assign", interval: "month" });
+    const yearly = change("subscription.updated", { ...data("usr_1", "pri_pro_year"), billing_cycle: { interval: "year", frequency: 1 } }, now, prices);
+    expect(yearly).toMatchObject({ kind: "assign", interval: "year" });
+    const bare = change("subscription.activated", data("usr_1", "pri_pro"), now, prices);
+    expect(bare).toMatchObject({ kind: "assign", interval: null });
+    const week = change("subscription.activated", { ...data("usr_1", "pri_pro"), billing_cycle: { interval: "week", frequency: 1 } }, now, prices);
+    expect(week).toMatchObject({ kind: "assign", interval: null });
   });
 
   it("keeps the checkout nonce and paddle ids beside the claimed user", () => {
@@ -118,19 +134,23 @@ describe("applying subscription changes", () => {
     const links = new MemoryBillingLinkStore();
     const now = Date.UTC(2026, 9, 12, 12);
     await users.create({ id: "usr_1", email: "a@example.test", passwordHash: "x", plan: "free", createdAt: now });
-    const assign = { kind: "assign" as const, userId: "usr_1", plan: "pro" as const, freeAt: null, subject: SUBJECT };
+    const assign = { kind: "assign" as const, userId: "usr_1", plan: "pro" as const, interval: "month" as const, freeAt: null, subject: SUBJECT };
     expect(await applySubscriptionChange(users, events, links, "evt_0", assign, now)).toBe("ignored");
     expect((await users.findById("usr_1"))?.plan).toBe("free");
     expect(await links.bind("sub_1", "usr_1")).toBe(true);
     expect(await applySubscriptionChange(users, events, links, "evt_1", assign, now)).toBe("applied");
-    expect(await applySubscriptionChange(users, events, links, "evt_1", { ...assign, plan: "team" }, now)).toBe("duplicate");
+    expect(await applySubscriptionChange(users, events, links, "evt_1", { ...assign, plan: "team", interval: "year" }, now)).toBe("duplicate");
     expect((await users.findById("usr_1"))?.plan).toBe("pro");
+    expect((await users.findById("usr_1"))?.billingInterval).toBe("month");
+    expect(await applySubscriptionChange(users, events, links, "evt_keep", { ...assign, interval: null }, now)).toBe("applied");
+    expect((await users.findById("usr_1"))?.billingInterval).toBe("month");
 
     const freeAt = now + 86_400_000;
     await applySubscriptionChange(users, events, links, "evt_2", { kind: "cancel", userId: "usr_1", when: "period_end", effectiveAt: freeAt, subject: SUBJECT }, now);
     expect((await users.findById("usr_1"))?.plan).toBe("pro");
     await applyDueDowngrades(users, events, freeAt);
     expect((await users.findById("usr_1"))?.plan).toBe("free");
+    expect((await users.findById("usr_1"))?.billingInterval).toBeNull();
   });
 });
 
@@ -206,8 +226,17 @@ describe("billing provider selection", () => {
     );
     const session = await provider.createCheckout({ userId: "usr_1", email: "a@example.test", plan: "pro", interval: "month" });
     expect(session.transactionId).toBe("txn_checkout1");
-    const body = JSON.parse(sent) as { custom_data: { user_id: string; checkout_nonce: string } };
+    const body = JSON.parse(sent) as {
+      custom_data: { user_id: string; checkout_nonce: string };
+      customer?: { email?: string; id?: string };
+      customer_id?: string;
+      collection_mode?: string;
+    };
     expect(body.custom_data.user_id).toBe("usr_1");
+    expect(body.customer).toEqual({ email: "a@example.test" });
+    expect(body.customer).not.toHaveProperty("id");
+    expect(body.collection_mode).toBe("automatic");
+    expect(body).not.toHaveProperty("customer_id");
     expect(body.custom_data.checkout_nonce.length).toBeGreaterThanOrEqual(16);
     expect(await links.userFor("txn_checkout1")).toBe("usr_1");
     expect(await links.userFor(body.custom_data.checkout_nonce)).toBe("usr_1");
@@ -224,30 +253,30 @@ describe("billing provider selection", () => {
       checkoutNonce: body.custom_data.checkout_nonce,
     };
     expect(
-      await applySubscriptionChange(users, events, links, "evt_a", { kind: "assign", userId: "usr_1", plan: "pro", freeAt: null, subject }, now),
+      await applySubscriptionChange(users, events, links, "evt_a", { kind: "assign", userId: "usr_1", plan: "pro", interval: null, freeAt: null, subject }, now),
     ).toBe("applied");
     expect((await users.findById("usr_1"))?.plan).toBe("pro");
     expect(await links.userFor("sub_new")).toBe("usr_1");
 
     const stolen: PaddleSubject = { ...subject, subscriptionId: "sub_stolen" };
     expect(
-      await applySubscriptionChange(users, events, links, "evt_b", { kind: "assign", userId: "usr_victim", plan: "team", freeAt: null, subject: stolen }, now),
+      await applySubscriptionChange(users, events, links, "evt_b", { kind: "assign", userId: "usr_victim", plan: "team", interval: null, freeAt: null, subject: stolen }, now),
     ).toBe("ignored");
     expect((await users.findById("usr_victim"))?.plan).toBe("free");
     expect(await links.userFor("sub_stolen")).toBeUndefined();
 
     const bare: PaddleSubject = { subscriptionId: "sub_bare", customerId: null, transactionId: null, checkoutNonce: null };
     expect(
-      await applySubscriptionChange(users, events, links, "evt_bare", { kind: "assign", userId: "usr_victim", plan: "pro", freeAt: null, subject: bare }, now),
+      await applySubscriptionChange(users, events, links, "evt_bare", { kind: "assign", userId: "usr_victim", plan: "pro", interval: "year", freeAt: null, subject: bare }, now),
     ).toBe("ignored");
     expect((await users.findById("usr_victim"))?.plan).toBe("free");
 
     const customerOnly: PaddleSubject = { subscriptionId: null, customerId: "ctm_new", transactionId: null, checkoutNonce: null };
     expect(
-      await applySubscriptionChange(users, events, links, "evt_cus", { kind: "assign", userId: "usr_1", plan: "creator", freeAt: null, subject: customerOnly }, now),
+      await applySubscriptionChange(users, events, links, "evt_cus", { kind: "assign", userId: "usr_1", plan: "creator", interval: "month", freeAt: null, subject: customerOnly }, now),
     ).toBe("applied");
     expect(
-      await applySubscriptionChange(users, events, links, "evt_cus_bad", { kind: "assign", userId: "usr_victim", plan: "team", freeAt: null, subject: customerOnly }, now),
+      await applySubscriptionChange(users, events, links, "evt_cus_bad", { kind: "assign", userId: "usr_victim", plan: "team", interval: null, freeAt: null, subject: customerOnly }, now),
     ).toBe("ignored");
     expect((await users.findById("usr_victim"))?.plan).toBe("free");
     expect((await users.findById("usr_1"))?.plan).toBe("creator");
@@ -272,6 +301,14 @@ describe("POST /v1/paddle/webhook", () => {
       expect(ok.status).toBe(200);
       expect(ok.text).not.toContain("csrf");
       expect((await server.ctx.stores.users.findById("usr_paddle"))?.plan).toBe("pro");
+      expect((await server.ctx.stores.users.findById("usr_paddle"))?.billingInterval).toBeNull();
+
+      const monthly = eventBody("evt_month", "subscription.updated", {
+        ...data("usr_paddle", "pri_pro"),
+        billing_cycle: { interval: "month", frequency: 1 },
+      });
+      expect((await postWebhook(server, monthly, sign(monthly, clock.value))).status).toBe(200);
+      expect((await server.ctx.stores.users.findById("usr_paddle"))?.billingInterval).toBe("month");
 
       const replay = eventBody("evt_1", "subscription.activated", data("usr_paddle", "pri_team"));
       expect((await postWebhook(server, replay, sign(replay, clock.value))).status).toBe(200);
@@ -405,9 +442,101 @@ describe("POST /v1/paddle/webhook", () => {
   });
 });
 
-function change(eventType: string, data: unknown, now: number) {
+it("grants pack credits and one extra seat without replacing the plan", async () => {
+    const prices = { ...PRICES, pack_500: "pri_pack500", seat: "pri_seat" };
+    const users = new MemoryUserStore();
+    const events = new MemoryBillingEventLog();
+    const links = new MemoryBillingLinkStore();
+    const now = Date.UTC(2026, 9, 12, 12);
+    await users.create({ id: "usr_1", email: "a@example.test", passwordHash: "x", plan: "creator", createdAt: now });
+    await links.bind("txn_pack1", "usr_1");
+    await links.bind(NONCE, "usr_1");
+    const pack = interpretPaddleNotification(
+      JSON.stringify({
+        event_id: "evt_pack",
+        event_type: "transaction.completed",
+        data: {
+          id: "txn_pack1",
+          status: "completed",
+          custom_data: { user_id: "usr_1", checkout_nonce: NONCE },
+          items: [{ price: { id: "pri_pack500" }, quantity: 1 }],
+        },
+      }),
+      prices,
+      now,
+    );
+    if (!pack.ok || pack.change === null) throw new Error("expected a pack grant");
+    expect(pack.change.kind).toBe("grant_pack");
+    expect(await applySubscriptionChange(users, events, links, "evt_pack", pack.change, now)).toBe("applied");
+    expect((await users.findById("usr_1"))?.plan).toBe("creator");
+    expect((await users.findById("usr_1"))?.bonusCredits).toBe(500);
+    expect(await applySubscriptionChange(users, events, links, "evt_pack", pack.change, now)).toBe("duplicate");
+    expect((await users.findById("usr_1"))?.bonusCredits).toBe(500);
+
+    await users.setPlan("usr_1", "team");
+    await links.bind("sub_seat1", "usr_1");
+    const seat = interpretPaddleNotification(
+      JSON.stringify({
+        event_id: "evt_seat",
+        event_type: "subscription.activated",
+        data: {
+          id: "sub_seat1",
+          status: "active",
+          custom_data: { user_id: "usr_1", checkout_nonce: NONCE },
+          items: [{ price: { id: "pri_seat" }, quantity: 1 }],
+        },
+      }),
+      prices,
+      now,
+    );
+    if (!seat.ok || seat.change === null) throw new Error("expected a seat");
+    expect(await applySubscriptionChange(users, events, links, "evt_seat", seat.change, now)).toBe("applied");
+    expect((await users.findById("usr_1"))?.extraSeats).toBe(1);
+    expect((await users.findById("usr_1"))?.plan).toBe("team");
+
+    const renewal = interpretPaddleNotification(
+      JSON.stringify({
+        event_id: "evt_seat_pay",
+        event_type: "transaction.completed",
+        data: {
+          id: "txn_seat1",
+          subscription_id: "sub_seat1",
+          status: "completed",
+          custom_data: { user_id: "usr_1", checkout_nonce: NONCE },
+          items: [{ price: { id: "pri_seat" }, quantity: 1 }],
+        },
+      }),
+      prices,
+      now,
+    );
+    if (!renewal.ok || renewal.change === null) throw new Error("expected a seat renewal");
+    await links.bind("txn_seat1", "usr_1");
+    expect(await applySubscriptionChange(users, events, links, "evt_seat_pay", renewal.change, now)).toBe("applied");
+    expect((await users.findById("usr_1"))?.extraSeats).toBe(1);
+
+    const canceled = interpretPaddleNotification(
+      JSON.stringify({
+        event_id: "evt_seat_cancel",
+        event_type: "subscription.canceled",
+        data: {
+          id: "sub_seat1",
+          status: "canceled",
+          custom_data: { user_id: "usr_1", checkout_nonce: NONCE },
+          items: [{ price: { id: "pri_seat" }, quantity: 1 }],
+        },
+      }),
+      prices,
+      now,
+    );
+    if (!canceled.ok || canceled.change === null) throw new Error("expected a seat cancel");
+    expect(await applySubscriptionChange(users, events, links, "evt_seat_cancel", canceled.change, now)).toBe("applied");
+    expect((await users.findById("usr_1"))?.plan).toBe("team");
+    expect((await users.findById("usr_1"))?.extraSeats).toBe(0);
+  });
+
+function change(eventType: string, data: unknown, now: number, prices: Readonly<Record<string, string>> = PRICES) {
   const raw = JSON.stringify({ event_id: "evt_1", event_type: eventType, data });
-  const interpreted = interpretPaddleNotification(raw, PRICES, now);
+  const interpreted = interpretPaddleNotification(raw, prices, now);
   if (!interpreted.ok) throw new Error("expected a parsed event");
   return interpreted.change;
 }
@@ -456,6 +585,78 @@ async function postedUrl(apiKey: string): Promise<string> {
   await provider.createCheckout({ userId: "usr_1", email: "a@example.test", plan: "pro", interval: "month" });
   return url;
 }
+
+describe("saved Paddle customer and subscription interval", () => {
+  it("passes a stored ctm_ id on the next checkout and never an email or user id", async () => {
+    const links = new MemoryBillingLinkStore();
+    await links.bind("ctm_savedcustomer", "usr_1");
+    await links.bind("usr_1", "usr_1");
+    let sent = "";
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      sent = String(init?.body);
+      return new Response(JSON.stringify({ data: { id: "txn_again", checkout: { url: "https://checkout.example.test/again" } } }), { status: 200 });
+    };
+    const provider = createBillingProvider(
+      loadConfig({ PADDLE_API_KEY: "test_sdbx_key", PADDLE_PRICE_IDS: "pro_month=pri_promonth,pro_year=pri_proyear" }, "linux"),
+      fetchImpl,
+      links,
+    );
+    await provider.createCheckout({ userId: "usr_1", email: "a@example.test", plan: "pro", interval: "month" });
+    const body = JSON.parse(sent) as { customer_id?: string; customer?: { email?: string }; collection_mode?: string; items?: { price_id?: string }[] };
+    expect(body.customer_id).toBe("ctm_savedcustomer");
+    expect(body.customer_id).not.toBe("usr_1");
+    expect(body.customer_id).not.toContain("@");
+    expect(body.customer).toBeUndefined();
+    expect(body.collection_mode).toBe("automatic");
+    expect(body.items?.[0]?.price_id).toBe("pri_promonth");
+  });
+
+  it("reads month from the linked subscription and leaves a missing cycle null", async () => {
+    const links = new MemoryBillingLinkStore();
+    await links.bind("sub_month", "usr_1");
+    await links.bind("sub_blank", "usr_2");
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith("/subscriptions/sub_month")) {
+        return new Response(JSON.stringify({ data: { id: "sub_month", billing_cycle: { interval: "month", frequency: 1 }, items: [] } }), { status: 200 });
+      }
+      if (url.endsWith("/subscriptions/sub_blank")) {
+        return new Response(JSON.stringify({ data: { id: "sub_blank", items: [{ price: { id: "pri_unknown" } }] } }), { status: 200 });
+      }
+      return new Response("no", { status: 500 });
+    };
+    const provider = createBillingProvider(
+      loadConfig({ PADDLE_API_KEY: "test_sdbx_key", PADDLE_PRICE_IDS: "pro=pri_pro" }, "linux"),
+      fetchImpl,
+      links,
+    );
+    expect(await provider.subscriptionInterval("usr_1")).toBe("month");
+    expect(await provider.subscriptionInterval("usr_2")).toBeNull();
+    expect(await provider.subscriptionInterval("usr_missing")).toBeNull();
+  });
+
+  it("returns the stored interval from /v1/me and does not invent year", async () => {
+    const server = await startTestServer(testConfig());
+    try {
+      const account = await signUp(server);
+      const user = await server.ctx.stores.users.findByEmail(account.email);
+      if (user === undefined) throw new Error("account missing");
+      await server.ctx.stores.users.setPlan(user.id, "creator");
+      const missing = await api(server, "/v1/me", { headers: { cookie: account.cookie } });
+      expect(missing.status).toBe(200);
+      expect(missing.body.plan).toBe("creator");
+      expect(missing.body.billing_interval).toBeNull();
+      await server.ctx.stores.users.setBillingInterval(user.id, "month");
+      const monthly = await api(server, "/v1/me", { headers: { cookie: account.cookie } });
+      expect(monthly.body.billing_interval).toBe("month");
+      await server.ctx.stores.users.setBillingInterval(user.id, "year");
+      const yearly = await api(server, "/v1/me", { headers: { cookie: account.cookie } });
+      expect(yearly.body.billing_interval).toBe("year");
+    } finally {
+      await server.close();
+    }
+  });
+});
 
 describe("Paddle portal and cancel", () => {
   it("returns only an https portal URL and treats an already-cancelled subscription as done", async () => {

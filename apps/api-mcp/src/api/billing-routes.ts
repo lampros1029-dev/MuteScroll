@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { PaddleApiError } from "../billing/paddle-client.js";
-import type { BillingInterval, CatalogPlan } from "../billing/provider.js";
+import type { AddonKey, BillingInterval, CatalogPlan } from "../billing/provider.js";
 import { BillingCustomerMissingError, BillingNotConfiguredError } from "../billing/provider.js";
 import type { AppContext } from "../context.js";
 import { sendJson } from "../http/respond.js";
@@ -14,7 +14,20 @@ import { identify, requireAccount, requireCsrf, type AccountRequester } from "./
 /** POST /v1/checkout. Session and CSRF. Returns the Paddle checkout URL. */
 export async function checkout(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
   const account = await webSession(req, res, ctx);
-  const body = objectBody(await readJsonRequest(req, ctx.config.jsonMaxBodyBytes), ["plan", "interval"]);
+  const body = objectBody(await readJsonRequest(req, ctx.config.jsonMaxBodyBytes), ["plan", "interval", "addon"]);
+  if (body["addon"] !== undefined) {
+    if (body["plan"] !== undefined || body["interval"] !== undefined) {
+      throw new ApiError(400, "invalid_request", "Send either a plan or an add-on, not both.");
+    }
+    const addon = addonKey(requiredString(body, "addon", 32));
+    if (addon === undefined) throw new ApiError(400, "invalid_request", "addon must be pack_500, pack_2000, or seat.");
+    if (addon === "seat" && account.user.plan !== "team") {
+      throw new ApiError(403, "forbidden", "Extra seats are available on Team.");
+    }
+    const url = await openAddon(ctx, { userId: account.user.id, email: account.user.email, addon });
+    sendJson(res, 200, { url });
+    return;
+  }
   const plan = catalogPlan(requiredString(body, "plan", 32));
   const interval = billingInterval(requiredString(body, "interval", 16));
   if (plan === undefined || interval === undefined) {
@@ -45,6 +58,20 @@ export async function deleteAccount(req: IncomingMessage, res: ServerResponse, c
   if (!removed) throw new ApiError(404, "not_found", "This account has already been deleted.");
   res.writeHead(204, { "cache-control": "no-store", "set-cookie": clearedSessionCookies(ctx.config.secureCookies) });
   res.end();
+}
+
+async function openAddon(
+  ctx: AppContext,
+  input: { readonly userId: string; readonly email: string; readonly addon: AddonKey },
+): Promise<string> {
+  if (ctx.billingProvider.kind === "fake") throw billingNotConfigured();
+  try {
+    const session = await ctx.billingProvider.createAddonCheckout(input);
+    if (session.url === null || !session.url.startsWith("https://")) throw billingNotConfigured();
+    return session.url;
+  } catch (error) {
+    throw billingFailure(error);
+  }
 }
 
 async function openCheckout(
@@ -94,6 +121,17 @@ function billingFailure(error: unknown): unknown {
 
 function billingNotConfigured(): ApiError {
   return new ApiError(503, "billing_not_configured", "Billing is not configured.");
+}
+
+function addonKey(value: string): AddonKey | undefined {
+  switch (value) {
+    case "pack_500":
+    case "pack_2000":
+    case "seat":
+      return value;
+    default:
+      return undefined;
+  }
 }
 
 function catalogPlan(value: string): CatalogPlan | undefined {

@@ -1,4 +1,5 @@
 import type { PlanId } from "../billing/plans.js";
+import type { BillingInterval } from "../billing/provider.js";
 
 export interface UserRecord {
   readonly id: string;
@@ -7,13 +8,29 @@ export interface UserRecord {
   /** Self-describing scrypt string: `scrypt$N$r$p$salt$key`. Never returned by the API. */
   readonly passwordHash: string;
   readonly plan: PlanId;
+  /**
+   * `month` or `year` when a Paddle subscription said so. Null for free accounts and for paid
+   * accounts whose subscription has not reported an interval. Never invent `year`.
+   */
+  readonly billingInterval: BillingInterval | null;
+  /** Pack credits still available. They are not part of the monthly allowance and do not change the plan. */
+  readonly bonusCredits: number;
+  /** Extra Team seats bought on top of the seats included with the plan. */
+  readonly extraSeats: number;
   /** When the address was confirmed. Null until the verification link is used. */
   readonly emailVerifiedAt: number | null;
   readonly createdAt: number;
 }
 
-/** `emailVerifiedAt` defaults to null when omitted. */
-export type NewUser = Omit<UserRecord, "emailVerifiedAt"> & { readonly emailVerifiedAt?: number | null };
+/** `emailVerifiedAt` defaults to null. Bonus credits and extra seats default to 0. */
+export type NewUser = Omit<UserRecord, "emailVerifiedAt" | "bonusCredits" | "extraSeats" | "billingInterval"> & {
+  readonly emailVerifiedAt?: number | null;
+  readonly bonusCredits?: number;
+  readonly extraSeats?: number;
+  readonly billingInterval?: BillingInterval | null;
+};
+
+export type GrantKind = "pack" | "seat";
 
 /** Thrown when a sign-up uses an address that already has an account. */
 export class EmailTakenError extends Error {
@@ -29,12 +46,26 @@ export interface UserStore {
   findById(id: string): Promise<UserRecord | undefined>;
   /** Sets the plan. False when the user does not exist. */
   setPlan(id: string, plan: PlanId): Promise<boolean>;
+  /** Records month or year, or clears it. False when the user does not exist. */
+  setBillingInterval(id: string, interval: BillingInterval | null): Promise<boolean>;
   /** Replaces the password hash. False when the user does not exist. */
   setPassword(id: string, passwordHash: string): Promise<boolean>;
   /** Records that the address was confirmed. False when the user does not exist. */
   markEmailVerified(id: string, verifiedAt: number): Promise<boolean>;
   /** Deletes the user row. Related rows are removed by the caller (and by SQL cascade). */
   delete(id: string): Promise<boolean>;
+  /** Adds pack credits. False when the user does not exist. Does not change the plan. */
+  addBonusCredits(id: string, credits: number): Promise<boolean>;
+  /** Spends pack credits, never below zero. */
+  consumeBonus(id: string, credits: number): Promise<void>;
+  /** Adds one extra seat. False when the user does not exist. Does not change the plan. */
+  addExtraSeat(id: string): Promise<boolean>;
+  /** Removes one extra seat, never below zero. */
+  removeExtraSeat(id: string): Promise<boolean>;
+  /** True the first time this Paddle id is recorded for the user. */
+  claimGrant(key: string, userId: string, kind: GrantKind, now: number): Promise<boolean>;
+  /** True when a seat grant for this Paddle id was removed. */
+  releaseGrant(key: string): Promise<boolean>;
 }
 
 export interface SessionRecord {

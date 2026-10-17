@@ -24,6 +24,22 @@ export function planDefinition(plan: PlanId): PlanDefinition {
   return PLANS[plan];
 }
 
+/** Seats included with the plan. Extra seats are purchased on top and stored separately. */
+export function includedSeats(plan: PlanId): number {
+  switch (plan) {
+    case "team":
+      return 3;
+    case "free":
+    case "creator":
+    case "pro":
+      return 1;
+    default: {
+      const neverPlan: never = plan;
+      return neverPlan;
+    }
+  }
+}
+
 export function listPlans(): PlanDefinition[] {
   return PLAN_IDS.map((id) => PLANS[id]);
 }

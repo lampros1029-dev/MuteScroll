@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Caller } from "../../src/caller.js";
-import { Billing, RUN_HOLD_CREDITS } from "../../src/billing/billing.js";
+import { Billing, RUN_HOLD_CREDITS, type HoldOutcome } from "../../src/billing/billing.js";
 import { MemoryCreditLedger } from "../../src/billing/memory-credit-ledger.js";
 import { nextPeriodStart, periodKey } from "../../src/billing/period.js";
 import { listPlans, parsePlanId, planDefinition } from "../../src/billing/plans.js";
@@ -135,6 +135,38 @@ describe("Billing", () => {
     expect(outcome).toEqual({ ok: false, resetAt: nextPeriodStart(OCT_15) });
     expect(billing.resetAt(ACCOUNT)).toBe(nextPeriodStart(OCT_15));
     expect(await billing.remaining(ACCOUNT)).toBe(0);
+  });
+
+  it("does not let one bonus credit reserve extra jobs once the monthly allowance is spent", async () => {
+    let bonus = 1;
+    const ledger = new MemoryCreditLedger();
+    const billing = new Billing({
+      quota: new CreditQuota({ allowance: 5, windowMs: DAY, now: () => OCT_15 }),
+      ledger,
+      now: () => OCT_15,
+      bonus: {
+        get: async () => bonus,
+        consume: async (_userId, credits) => {
+          bonus = Math.max(0, bonus - credits);
+        },
+      },
+    });
+    const monthly = planDefinition(ACCOUNT.plan).monthlyCredits;
+    const period = periodKey(OCT_15);
+    await ledger.reserve({ userId: ACCOUNT.userId, jobId: "spent", runKey: "spent", period, credits: monthly, allowance: monthly, now: OCT_15 });
+    await ledger.settle({ userId: ACCOUNT.userId, jobId: "spent", runKey: "spent", period, reserved: monthly, charged: monthly, now: OCT_15 });
+
+    const outcomes: HoldOutcome[] = [];
+    for (let i = 0; i < 6; i += 1) outcomes.push(await billing.hold(ACCOUNT, `extra_${i}`));
+    const accepted = outcomes.filter((outcome) => outcome.ok);
+    expect(accepted).toHaveLength(1);
+    expect(await ledger.used(ACCOUNT.userId, period)).toBe(monthly + 1);
+
+    const hold = accepted[0];
+    if (hold === undefined) throw new Error("expected one hold");
+    await hold.hold.settle(monthly);
+    expect(await ledger.used(ACCOUNT.userId, period)).toBe(monthly + 1);
+    expect(bonus).toBe(0);
   });
 
   it("uses the IP quota for anonymous callers and returns the hold when settled with nothing", async () => {

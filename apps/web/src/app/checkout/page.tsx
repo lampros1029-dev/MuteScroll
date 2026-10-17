@@ -17,16 +17,17 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   const transactionId = first(params["_ptxn"]).trim();
 
   return (
-    <div className="container page legal">
-      <PaddleCheckout transactionId={transactionId} />
+    <div className="container page checkout-shell">
       <header className="page-head">
+        <p className="kicker">Payment</p>
         <h1 className="display-small">Checkout</h1>
         {transactionId.length === 0 ? (
           <p className="section-lede">This page opens when you start a payment.</p>
         ) : (
-          <p className="section-lede">The payment form opens on this page.</p>
+          <p className="section-lede">The payment form uses the email on the signed-in account when there is one.</p>
         )}
       </header>
+      <PaddleCheckout transactionId={transactionId} />
     </div>
   );
 }

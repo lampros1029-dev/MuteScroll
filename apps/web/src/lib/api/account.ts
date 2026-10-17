@@ -3,7 +3,16 @@ import { csrfHeaders } from "../csrf";
 export interface Me {
   readonly email: string;
   readonly plan: string;
-  readonly credits: { readonly remaining: number; readonly resets_at: string };
+  /** `month` or `year` when the subscription reported it. Null must not be treated as yearly. */
+  readonly billing_interval: "month" | "year" | null;
+  readonly credits: {
+    readonly remaining: number;
+    readonly allowance: number;
+    readonly used: number;
+    readonly bonus: number;
+    readonly resets_at: string;
+  };
+  readonly seats: { readonly included: number; readonly extra: number };
   readonly created_at: string;
 }
 
@@ -39,6 +48,7 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: ApiErrorBod
 
 export type CheckoutPlan = "creator" | "pro" | "team" | "founding";
 export type CheckoutInterval = "month" | "year";
+export type CheckoutAddon = "pack_500" | "pack_2000" | "seat";
 
 export const BILLING_CLOSED_MESSAGE = "Billing is not open yet.";
 
@@ -135,6 +145,16 @@ export async function logoutAccount(): Promise<Result<null>> {
   return { ok: true, value: null };
 }
 
+export async function startAddonCheckout(addon: CheckoutAddon): Promise<Result<string>> {
+  const sent = await send("POST", "/api/v1/checkout", { addon });
+  if (!sent.ok) return sent;
+  const url = checkoutUrl(sent.value);
+  if (url === null) {
+    return { ok: false, error: { status: 200, code: "billing_not_configured", message: BILLING_CLOSED_MESSAGE } };
+  }
+  return { ok: true, value: url };
+}
+
 export async function startCheckout(plan: CheckoutPlan, interval: CheckoutInterval): Promise<Result<string>> {
   const sent = await send("POST", "/api/v1/checkout", { plan, interval });
   if (!sent.ok) return sent;
@@ -221,10 +241,23 @@ function parseMe(body: unknown): Me | null {
   if (credits === null || typeof credits !== "object") return null;
   const creditRow = credits as Record<string, unknown>;
   if (typeof creditRow["remaining"] !== "number" || typeof creditRow["resets_at"] !== "string") return null;
+  const seats = row["seats"];
+  const seatRow = seats !== null && typeof seats === "object" ? (seats as Record<string, unknown>) : {};
   return {
     email: row["email"],
     plan: row["plan"],
-    credits: { remaining: creditRow["remaining"], resets_at: creditRow["resets_at"] },
+    billing_interval: row["billing_interval"] === "month" || row["billing_interval"] === "year" ? row["billing_interval"] : null,
+    credits: {
+      remaining: creditRow["remaining"],
+      allowance: typeof creditRow["allowance"] === "number" ? creditRow["allowance"] : 0,
+      used: typeof creditRow["used"] === "number" ? creditRow["used"] : 0,
+      bonus: typeof creditRow["bonus"] === "number" ? creditRow["bonus"] : 0,
+      resets_at: creditRow["resets_at"],
+    },
+    seats: {
+      included: typeof seatRow["included"] === "number" ? seatRow["included"] : 1,
+      extra: typeof seatRow["extra"] === "number" ? seatRow["extra"] : 0,
+    },
     created_at: typeof row["created_at"] === "string" ? row["created_at"] : "",
   };
 }

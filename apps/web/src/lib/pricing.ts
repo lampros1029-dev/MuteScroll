@@ -124,11 +124,14 @@ export const FOUNDING_PASS = {
   termMonths: 12,
 } as const;
 
-/** Amounts from the pricing model. Checkout does not sell these packs. */
+/** One-time packs. A purchase adds credits and does not change the subscription plan. */
 export const CREDIT_PACKS = [
-  { credits: 500, priceUsd: 5 },
-  { credits: 2000, priceUsd: 15 },
+  { id: "pack_500" as const, credits: 500, priceUsd: 5 },
+  { id: "pack_2000" as const, credits: 2000, priceUsd: 15 },
 ] as const;
+
+/** One extra Team seat, billed monthly. It does not replace the Team plan. */
+export const EXTRA_SEAT = { priceUsd: 12, period: "month" as const };
 
 export interface PriceView {
   /** Amount charged for one period: a month, or a year. */

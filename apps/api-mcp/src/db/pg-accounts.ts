@@ -4,6 +4,7 @@ import {
   EmailTakenError,
   type ApiKeyRecord,
   type ApiKeyStore,
+  type GrantKind,
   type NewUser,
   type SessionRecord,
   type SessionStore,
@@ -18,6 +19,9 @@ interface UserRow {
   readonly email: string;
   readonly password_hash: string;
   readonly plan: string;
+  readonly billing_interval: string | null;
+  readonly bonus_credits: number | string;
+  readonly extra_seats: number | string;
   readonly email_verified_at: Date | null;
   readonly created_at: Date;
 }
@@ -81,6 +85,11 @@ export class PgUserStore implements UserStore {
     return (result.rowCount ?? 0) > 0;
   }
 
+  async setBillingInterval(id: string, interval: UserRecord["billingInterval"]): Promise<boolean> {
+    const result = await this.pool.query("UPDATE users SET billing_interval = $2 WHERE id = $1", [id, interval]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async setPassword(id: string, passwordHash: string): Promise<boolean> {
     const result = await this.pool.query("UPDATE users SET password_hash = $2 WHERE id = $1", [id, passwordHash]);
     return (result.rowCount ?? 0) > 0;
@@ -93,6 +102,42 @@ export class PgUserStore implements UserStore {
 
   async delete(id: string): Promise<boolean> {
     const result = await this.pool.query("DELETE FROM users WHERE id = $1", [id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async addBonusCredits(id: string, credits: number): Promise<boolean> {
+    if (credits <= 0) return false;
+    const result = await this.pool.query("UPDATE users SET bonus_credits = bonus_credits + $2 WHERE id = $1", [id, credits]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async consumeBonus(id: string, credits: number): Promise<void> {
+    if (credits <= 0) return;
+    await this.pool.query("UPDATE users SET bonus_credits = GREATEST(0, bonus_credits - $2) WHERE id = $1", [id, credits]);
+  }
+
+  async addExtraSeat(id: string): Promise<boolean> {
+    const result = await this.pool.query("UPDATE users SET extra_seats = extra_seats + 1 WHERE id = $1", [id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async removeExtraSeat(id: string): Promise<boolean> {
+    const result = await this.pool.query("UPDATE users SET extra_seats = GREATEST(0, extra_seats - 1) WHERE id = $1", [id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async claimGrant(key: string, userId: string, kind: GrantKind, now: number): Promise<boolean> {
+    const result = await this.pool.query(
+      `INSERT INTO billing_grants (grant_key, user_id, kind, created_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (grant_key) DO NOTHING`,
+      [key, userId, kind, new Date(now)],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async releaseGrant(key: string): Promise<boolean> {
+    const result = await this.pool.query("DELETE FROM billing_grants WHERE grant_key = $1 AND kind = 'seat'", [key]);
     return (result.rowCount ?? 0) > 0;
   }
 }
@@ -183,9 +228,18 @@ function toUser(row: UserRow): UserRecord {
     email: row.email,
     passwordHash: row.password_hash,
     plan: parsePlanId(row.plan),
+    billingInterval: row.billing_interval === "month" || row.billing_interval === "year" ? row.billing_interval : null,
+    bonusCredits: wholeNumber(row.bonus_credits),
+    extraSeats: wholeNumber(row.extra_seats),
     emailVerifiedAt: row.email_verified_at === null ? null : row.email_verified_at.getTime(),
     createdAt: row.created_at.getTime(),
   };
+}
+
+function wholeNumber(value: number | string): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.floor(parsed);
 }
 
 function toApiKey(row: ApiKeyRow): ApiKeyRecord {

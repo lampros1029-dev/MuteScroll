@@ -65,6 +65,7 @@ describe("migration files", () => {
       "005_auth_mail.sql",
       "006_oauth_grant_created.sql",
       "007_external_identities.sql",
+      "008_account_addons.sql",
     ]);
     const [first] = migrations;
     const onDisk = await readFile(join(MIGRATIONS_DIR, "001_init.sql"), "utf8");
@@ -77,6 +78,7 @@ describe("migration files", () => {
     expect(migrations[4]?.sql).toContain("CREATE TABLE auth_tokens");
     expect(migrations[5]?.sql).toContain("oauth_grants");
     expect(migrations[6]?.sql).toContain("CREATE TABLE external_identities");
+    expect(migrations[7]?.sql).toContain("bonus_credits");
   });
 
   describe("with a scratch directory", () => {

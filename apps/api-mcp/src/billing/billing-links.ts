@@ -109,6 +109,7 @@ export async function authorizeBillingSubject(
     if (!(await links.bind(subject.customerId, owner))) return undefined;
     return owner;
   }
+  if (subject.transactionId !== null && (await links.userFor(subject.transactionId)) === owner) return owner;
   return undefined;
 }
 

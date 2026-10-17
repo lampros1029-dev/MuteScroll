@@ -1,5 +1,5 @@
 import type { ApiKeyRecord, UserRecord } from "../accounts/types.js";
-import type { PlanDefinition } from "../billing/plans.js";
+import { includedSeats, type PlanDefinition } from "../billing/plans.js";
 import type { Transcription } from "../export/model.js";
 import type { JobSummary } from "../jobs/types.js";
 import type { WorkerTranscript } from "../worker/transcript-schema.js";
@@ -10,6 +10,9 @@ export function isoTime(epochMs: number): string {
 
 export interface CreditsView {
   readonly remaining: number;
+  readonly allowance: number;
+  readonly used: number;
+  readonly bonus: number;
   readonly resetsAt: number;
 }
 
@@ -19,7 +22,15 @@ export function meView(user: UserRecord, credits: CreditsView) {
     email: user.email,
     email_verified: user.emailVerifiedAt !== null,
     plan: user.plan,
-    credits: { remaining: credits.remaining, resets_at: isoTime(credits.resetsAt) },
+    billing_interval: user.billingInterval,
+    credits: {
+      remaining: credits.remaining,
+      allowance: credits.allowance,
+      used: credits.used,
+      bonus: credits.bonus,
+      resets_at: isoTime(credits.resetsAt),
+    },
+    seats: { included: includedSeats(user.plan), extra: user.extraSeats },
     created_at: isoTime(user.createdAt),
   };
 }

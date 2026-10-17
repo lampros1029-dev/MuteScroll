@@ -1,24 +1,21 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
+import { SuccessPanel } from "./success-panel";
 
 export const metadata: Metadata = {
-  title: "Payment received",
-  description: "MuteScroll updates the plan after Paddle confirms the payment.",
+  title: "Account",
+  description: "The plan and credits already stored for the signed-in MuteScroll account.",
   robots: { index: false, follow: false },
 };
 
 export default function BillingSuccessPage() {
   return (
-    <div className="container page legal">
+    <div className="container page">
       <header className="page-head">
-        <h1 className="display-small">Payment received</h1>
-        <p className="section-lede">
-          The plan updates after Paddle confirms the payment. This page does not change the plan by itself.
-        </p>
+        <h1 className="display-small">Your account</h1>
+        <p className="section-lede">Paddle confirms a payment, then the plan and credits below are the ones on this account.</p>
       </header>
-      <p>
-        <Link href="/account">Go to your account</Link>
-      </p>
+      <SuccessPanel />
     </div>
   );
 }
