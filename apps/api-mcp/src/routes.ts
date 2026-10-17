@@ -31,7 +31,11 @@ async function route(req: IncomingMessage, res: ServerResponse, ctx: AppContext)
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
 
   if (path === "/healthz") {
-    if (req.method !== "GET") return sendJson(res, 405, { error: "method_not_allowed" }, { allow: "GET" });
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      return sendJson(res, 405, { error: "method_not_allowed" }, { allow: "GET, HEAD" });
+    }
+    // Node builds HEAD responses with _hasBody false, which drops the payload.
+    if (req.method === "HEAD") (res as ServerResponse & { _hasBody: boolean })._hasBody = true;
     return sendJson(res, 200, { status: "ok" });
   }
   if (await handleOAuth(req, res, ctx)) return;
