@@ -53,9 +53,9 @@ MuteScroll:  "Transcribe this: <URL>" → transcript in the chat → "Now give m
 |---|---|---|---|
 | [ReelScribe](https://reelscribe.app/pricing) | 25 credits | $4.99/400 videos · $9.99/1,000 · $24.99/3,000 · $59.99/10,000 | Credits roll over (≤2×), REST API, **MCP server**, n8n node, SRT/VTT, bulk CSV. Founder-price lock as urgency. |
 | [TokScript](https://tokscript.com/pricing) | 5/day | $10/mo · **$39/yr** · $199 lifetime | **MCP access**, profile/channel bulk, AI script writer, hook generator. Annual heavily anchored. |
-| [ManyScripts](https://www.manyscripts.com/pricing) | 1/day anon, 5/day signed in, ≤20 min | $10/mo · $49.99/yr | 6 platforms incl. X and Xiaohongshu, "Creator Mode" search, ChatGPT/Claude access. |
+| [ManyScripts](https://www.manyscripts.com/pricing) | 1/day anon, 5/day signed in, ≤20 min | $10/mo · $49.99/yr | Several video hosts, "Creator Mode" search, ChatGPT/Claude access. |
 | [TransClipper](https://transclipper.ai/pricing) | 3/day, ≤60 s | $9.99/mo ($7.42 annual) · $24.99 | Creator tracking, AI "agent runs", transcript API quota. |
-| [TokTranscript](https://toktranscript.com/pricing) | 10/mo | $55/yr · $168/yr | TikTok-only, "Viral Breakdown", "Script Remix". |
+| [TokTranscript](https://toktranscript.com/pricing) | 10/mo | $55/yr · $168/yr | One host only, "Viral Breakdown", "Script Remix". |
 
 **What this tells us:**
 
@@ -68,13 +68,13 @@ MuteScroll:  "Transcribe this: <URL>" → transcript in the chat → "Now give m
 
 | Repo | Stack | What we take | What we avoid |
 |---|---|---|---|
-| [woosal1337/media-mcp](https://github.com/woosal1337/media-mcp) (MIT) | TS, whisper.cpp, yt-dlp, Cobalt | **"Ears always, eyes only when ears fail"**: per-token confidence → *uncertainty zones* + *demonstrative phrases* ("in the bio", "this command") → `get_video_frames_at(timestamps[])` so the LLM reads on-screen text with its own vision. **Captions first, ASR second.** sha256(URL) video cache with 24 h TTL. "One tool, one job." | Twitter scope creep (26 tools); session-cookie Instagram access. |
+| [woosal1337/media-mcp](https://github.com/woosal1337/media-mcp) (MIT) | TS, whisper.cpp, yt-dlp, Cobalt | **"Ears always, eyes only when ears fail"**: per-token confidence → *uncertainty zones* + *demonstrative phrases* ("in the bio", "this command") → `get_video_frames_at(timestamps[])` so the LLM reads on-screen text with its own vision. **Captions first, ASR second.** sha256(URL) video cache with 24 h TTL. "One tool, one job." | Tool sprawl (26 tools); session-cookie access to a video host. |
 | [TheSethRose/Social-Media-Video-Transcriber](https://github.com/TheSethRose/Social-Media-Video-Transcriber) (MIT per README) | Python, yt-dlp, parakeet-mlx | **Provider plug-in architecture** ("add a file, nothing else changes"); **audio speed-up (2–3× with pitch preservation)** as a cost lever; playlist/channel expansion; existing-subtitle extraction. | parakeet-mlx is Apple-Silicon only (not usable on Linux servers); LLM "enhancement" that rewrites text (violates §11). |
-| [royalashu4u/voxi](https://github.com/royalashu4u/voxi) (MIT) | Python, faster-whisper, Textual | Result **cache**, transcript **history**, two-tool MCP surface (`transcribe_video`, `…_with_timestamps`), `[MM:SS → MM:SS]` format. | Instagram via user cookies, which we cannot do (§4.3). |
+| [royalashu4u/voxi](https://github.com/royalashu4u/voxi) (MIT) | Python, faster-whisper, Textual | Result **cache**, transcript **history**, two-tool MCP surface (`transcribe_video`, `…_with_timestamps`), `[MM:SS → MM:SS]` format. | A video host via user cookies, which we cannot do (§4.3). |
 | [nhatvu148/video-transcriber-mcp](https://github.com/nhatvu148/video-transcriber-mcp) | TS, whisper.cpp | Retries with exponential backoff; 1000+ yt-dlp sites "for free"; local-file input. | — |
 | [raultov/media-transcriber-mcp](https://github.com/raultov/media-transcriber-mcp) | yt-dlp, Whisper | `output_format: text / text_speakers / srt`; `task: translate` flag; chunking for long audio. | Browser-cookie extraction. |
-| [u2n4/video-url-analyzer-mcp](https://github.com/u2n4/video-url-analyzer-mcp) | FastMCP, Gemini | **Background jobs to avoid client timeouts**; optional multimodal (audio + visual) pass via Gemini Flash as a premium "eyes" mode. | Unofficial third-party APIs (tikwm), anti-bot impersonation, both of which conflict with §4.2. |
-| [jadenmaciel/transcript](https://github.com/jadenmaciel/transcript) | Python, uv | Lazy model loading; caption-first for YouTube; batch of mixed URLs. | — |
+| [u2n4/video-url-analyzer-mcp](https://github.com/u2n4/video-url-analyzer-mcp) | FastMCP, Gemini | **Background jobs to avoid client timeouts**; optional multimodal (audio + visual) pass via Gemini Flash as a premium "eyes" mode. | Unofficial media APIs, anti-bot impersonation, both of which conflict with §4.2. |
+| [jadenmaciel/transcript](https://github.com/jadenmaciel/transcript) | Python, uv | Lazy model loading; caption-first for a public video link; batch of mixed URLs. | — |
 
 **Core building blocks:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), ffmpeg, [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (MIT), WhisperX (BSD-2; word alignment + pyannote diarization, gated models), [Cobalt](https://github.com/imputnet/cobalt) (**AGPL-3.0**, so run it unmodified as a separate service only, never linked into our code).
 
@@ -103,23 +103,21 @@ These come from the current [ChatGPT plugin/app submission guidelines](https://d
 ### 4.2 Third-party content and access
 
 - The guidelines forbid scraping or integrating with third-party services **without authorization and ToS compliance**, forbid **unofficial connectors / pass-through layers**, and forbid **circumventing rate limits or access controls**.
-- **This is the #1 approval and legal risk.** Retrieving media from Instagram, TikTok and Facebook URLs server-side is, at best, a grey area under those platforms' ToS.
+- **This is the #1 approval and legal risk.** Reading a public video link on MuteScroll's servers is, at best, a grey area under that host's terms.
 
 **Mitigations (product requirements, not optional):**
 
 1. **Upload is a first-class path**, not a fallback footnote. The ChatGPT app supports file upload via the Apps SDK file APIs (`window.openai.uploadFile` / `selectFiles`) and a signed upload link. The same pipeline handles both.
-2. **Authorized sources first:** use platform-provided captions/transcripts where available; YouTube captions; oEmbed/official metadata endpoints.
+2. **Captions the public page already exposes come first.** Do not name a video host in the tool, the site, or the listing.
 3. **Never** use user cookies or credentials, never access private, login-walled or DRM content, never bypass CAPTCHAs, bot checks or rate limits. Collecting credentials is also explicitly prohibited by the guidelines ("Restricted data").
-4. **Ship two builds behind one codebase:**
-   - **Directory build** (public ChatGPT directory): upload + YouTube/caption-based retrieval + public retrieval only where we've confirmed ToS compliance.
-   - **Connector build** (web app, API, Claude/Cursor MCP, ChatGPT Developer Mode connectors): full URL retrieval pipeline under our own ToS, with user attestation that they have the right to process the content.
+4. **One product on the website and in ChatGPT.** MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path. The person who submits the link attests they have the right to process it. ChatGPT setup is Plugins → Add custom MCP server. Directory submission waits on the legal review in D2. The ChatGPT tool must not be a worse copy of the website.
 5. **Legal review before directory submission** (§24, open decision D2).
 
 ### 4.3 Operational reality of URL retrieval
 
-- **YouTube blocks datacenter IPs** ("Sign in to confirm you're not a bot"). PO tokens help only partly, and IP reputation dominates ([yt-dlp #10128](https://github.com/yt-dlp/yt-dlp/issues/10128)). A naive yt-dlp-on-Railway deployment **will fail in production**.
-- **Instagram increasingly requires authenticated sessions**, which we will not use. Expect lower anonymous success rates and design the UX around that.
-- **Platforms change without notice.** yt-dlp needs frequent updates, so we need canary tests (§18).
+- **A public video host can block datacenter addresses** ("Sign in to confirm you're not a bot"). PO tokens help only partly, and IP reputation dominates ([yt-dlp #10128](https://github.com/yt-dlp/yt-dlp/issues/10128)). A naive yt-dlp-on-Railway deployment **will fail in production**.
+- **Some public videos require an authenticated session**, which we will not use. Expect lower success on those links and design the UX around the upload path.
+- **Hosts change without notice.** yt-dlp needs frequent updates, so we need canary tests (§18).
 
 → The retrieval layer is a **resolver chain** with health-scored strategies (§9.3), and retrieval success rate per platform is a top-line KPI.
 
@@ -130,7 +128,7 @@ These come from the current [ChatGPT plugin/app submission guidelines](https://d
 ### 5.1 MVP goals
 
 1. Accept a supported URL **or an uploaded file** and return a timestamped transcript in the chat.
-2. Auto-detect platform and spoken language; handle code-switching (e.g. Greek + English).
+2. Auto-detect spoken language; handle code-switching (e.g. Greek + English).
 3. Prefer existing captions; run ASR only when needed.
 4. Never alter meaning (numbers, names, negations). Flag low-confidence spans instead of guessing.
 5. Keep the transcript available in the conversation for follow-ups without re-processing.
@@ -145,9 +143,9 @@ A video editor, a social-media downloader (we never return the media file to the
 
 | Metric | MVP target |
 |---|---|
-| Time-to-transcript, 60 s Reel (p50 / p95) | ≤ 12 s / ≤ 30 s |
-| Time-to-transcript, 20 min YouTube with captions (p50) | ≤ 5 s |
-| Retrieval success, public YouTube / TikTok / Instagram / Facebook | ≥ 97% / ≥ 90% / ≥ 75% / ≥ 80% (upload offered on every failure) |
+| Time-to-transcript, 60 s public video (p50 / p95) | ≤ 12 s / ≤ 30 s |
+| Time-to-transcript, 20 min public video with captions (p50) | ≤ 5 s |
+| Retrieval success, public video link | Upload offered on every failure |
 | Word error rate on internal EN/EL/ES test set | ≤ 8% EN, ≤ 12% EL |
 | Numeric fidelity (numbers, prices, dates match audio) | 100% on test set; any regression blocks release |
 | All-in cost per short video (≤ 90 s) | ≤ $0.01 |
@@ -161,13 +159,8 @@ A video editor, a social-media downloader (we never return the media file to the
 
 | Source | MVP | Retrieval notes |
 |---|---|---|
-| YouTube videos | ✅ | Captions first; audio-only fallback |
-| YouTube Shorts | ✅ | Same as YouTube |
-| TikTok videos | ✅ | Audio-only; `vm.tiktok.com` short links resolved |
-| Instagram Reels / video posts | ✅ (public only) | Lowest anonymous success; strong upload prompt on failure |
-| Facebook Reels / videos | ✅ (public only) | `fb.watch` short links resolved |
+| Public video link | ✅ | Read when MuteScroll can reach it. Captions first, then audio. Other links get the one-time upload path. |
 | **Uploaded file** (mp4, mov, webm, m4a, mp3, wav) | ✅ | Same pipeline, same output |
-| X/Twitter, Vimeo, Loom, Reddit, LinkedIn, podcasts (RSS) | V2 | Mostly "free" via yt-dlp extractors |
 | Private / login-required / DRM / paywalled | ❌ never | Explain + offer upload |
 
 Platform adapters live behind one interface (§9.2), so adding a source is a single file plus tests.
@@ -193,7 +186,7 @@ User:  Pull the hook and rewrite it for a Greek audience.
 GPT:   (uses transcript in context; no second tool call)
 ```
 
-**Invocation triggers** (must be in tool descriptions, without over-broad triggering, §8.4): "transcribe this", "what does he say", "get the subtitles", "convert this video to text", "what's in this Reel", or a bare supported URL where the apparent intent is to understand spoken content.
+**Invocation triggers** (must be in tool descriptions, without over-broad triggering, §8.4): "transcribe this", "what does he say", "get the subtitles", "convert this video to text", "transcribe this public video link", or a bare public video link where the apparent intent is to understand spoken content.
 
 **Optional UI (Apps SDK / MCP Apps widget):** a compact transcript card with progress state, collapsible segments, click-to-copy, SRT/VTT/TXT download, and an "upload instead" button on failure. The model still receives the full structured text. The UI is a convenience and never a gate.
 
@@ -209,7 +202,7 @@ Starts (and, for short media, completes) a transcription.
 
 ```json
 {
-  "url": "https://www.tiktok.com/@user/video/123",
+  "url": "https://example.com/video/123",
   "file_id": null,
   "language": "auto",
   "speaker_labels": "auto",
@@ -227,7 +220,7 @@ Starts (and, for short media, completes) a transcription.
 {
   "status": "completed",
   "transcription_id": "tr_01JXYZ",
-  "source": { "platform": "instagram", "content_type": "reel", "title": "…", "author": "…", "duration_seconds": 58 },
+  "source": { "platform": "public", "content_type": "video", "title": "…", "author": "…", "duration_seconds": 58 },
   "language": "en",
   "method": "asr",
   "transcript_text": "[00:00] Today I'm going to show you…",
@@ -280,7 +273,7 @@ In V2 we may add `export_transcript` (SRT/VTT/DOCX link).
 ```
 URL / upload
   → Normalize & validate (SSRF-safe, strip tracking params, resolve short links)
-  → Platform detect (youtube | youtube_short | tiktok | instagram | facebook | upload)
+  → Accept a public http(s) link, or an upload (stored source id: public | upload)
   → Cache lookup  key = sha256(canonical_url) → return if transcript < TTL
   → Resolver chain  (§9.3) → captions? → DONE (method="captions")
   → Audio-only retrieval → ffmpeg → 16 kHz mono (Opus/FLAC for API upload)
@@ -307,7 +300,7 @@ interface PlatformAdapter {
 
 Strategies are tried in order. Each strategy has a rolling success rate; unhealthy strategies are skipped automatically and alert on-call.
 
-1. **Official captions / transcripts** (YouTube caption tracks; platform-provided subtitles where exposed in public metadata).
+1. **Captions the public page already exposes** in its public metadata.
 2. **yt-dlp audio-only** (`-f bestaudio`, no full video), from workers with **reputable residential/ISP egress** and per-domain rate limits. Pinned yt-dlp version with nightly canary upgrade.
 3. **Self-hosted Cobalt** (separate container, unmodified, AGPL-isolated) as a second extractor.
 4. **Licensed vendor fallback** (optional, evaluated per ToS) — decision D3.
@@ -441,7 +434,7 @@ Failed jobs **never consume quota** (§20.5).
 ## 16. Accounts, auth and entitlements
 
 - **Anonymous use** (ChatGPT/Claude, no login): small free allowance per host user, rate-limited by an opaque host user ID where provided plus IP heuristics. Decision D5: anonymous allowed vs. login required.
-- **OAuth account linking** (MCP OAuth 2.1) to a MuteScroll account; scopes are minimal (`transcribe`, `library:read`).
+- **OAuth account linking** (MCP OAuth 2.1) to a MuteScroll account. The ChatGPT connector receives `transcribe` only. `library:read` is for the library API and is not granted on the MCP resource.
 - Entitlements are checked server-side on every call: plan, credits, max duration, features (frames, diarization, bulk, API).
 - In ChatGPT the tool **never** presents plans or checkout. It only returns the neutral messages from §13 with an informational link. Claude/web/API may show upgrade CTAs.
 
@@ -484,7 +477,7 @@ Failed jobs **never consume quota** (§20.5).
 | Audio-only egress via residential proxy (~$2–5/GB) | ~1 MB → $0.002–0.005 | ~50 MB → $0.10–0.25 |
 | Compute + storage + DB (amortized) | ~$0.001 | ~$0.01 |
 | **All-in (default)** | **≈ $0.004–0.007** | **≈ $0.15–0.30** |
-| YouTube with captions (no ASR, little egress) | ≈ $0.001 | ≈ $0.002 |
+| Public video with captions (no ASR, little egress) | ≈ $0.001 | ≈ $0.002 |
 
 **Implications:**
 
@@ -595,9 +588,9 @@ Named with Hormozi's MAGIC naming: **M**agnet reason (launch), **A**vatar (creat
 
 **Channels (from $100M Leads, the "core four"):**
 
-- **Warm outreach / content:** build in public, and post Reels about MuteScroll *made with* MuteScroll (hook breakdowns of viral videos), which is self-demonstrating.
-- **Free content:** SEO pages per platform ("TikTok transcript", "Instagram Reel to text"), as competitors do, but each funnels to "use it inside ChatGPT/Claude".
-- **Affiliates:** creator-economy newsletters and YouTubers. Pay from max allowable CAC with Hormozi's 3-tier affiliate payout (sign-up → activation → retention).
+- **Warm outreach / content:** build in public, and post short videos about MuteScroll *made with* MuteScroll (hook breakdowns of public videos), which is self-demonstrating.
+- **Free content:** SEO pages for a public video transcript, as competitors do, but each funnels to "use it inside ChatGPT/Claude".
+- **Affiliates:** creator-economy newsletters and creators. Pay from max allowable CAC with Hormozi's 3-tier affiliate payout (sign-up → activation → retention).
 - **Paid ads:** later, once LTV:CAC ≥ 3:1 is proven.
 
 ---
@@ -607,13 +600,13 @@ Named with Hormozi's MAGIC naming: **M**agnet reason (launch), **A**vatar (creat
 | Milestone | Scope | Exit criteria |
 |---|---|---|
 | **M0 — Repo & skeleton** | Monorepo (`apps/api-mcp` TS, `workers/media` Python, `packages/shared` schemas), CI, `.env.example`, lint/test | CI green on empty services |
-| **M1 — Core pipeline** *(implemented 2026-10-12; see §22.1)* | URL normalize/validate, adapters (YT, TikTok, IG, FB), captions-first, yt-dlp audio-only, Groq ASR, segments, uncertain spans, cache | CLI transcribes the golden set; numeric-fidelity test passes |
-| **M2 — Remote MCP** *(built 2026-10-12; client E2E pending, see §22.3)* | `transcribe_video`, `get_transcription`, async jobs, upload link, anonymous quotas | Works in Claude Desktop + ChatGPT Developer Mode end-to-end |
+| **M1 — Core pipeline** *(implemented 2026-10-12; see §22.1)* | URL normalize/validate, captions-first, yt-dlp audio-only, Groq ASR, segments, uncertain spans, cache | CLI transcribes the golden set; numeric-fidelity test passes |
+| **M2 — Remote MCP** *(built 2026-10-12; client E2E pending, see §22.3)* | `transcribe_video`, `get_transcription`, async jobs, upload link, anonymous quotas | Works in Claude Desktop and in ChatGPT via Plugins → Add custom MCP server |
 | **M3 — Accounts & billing (web)** | Next.js web app, auth, OAuth for MCP, Paddle plans/credits, library, exports | Paid user flow end-to-end; entitlements enforced in MCP |
 | **M4 — Production hardening** | Residential egress, resolver health scoring, canaries, dashboards, failover ASR, privacy policy, ToS | 7-day canary ≥ targets in §5.3 |
 | **M5 — Directory submission** | Directory build (§4.2), widget UI, test prompts, demo account | Submitted to ChatGPT directory; Claude listing |
 | **V1.1** | `get_video_frames_at`, diarization tier, local/stdio install | — |
-| **V2** | Bulk URLs, X/Vimeo/Loom/podcasts, SRT/VTT export tool, chapters | — |
+| **V2** | Bulk URLs, SRT/VTT export tool, chapters | — |
 | **V3** | Channel/profile/playlist import, searchable library, creator tracking | — |
 | **V4 — Video research agent** | "Watch these 50 videos and tell me what everyone says about X": multi-transcript retrieval + citations to timestamps | — |
 
@@ -623,14 +616,12 @@ Verified live from a residential IP with `workers/media` (`python -m mutescroll_
 
 | Path | Result |
 |---|---|
-| YouTube captions, YouTube ASR, uploaded file ASR (Groq `whisper-large-v3-turbo`) | Work end to end; the 24 h file cache turns repeats into ~1 s |
-| Facebook public video | Works via audio-only download plus ASR |
-| Instagram | Posts without audio return a clear "no audio track"; most Reels need login, so expect low anonymous success and always offer upload |
-| TikTok | Tried with yt-dlp, with no browser impersonation and no cookies. When that fetch fails, upload is the fallback. A retrieval vendor is not used (§22.2) |
-| YouTube from datacenter IPs | Untested; known to hit "confirm you're not a bot". Production needs residential egress (M4) |
+| Public video captions, public video ASR, uploaded file ASR (Groq `whisper-large-v3-turbo`) | Work end to end; the 24 h file cache turns repeats into ~1 s |
+| A public video link | Read with yt-dlp. No browser impersonation and no cookies. When that fetch fails, upload is the fallback. A retrieval vendor is not used (§22.2) |
+| Datacenter addresses | Untested; known to hit "confirm you're not a bot". Production needs residential egress (M4) |
 
 Engineering notes that change the earlier plan:
-- yt-dlp needs a JavaScript runtime (Deno or Node) plus `yt-dlp-ejs` for YouTube. The worker refuses to run without one (`worker_misconfigured`).
+- yt-dlp needs a JavaScript runtime (Deno or Node) plus `yt-dlp-ejs` for some public video links. The worker refuses to run without one (`worker_misconfigured`).
 - Groq returns segment-level `avg_logprob` but no per-word probability, so **uncertain spans use segment confidence** (`exp(avg_logprob)` < 0.5). Word-level confidence arrives with ElevenLabs Scribe (premium tier) or a second provider.
 - Hallucinated non-speech segments are dropped (`no_speech_prob` > 0.85 and `avg_logprob` < -0.8).
 - Silence-aware chunking is implemented: chunk cuts snap to nearby silence.
@@ -638,9 +629,9 @@ Engineering notes that change the earlier plan:
 
 ---
 
-### 22.2 TikTok and Reels retrieval: options, legality, decision (proposed D9, 2026-10-12)
+### 22.2 Public video link retrieval: options, legality, decision (proposed D9, 2026-10-12)
 
-**Live resolver (2026-10-14).** Public YouTube, Facebook, TikTok, and Instagram URLs are read with yt-dlp. Manual captions are used when the video has them. Otherwise the audio goes to Groq. If the audio cannot be fetched, automatic captions are used when the video has them. The server does not sign in, does not use cookies, and does not impersonate a browser. If retrieval fails, the API offers an upload, and that file is transcribed from its audio. The table below is the 2026-10-12 options review. It is not the live pipeline.
+**Live resolver (2026-10-15).** A public video link is read with yt-dlp when MuteScroll can reach it. Manual captions are used when the video has them. Otherwise the audio goes to Groq. If the audio cannot be fetched, automatic captions are used when the video has them. The server does not sign in, does not use cookies, and does not impersonate a browser. If retrieval fails, the API offers an upload, and that file is transcribed from its audio. The table below is the 2026-10-12 options review. It is not the live pipeline.
 
 **Not legal advice.** The sources are linked inline; D2 (legal review before M5) still applies.
 
@@ -652,12 +643,12 @@ Engineering notes that change the earlier plan:
 | Vendor transcript only (text, short clips) | ≈ $0.002 | No | Rejected: breaks the "timestamped, trustworthy" promise |
 | Vendor transcript (a second caption API) | ≈ $0.003 to ≈ $0.011 | Yes | Not used. Removed from the product |
 | Self-scrape: residential proxy ([$2.75–4/GB](https://decodo.com/proxies/residential-proxies/pricing)) + yt-dlp with TLS impersonation | ≈ $0.03 for ~8 MB of video, plus engineering time | Yes | Rejected: dearer, brittle, and the legally riskiest (evasion by us) |
-| Official APIs | n/a | n/a | No transcript or media access: [TikTok Research API](https://developers.tiktok.com/doc/research-api-faq) is non-commercial only, Display API covers a user's own videos, [Meta Content Library](https://developers.facebook.com/docs/content-library-and-api/content-library-api/overview/) is research-only inside a secure environment. Use **oEmbed** only (title, author, thumbnail, public-or-not): [TikTok](https://developers.tiktok.com/docs/en/embed-videos), [Meta tokenless](https://developers.facebook.com/blog/post/2026/06/15/tokenless-access-to-meta-oembed-apis/) |
+| Official APIs | n/a | n/a | Host research and display APIs do not give MuteScroll a transcript or a media file for someone else's public video. They are not the product path. |
 | User-side retrieval | $0 to us | Yes | Add: local/stdio MCP (pull V1.1 forward) fetches from the user's own device and IP; upload and share-sheet stay as the universal fallback |
 
 **Legal picture (summary)**
-- *Criminal/CFAA:* [hiQ v. LinkedIn](https://cdn.ca9.uscourts.gov/datastore/opinions/2022/04/18/17-16783.pdf) says scraping data open to the public is unlikely to be "without authorization". This is a Ninth Circuit preliminary-injunction ruling, and hiQ later lost on contract grounds.
-- *Contract:* [Meta v. Bright Data](https://arstechnica.com/tech-policy/2024/01/facebook-suffers-big-loss-in-lawsuit-against-data-scraping-company/) (N.D. Cal., 2024) held Meta's terms do not bar logged-off scraping of public data. It is narrow and not binding elsewhere. [TikTok's terms](https://www.tiktok.com/legal/page/us/terms-of-service/en) prohibit automated extraction "for any purpose" without written approval, and no such ruling exists for TikTok. Expect IP blocks and cease-and-desist letters, not criminal exposure.
+- *Criminal/CFAA:* A Ninth Circuit preliminary-injunction ruling says scraping data open to the public is unlikely to be "without authorization". The same dispute later lost on contract grounds.
+- *Contract:* A 2024 trial-court ruling held that one host's terms did not bar logged-off scraping of public data. It is narrow and not binding elsewhere. Other hosts' terms prohibit automated extraction without written approval. Expect IP blocks and cease-and-desist letters, not criminal exposure.
 - *Circumvention:* a bot check on a public page is not DRM, but we never decrypt protected streams and never log in. Impersonating a browser to defeat a block is the part courts have not blessed, so we do not do it ourselves (§4.1).
 - *Copyright:* spoken content is copyrightable. User-initiated, transformative text output with short-TTL caching and a takedown path is the defensible posture. No public transcript pages, no redistribution of media.
 - *Privacy:* speech can be personal data (GDPR). No voiceprints; speakers stay "Speaker N". The processors in use are Groq, Railway, Cloudflare, and Paddle.
@@ -668,22 +659,21 @@ Engineering notes that change the earlier plan:
 Built in `apps/api-mcp`: stateless Streamable HTTP `/mcp` with `transcribe_video` and `get_transcription`, in-memory async jobs with in-flight dedupe, one-time upload links (extension, MIME and magic-byte checks, size cap, single use), anonymous sliding-window quota and per-minute rate limits, and a subprocess bridge to the Python worker (argument array, `--`, allow-listed child environment, output cap, timeout).
 
 Open before M2 is declared done:
-- **Client E2E:** Claude Desktop, Cursor and ChatGPT Developer Mode against a public HTTPS URL, including each client's tool-call timeout (the 25 s inline wait may need tuning).
+- **Client E2E:** Claude Desktop, Cursor, and ChatGPT (Plugins → Add custom MCP server) against a public HTTPS URL, including each client's tool-call timeout (the 25 s inline wait may need tuning).
 - **Real-key paths:** ASR with the Groq key through the API, and upload to transcript with the real worker.
 - **Capability model:** `get_transcription` has no owner check; a `job_id` (random UUID) is the capability. Acceptable for anonymous use; revisit with accounts in M3 (bind jobs to the user).
 - **Deviations accepted:** `job_id` instead of `transcription_id`; no `eta_seconds`; no paging yet; raw-body upload with `X-Filename` instead of multipart; job, quota and token stores are in-memory and single-process (Postgres in M3).
 
 ## 23. Acceptance criteria (MVP)
 
-1. **YouTube / Shorts:** paste a URL, the host invokes MuteScroll, and a timestamped transcript appears; captions are used when present (`method: "captions"`).
-2. **TikTok / Instagram / Facebook (public):** works via the resolver chain when retrievable. On failure there is a clear message plus an upload offer, and **no credit is consumed**.
-3. **Upload:** the same output format and quality as the URL path, in ChatGPT and Claude.
-4. **Private / inaccessible:** no circumvention attempt; explains why; offers upload.
-5. **Follow-ups:** "summarize", "translate to Greek" and "3 strongest claims" cause **zero** additional tool calls (verified in logs).
-6. **Fidelity:** 100% numeric fidelity on the test set; uncertain spans flagged.
-7. **Limits:** duration, size and quota enforced server-side with neutral messages; ChatGPT responses contain no pricing or upgrade CTAs.
-8. **Security:** SSRF/command-injection test suite passes; media deleted ≤ 24 h (verified job).
-9. **Performance:** §5.3 latency targets met on the canary set for 7 consecutive days.
+1. **Public video link:** paste a URL, the host invokes MuteScroll, and a timestamped transcript appears when MuteScroll can reach the link. Captions are used when present (`method: "captions"`). On failure there is a clear message plus an upload offer, and **no credit is consumed**.
+2. **Upload:** the same output format and quality as the URL path, in ChatGPT and Claude.
+3. **Private / inaccessible:** no circumvention attempt; explains why; offers upload.
+4. **Follow-ups:** "summarize", "translate to Greek" and "3 strongest claims" cause **zero** additional tool calls (verified in logs).
+5. **Fidelity:** 100% numeric fidelity on the test set; uncertain spans flagged.
+6. **Limits:** duration, size and quota enforced server-side with neutral messages; ChatGPT responses contain no pricing or upgrade CTAs.
+7. **Security:** SSRF/command-injection test suite passes; media deleted ≤ 24 h (verified job).
+8. **Performance:** §5.3 latency targets met on the canary set for 7 consecutive days.
 
 ---
 
@@ -694,8 +684,8 @@ Status as of 2026-10-12: all recommendations **accepted** and applied. Revisit o
 | # | Decision | Status | Outcome / revisit trigger |
 |---|---|---|---|
 | D1 | Billing provider | ✅ Accepted | **Paddle** (Merchant of Record: handles EU VAT, invoicing and chargebacks). Billing code sits behind a `BillingProvider` interface so Stripe can replace it. Revisit if a company entity + accountant exist and fees matter. |
-| D2 | Legal review of IG/TikTok/FB retrieval | ✅ Accepted | Review **before M5** (directory submission). Connector build (web, API, Claude/Cursor, ChatGPT Developer Mode) ships first regardless. |
-| D3 | Licensed third-party retrieval vendor | ✅ Accepted | Evaluate in M4 **only if** anonymous IG success < 60%. |
+| D2 | Legal review of public-video-link retrieval | ✅ Accepted | Review **before M5** (directory submission). The web, API, Claude, Cursor, and ChatGPT connector ship first. |
+| D3 | Licensed third-party retrieval vendor | ✅ Accepted | Not in the product. Do not add a retrieval vendor. |
 | D4 | API/MCP host | ✅ Accepted | **Railway** for API + media workers. Move the API edge to Cloudflare Workers later if latency or cost demands. |
 | D5 | Anonymous usage | ✅ Accepted | **Anonymous: 5 credits per rolling 24 h per client** (implemented as a sliding window, M2), then OAuth sign-in unlocks the free 20/month. |
 | D6 | Domain | ✅ Accepted (to register) | **mutescroll.xyz**, to be registered by the owner. `mutescroll.com` is already taken; `.app`, `.io` and `getmutescroll.com` looked free on 2026-10-12 as defensive options. Contact mailbox: mutescroll.xyz@gmail.com until domain mail exists. |
