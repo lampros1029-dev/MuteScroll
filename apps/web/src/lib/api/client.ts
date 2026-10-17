@@ -1,3 +1,4 @@
+import { csrfHeaders, readCsrf } from "../csrf";
 import { uploadContentType, asciiFileName } from "../upload";
 
 import { parseOutcome } from "./parse";
@@ -58,7 +59,7 @@ export function createTranscription(input: TranscribeInput, options: RequestOpti
     `${API_BASE}/transcriptions`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: csrfHeaders(true),
       body: JSON.stringify({ url: input.url, language: input.language }),
     },
     options,
@@ -98,6 +99,7 @@ export function uploadFile(file: File, options: UploadOptions = {}): Promise<Out
     xhr.setRequestHeader("Content-Type", mime);
     xhr.setRequestHeader("X-Filename", asciiFileName(file.name));
     xhr.setRequestHeader("Accept", "application/json");
+    xhr.setRequestHeader("x-csrf-token", readCsrf());
     xhr.responseType = "text";
 
     xhr.upload.onprogress = (event: ProgressEvent) => {

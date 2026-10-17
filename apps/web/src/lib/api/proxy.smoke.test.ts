@@ -85,6 +85,24 @@ describe("api proxy", () => {
     expect(seen?.headers.host).toBe(new URL(base).host);
   });
 
+  it("forwards the session cookie and the CSRF header on a transcription POST", async () => {
+    const response = await call("POST", "/v1/transcriptions", {
+      method: "POST",
+      path: ["v1", "transcriptions"],
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        cookie: "ms_session=session-token; ms_csrf=csrf-token",
+        "x-csrf-token": "csrf-token",
+      },
+      body: JSON.stringify({ url: "https://example.com/watch?v=abc", language: "auto" }),
+    });
+    expect(response.status).toBe(200);
+    expect(seen?.headers.cookie).toBe("ms_session=session-token; ms_csrf=csrf-token");
+    expect(seen?.headers["x-csrf-token"]).toBe("csrf-token");
+    expect(seen?.url).toBe("/v1/transcriptions");
+  });
+
   it("omits X-Forwarded-For when the incoming request has none", async () => {
     const response = await call("GET", "/v1/transcriptions/job-1", {
       method: "GET",
