@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { HomeMotion } from "../components/cinematic/home-motion";
-import { CopyButton } from "../components/copy-button";
 import { PasteLinkForm } from "../components/paste-link-form";
+import { DeveloperSetup } from "./developers/setup";
 import { FlagMark } from "../components/transcript/flag-mark";
 import { TranscriptView } from "../components/transcript/transcript-view";
 import { FIDELITY_EXAMPLE, HERO_EXAMPLE } from "../content/examples";
@@ -82,18 +82,6 @@ const CHAPTERS: ReadonlyArray<{
     body: "Copy it, export SRT, VTT, Markdown, TXT, DOCX or JSON, or ask ChatGPT, Claude or Cursor to summarize, translate or pull the hooks.",
   },
 ];
-
-const MCP_CONFIG = JSON.stringify(
-  {
-    mcpServers: {
-      mutescroll: {
-        url: MCP_URL,
-      },
-    },
-  },
-  null,
-  2,
-);
 
 const HERO_LABEL = "Stop rewatching. Start reading.";
 
@@ -243,46 +231,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="connect-grid" data-reveal-group>
-          <article className="connect-card" data-reveal-item>
-            <h3 className="connect-title">ChatGPT</h3>
-            <p>
-              Plugins → Add custom MCP server → the address below → OAuth. ChatGPT opens MuteScroll so you can sign
-              in and connect that account. Then ask: &ldquo;Transcribe this public video link.&rdquo;
-            </p>
-          </article>
-          <article className="connect-card" data-reveal-item>
-            <h3 className="connect-title">Claude</h3>
-            <p>
-              Open Claude&apos;s connector settings, add a custom connector, and paste the address below. Then ask Claude
-              to transcribe a link.
-            </p>
-          </article>
-          <article className="connect-card" data-reveal-item>
-            <h3 className="connect-title">Cursor</h3>
-            <p>
-              Add this JSON to Cursor&apos;s MCP settings and enable the server. Then ask the agent to transcribe a link
-              and summarize it.
-            </p>
-            <pre className="code-block" aria-label="Cursor MCP configuration">
-              <code>{MCP_CONFIG}</code>
-            </pre>
-          </article>
-        </div>
-
-        <div className="endpoint">
-          <div>
-            <p className="endpoint-label">MCP server address</p>
-            <p className="endpoint-url">
-              <code>{MCP_URL}</code>
-            </p>
-            <p className="fine-print">
-              Hosted assistants need a public https address. Tools: <code>transcribe_video</code> and{" "}
-              <code>get_transcription</code>. <Link href="/developers">Setup for ChatGPT, Claude, and Cursor</Link>.
-            </p>
-          </div>
-          <CopyButton label="Copy address" value={MCP_URL} className="btn btn-primary" />
-        </div>
+        <DeveloperSetup mcpUrl={MCP_URL} />
       </section>
 
       <section id="faq" className="section container" aria-labelledby="faq-title">

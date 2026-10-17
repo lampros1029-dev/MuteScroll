@@ -34,7 +34,7 @@ Messages are copy from `apps/api-mcp/src/mcp/messages.ts` (PRD 13). Responses ne
 
 - **Anonymous:** no credentials. Quota is keyed by client IP (`ANON_CREDITS` per 24 h, `ANON_REQUESTS_PER_MINUTE`).
 - **API key:** Team plan only. `Authorization: Bearer msk_...`. A key that is presented but not valid, or whose account is not on Team, is a 401, never a silent fallback to anonymous. `POST /v1/api-keys` on any other plan is 403 `plan_required`.
-- **OAuth access token:** `Authorization: Bearer` with a token from `/oauth/token`. This works on every plan. ChatGPT, Claude, and Cursor use it. Scopes are `transcribe` and `library:read`. A token that lacks the scope for that call is 403 `insufficient_scope`. Sessions and API keys are not scope-limited.
+- **OAuth access token:** `Authorization: Bearer` with a token from `/oauth/token`. This works on every plan. ChatGPT, Claude, and Cursor connect with `transcribe`. Discovery advertises that scope only. `library:read` is for the library API on a token whose resource is not the MCP server, and it is not granted on the ChatGPT connection. A token that lacks the scope for that call is 403 `insufficient_scope`. Sessions and API keys are not scope-limited.
 - **Session cookie:** `ms_session`, set by sign-up and log-in. `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` when `PUBLIC_BASE_URL` is https. 30 days, sliding on use.
 - **CSRF:** a readable `ms_csrf` cookie is set alongside the session. A cookie-authenticated `POST` or `DELETE` must send `x-csrf-token` with the same value, or it gets 403 `csrf_failed`. Read the value from `document.cookie` and echo it.
 - **JSON bodies** must be sent as `Content-Type: application/json`. A cross-site form cannot do that without a CORS preflight, which is never granted.

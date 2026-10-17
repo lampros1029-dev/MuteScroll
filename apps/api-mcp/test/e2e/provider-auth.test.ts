@@ -135,11 +135,23 @@ describe("Google and ChatGPT sign-in", () => {
     expect(tampered.headers.get("location")).toBe("/login?error=google_failed");
   });
 
-  it("asks ChatGPT to start the connector when this page has no authorization request", async () => {
+  it("opens MuteScroll's connector page, and the approval screen when ChatGPT already sent a request", async () => {
     server = await startTestServer(testConfig());
     const started = await fetch(`${server.baseUrl}/v1/auth/chatgpt?mode=signup`, { redirect: "manual" });
     expect(started.status).toBe(302);
-    expect(started.headers.get("location")).toBe("/signup?error=chatgpt_start");
+    expect(started.headers.get("location")).toBe("/connect");
+
+    const pending = await fetch(
+      `${server.baseUrl}/v1/auth/chatgpt?mode=login&client_id=client&redirect_uri=${encodeURIComponent(REDIRECT)}&code_challenge=challenge&state=chatgpt-state`,
+      { redirect: "manual" },
+    );
+    expect(pending.status).toBe(302);
+    const location = pending.headers.get("location") ?? "";
+    expect(location.startsWith("/connect?")).toBe(true);
+    expect(location).toContain("client_id=client");
+    expect(location).toContain(`redirect_uri=${encodeURIComponent(REDIRECT)}`);
+    expect(location).toContain("state=chatgpt-state");
+    expect(location).not.toContain("openai.com");
   });
 
   it("approves ChatGPT for the signed-in account and keeps that session", async () => {

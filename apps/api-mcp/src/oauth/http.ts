@@ -99,7 +99,9 @@ function authorizationServer(ctx: AppContext): unknown {
     code_challenge_methods_supported: ["S256"],
     token_endpoint_auth_methods_supported: ["none", "client_secret_post"],
     revocation_endpoint: `${issuer}/oauth/revoke`,
-    scopes_supported: ["transcribe", "library:read"],
+    // Connector discovery lists transcribe only. library:read remains valid for a library
+    // token whose resource is not the MCP server, and is omitted here so ChatGPT does not request it.
+    scopes_supported: ["transcribe"],
   };
 }
 

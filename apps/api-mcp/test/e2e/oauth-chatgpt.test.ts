@@ -18,6 +18,7 @@ describe("ChatGPT OAuth account linking", () => {
     server = await startTestServer(testConfig());
     const metadata = await api(server, "/.well-known/oauth-authorization-server");
     expect(metadata.status).toBe(200);
+    expect(metadata.body.scopes_supported).toEqual(["transcribe"]);
     expect(metadata.body.registration_endpoint).toBe(`${server.baseUrl}/oauth/register`);
     const resource = await api(server, "/.well-known/oauth-protected-resource/mcp");
     expect(resource.status).toBe(200);

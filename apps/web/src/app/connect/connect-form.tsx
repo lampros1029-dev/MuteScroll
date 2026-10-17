@@ -27,7 +27,6 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
   const googleHref = `/api/v1/auth/google?mode=${mode}&next=${encodeURIComponent(connectReturn(query))}`;
 
   useEffect(() => {
-    if (query.clientId === "") return;
     let cancelled = false;
     void fetch("/api/v1/me", { headers: { accept: "application/json" }, cache: "no-store" })
       .then(async (response) => {
@@ -39,7 +38,7 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
     return () => {
       cancelled = true;
     };
-  }, [query.clientId]);
+  }, []);
 
   if (query.clientId === "") {
     return (
@@ -48,10 +47,14 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
           <h1 className="display-small">Connect ChatGPT</h1>
           <p className="section-lede">
             Plugins → Add custom MCP server → https://api.mutescroll.xyz/mcp → OAuth. ChatGPT opens this page so you
-            can sign in and allow it to use your account.
+            can allow it to read a public video link as this account.
           </p>
         </header>
-        <p>Leaving authentication empty keeps the anonymous allowance.</p>
+        {signedIn === null ? (
+          <p>Sign in on this page when ChatGPT opens it. Continue with ChatGPT is MuteScroll&apos;s connector.</p>
+        ) : (
+          <p>Signed in as {signedIn}. ChatGPT opens the approval on this page.</p>
+        )}
       </div>
     );
   }
@@ -115,10 +118,7 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
     <div className="container page legal">
       <header className="page-head">
         <h1 className="display-small">Allow ChatGPT</h1>
-        <p className="section-lede">
-          ChatGPT is asking to transcribe videos as this MuteScroll account. MuteScroll does not show plans or checkout
-          inside ChatGPT.
-        </p>
+        <p className="section-lede">Allow ChatGPT to read a public video link as this account.</p>
       </header>
 
       {signedIn === null ? (

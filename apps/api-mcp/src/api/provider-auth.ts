@@ -101,18 +101,14 @@ export async function finishGoogle(req: IncomingMessage, res: ServerResponse, ct
 }
 
 /**
- * GET /v1/auth/chatgpt. ChatGPT has no public website sign-in, so this continues MuteScroll's
- * connector flow or tells the person to start it from ChatGPT.
+ * GET /v1/auth/chatgpt. ChatGPT has no website sign-in for MuteScroll. This opens MuteScroll's
+ * connector page, including the approval screen when ChatGPT already sent an authorization request.
  */
 export async function startChatgpt(req: IncomingMessage, res: ServerResponse, ctx: AppContext, query: URLSearchParams): Promise<void> {
   const mode = authMode(query.get("mode"));
   if (!(await allowAttempt(req, res, ctx, mode))) return;
   const connect = connectSearch(query);
-  if (connect === null) {
-    redirect(res, pageLocation(mode, "chatgpt_start"));
-    return;
-  }
-  redirect(res, `/${mode}?${connect.toString()}`);
+  redirect(res, connect === null ? "/connect" : `/connect?${connect.toString()}`);
 }
 
 /** POST /v1/auth/chatgpt. The signed-in account approves the ChatGPT connector and keeps its session. */
