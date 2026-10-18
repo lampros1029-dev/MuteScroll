@@ -22,6 +22,7 @@ export default function PrivacyPage() {
     <LegalDocument
       title="Privacy"
       lede="This explains what MuteScroll stores when you transcribe a video or open an account, where it goes, and how long it stays."
+      updated="18 October 2026"
     >
       <section aria-labelledby="who">
         <h2 id="who">Who we are</h2>
@@ -91,8 +92,9 @@ export default function PrivacyPage() {
           MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path. For a
           link it can reach, the server reads the video with yt-dlp. It uses the video&apos;s own captions when they
           exist. Otherwise it takes the audio and sends that audio to Groq. If the audio cannot be fetched, and the
-          video has automatic captions, those captions are used. The server does not sign in, and it does not use an
-          account on the video host or that account&apos;s cookies. An upload is transcribed from its audio.
+          video has automatic captions, those captions are used. The server does not sign in, does not impersonate a
+          browser, and does not use a person&apos;s cookies to reach a video. There is no retrieval vendor. An upload
+          is transcribed from its audio.
         </p>
         <p>
           We store the link, the metadata, and the transcript. We do not store the content of your conversations with
@@ -130,8 +132,8 @@ export default function PrivacyPage() {
             <strong>Cloudflare</strong> provides DNS and HTTPS.
           </li>
           <li>
-            <strong>Paddle</strong> is the merchant of record. Paddle processes payments when billing is open. Paddle sells
-            the paid plan, handles the card, and is the controller of that payment data under{" "}
+            <strong>Paddle</strong> is the merchant of record. Paddle sells the paid plan, handles the card, and is the
+            controller of that payment data under{" "}
             <a href={PADDLE_PRIVACY_URL}>Paddle&apos;s privacy notice</a>.
           </li>
         </ul>

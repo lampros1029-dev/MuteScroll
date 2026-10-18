@@ -85,7 +85,8 @@ function ClientStep({ id, mcpUrl }: { readonly id: ClientId; readonly mcpUrl: st
             Plugins → Add custom MCP server → <code>{mcpUrl}</code> → OAuth.
           </p>
           <p className="dev-step">
-            <Link href="/connect">Continue with ChatGPT</Link>
+            <Link href="/connect">Continue with ChatGPT</Link> opens MuteScroll&apos;s own OAuth connector. It is not an
+            OpenAI identity provider.
           </p>
         </>
       );

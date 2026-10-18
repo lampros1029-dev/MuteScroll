@@ -2,8 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LegalDocument } from "../../components/legal-document";
-import { PADDLE_BUYER_TERMS_URL, PADDLE_REFUND_POLICY_URL, REFUND_DAYS } from "../../lib/legal";
-import { SITE_NAME } from "../../lib/site";
+import {
+  CONTACT_MAILTO,
+  OPERATOR_ADDRESS,
+  PADDLE_BUYER_TERMS_URL,
+  PADDLE_REFUND_POLICY_URL,
+  REFUND_DAYS,
+} from "../../lib/legal";
+import { CONTACT_EMAIL, SITE_NAME } from "../../lib/site";
 
 export const metadata: Metadata = {
   title: "Refunds",
@@ -16,6 +22,7 @@ export default function RefundsPage() {
     <LegalDocument
       title="Refunds and cancellation"
       lede={`This is the refund rule for a paid ${SITE_NAME} plan. It matches the guarantee on the pricing page.`}
+      updated="18 October 2026"
     >
       <section aria-labelledby="cancel">
         <h2 id="cancel">Cancel a plan</h2>
@@ -30,8 +37,10 @@ export default function RefundsPage() {
         <h2 id="refund">30-day refund</h2>
         <p>
           If a paid plan is not right for you, you can ask for a full refund of the last payment within {REFUND_DAYS}{" "}
-          days of that payment. Ask from the Paddle receipt, or email us and we will approve the refund in Paddle. A
-          failed transcription does not spend a credit, so it is not a refund case.
+          days of that payment. Ask from the Paddle receipt, or email{" "}
+          <a href={CONTACT_MAILTO}>{CONTACT_EMAIL}</a> and we will approve the refund in Paddle. {SITE_NAME} is operated
+          by an individual at {OPERATOR_ADDRESS}. Paddle is the merchant of record. A failed transcription does not
+          spend a credit, so it is not a refund case.
         </p>
       </section>
 

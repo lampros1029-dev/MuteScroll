@@ -23,6 +23,7 @@ export default function TermsPage() {
     <LegalDocument
       title="Terms of use"
       lede={`These terms apply to the ${SITE_NAME} website, the transcription service, and the API.`}
+      updated="18 October 2026"
     >
       <section aria-labelledby="service">
         <h2 id="service">1. What MuteScroll does</h2>
@@ -30,12 +31,14 @@ export default function TermsPage() {
           MuteScroll reads a public video link when it can reach it. Other links get the one-time upload path. For a
           link it can reach, the server reads the video with yt-dlp. It uses the video&apos;s own captions when they
           exist. Otherwise it takes the audio and sends that audio to Groq for speech recognition. If the audio cannot
-          be fetched, and the video has automatic captions, those captions are used. The server does not sign in. An
-          upload is a file you provide (MP4, MOV, WebM, M4A, MP3, or WAV), transcribed from its audio in the same way.
+          be fetched, and the video has automatic captions, those captions are used. The server does not sign in, does
+          not impersonate a browser, and does not use a person&apos;s cookies to reach a video. There is no retrieval
+          vendor. An upload is a file you provide (MP4, MOV, WebM, M4A, MP3, or WAV), transcribed from its audio in
+          the same way.
         </p>
         <p>
-          MuteScroll returns text only. It does not return the video or audio, and it does not summarize, translate, or
-          give advice. Your assistant does that with the text.
+          MuteScroll returns timestamped text, confidence flags, and exports. It does not return video frames. It does
+          not summarize, translate, or check claims. Your assistant does that with the text.
         </p>
         <p>MuteScroll does not affiliate with, endorse, or operate any video platform.</p>
       </section>
@@ -102,10 +105,11 @@ export default function TermsPage() {
       <section aria-labelledby="credits">
         <h2 id="credits">7. Credits, plans, and tax</h2>
         <p>
-          Anonymous use is 5 credits in a rolling 24 hours. A signed-in account has the monthly allowance for its plan.
-          That allowance resets at the start of the next calendar month, in UTC. Unused credits do not roll over. One
+          Anonymous use is 5 credits in a rolling 24 hours, and those results are kept for 24 hours. A signed-in account has the monthly allowance for its plan.
+          That allowance resets at the start of the next calendar month, in UTC. Unused monthly credits do not roll over. One
           credit covers up to 10 minutes of audio. Each started 10 minutes costs one credit. A job that fails does not
-          use a credit. Credit packs are not sold.
+          use a credit. A credit pack adds credits and does not replace the plan. Pack prices are on the{" "}
+          <Link href="/pricing">pricing page</Link>.
         </p>
         <p>
           The prices on the <Link href="/pricing">pricing page</Link> are catalog prices in US dollars. They do not

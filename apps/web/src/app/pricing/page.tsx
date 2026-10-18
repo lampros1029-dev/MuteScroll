@@ -20,11 +20,8 @@ const COMPARE_ROWS: ReadonlyArray<{
   { label: "Credits", key: "credits" },
   { label: "Longest video", key: "maxLength" },
   { label: "Where you can use it", key: "surfaces" },
-  { label: "Frame checks†", key: "frameChecks" },
-  { label: "Speaker labels†", key: "speakerLabels" },
   { label: "Transcript library", key: "library" },
   { label: "Exports", key: "exports" },
-  { label: "Bulk URLs†", key: "bulk" },
   { label: "Seats", key: "seats" },
   { label: "Priority queue and support", key: "priority" },
 ];
@@ -42,8 +39,10 @@ export default function PricingPage() {
         <p className="kicker">Pricing</p>
         <h1 className="display-small">Start small. Upgrade when the month runs out.</h1>
         <p className="section-lede">
-          A timestamped transcript of a public video link, or of a file you upload. Monthly and annual are the same
-          three paid plans. Annual costs less than twelve monthly payments.
+          A timestamped transcript of a public video link, or of a file you upload, with uncertain words flagged and
+          exports you can keep. MuteScroll does not return video frames. ChatGPT, Claude, or Cursor does the summary,
+          the translation, and the claim check. Monthly and annual are the same three paid plans. Annual costs less
+          than twelve monthly payments.
         </p>
       </header>
 
@@ -52,8 +51,8 @@ export default function PricingPage() {
           Checkout
         </h2>
         <p>
-          A signed-in account continues to Paddle from the plan button. If billing is not open yet, the button says so.{" "}
-          {TAX_NOTE} Free anonymous use is available now in the <Link href="/try">transcriber</Link>.
+          A signed-in account continues to Paddle from the plan button. Paddle is the merchant of record. {TAX_NOTE}{" "}
+          Free anonymous use is available now in the <Link href="/try">transcriber</Link>.
         </p>
       </aside>
 
@@ -75,11 +74,6 @@ export default function PricingPage() {
             as long as you stay subscribed.
             {foundingSaving !== null ? ` That is ${formatUsd(foundingSaving)} less than Pro billed yearly.` : ""}
           </p>
-          <ul className="bullets">
-            <li>Hook Vault prompt pack for ChatGPT and Claude (planned)</li>
-            <li>Founder-only community and roadmap voting (planned)</li>
-            <li>Double frame checks for life (planned, once frame checks ship)</li>
-          </ul>
         </div>
         <FoundingCheckout />
       </section>
@@ -162,9 +156,9 @@ export default function PricingPage() {
           </table>
         </div>
         <p className="fine-print">
-          † Planned. Frame checks, speaker labels, and bulk URLs ship in later releases. The transcript library is on this
-          site. API keys are included with Team. DOCX export is available. The prices in this table are before VAT and
-          sales tax.
+          MuteScroll does not return video frames. A speaker is labeled Speaker N only when the transcript already has
+          one. Bulk links are not included. The transcript library is on this site. API keys are included with Team.
+          DOCX export is on the paid plans. The prices in this table are before VAT and sales tax.
         </p>
       </section>
 

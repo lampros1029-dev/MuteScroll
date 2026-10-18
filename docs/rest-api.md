@@ -32,7 +32,7 @@ Messages are copy from `apps/api-mcp/src/mcp/messages.ts` (PRD 13). Responses ne
 
 ## Authentication
 
-- **Anonymous:** no credentials. Quota is keyed by client IP (`ANON_CREDITS` per 24 h, `ANON_REQUESTS_PER_MINUTE`).
+- **Anonymous:** no credentials. Anonymous use is 5 credits per rolling 24 hours (`ANON_CREDITS`, default 5), keyed by client IP, plus `ANON_REQUESTS_PER_MINUTE`. Those results are kept for 24 hours.
 - **API key:** Team plan only. `Authorization: Bearer msk_...`. A key that is presented but not valid, or whose account is not on Team, is a 401, never a silent fallback to anonymous. `POST /v1/api-keys` on any other plan is 403 `plan_required`.
 - **OAuth access token:** `Authorization: Bearer` with a token from `/oauth/token`. This works on every plan. ChatGPT, Claude, and Cursor connect with `transcribe`. Discovery advertises that scope only. `library:read` is for the library API on a token whose resource is not the MCP server, and it is not granted on the ChatGPT connection. A token that lacks the scope for that call is 403 `insufficient_scope`. Sessions and API keys are not scope-limited.
 - **Session cookie:** `ms_session`, set by sign-up and log-in. `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` when `PUBLIC_BASE_URL` is https. 30 days, sliding on use.
@@ -53,7 +53,7 @@ Messages are copy from `apps/api-mcp/src/mcp/messages.ts` (PRD 13). Responses ne
 | `DELETE /v1/api-keys/:id` | session + CSRF | 204. 404 for another account's id. |
 | `GET /v1/oauth/grants` | session or Bearer | `{ "grants": [{ id, client_name, scope, created_at }] }`. Names and scopes only. `id` is the OAuth client id. No tokens or hashes. |
 | `DELETE /v1/me` | session + CSRF | 204. Deletes the account. The cascade removes transcripts, API keys, and OAuth grants, and cancels a Paddle subscription when one is stored. |
-| `POST /v1/checkout` | session + CSRF | Body `{ "plan": "creator" \| "pro" \| "team" \| "founding", "interval": "month" \| "year" }`. These map to the price keys `creator_month`, `creator_year`, `pro_month`, `pro_year`, `team_month`, `team_year`, and `founding` (`founding` uses the founding price). 200 `{ "url" }` is the Paddle checkout address. 503 `billing_not_configured` when that price is not configured. |
+| `POST /v1/checkout` | session + CSRF | Body `{ "plan": "creator" \| "pro" \| "team" \| "founding", "interval": "month" \| "year" }`, or `{ "addon": "pack_500" \| "pack_2000" \| "seat" }` with no plan and no interval. Plan bodies map to the price keys `creator_month`, `creator_year`, `pro_month`, `pro_year`, `team_month`, `team_year`, and `founding` (`founding` uses the founding price). A pack adds credits and does not replace the subscription. `seat` adds one Team seat and does not replace the Team plan; on any other plan it is 403. 200 `{ "url" }` is the Paddle checkout address. 503 `billing_not_configured` when that price is not configured. |
 | `POST /v1/billing/portal` | session + CSRF | 200 `{ "url" }` opens the Paddle customer portal. 503 `billing_not_configured` when billing is not configured. |
 
 Rules: email is trimmed and lower-cased, and must be a plausible address. Password is 10 to 128 characters. Passwords are stored as scrypt hashes with a per-user salt. Sign-ups are limited per IP (`AUTH_SIGNUPS_PER_IP_PER_HOUR`, default 5). Log-in attempts are limited per IP (`AUTH_LOGINS_PER_IP_PER_MINUTE`, default 10).
@@ -67,7 +67,7 @@ Keys have the form `msk_` plus 43 random base64url characters. Only a SHA-256 ha
 - Free accounts get **20 credits per calendar month (UTC)**. 1 credit = up to 10 minutes of audio (started minutes round up).
 - A run **holds 1 credit** when it starts. On success the hold is released and the real cost charged. On failure the hold is released and nothing is charged. A run that never finishes (for example, the server restarted mid-job) has its hold released by maintenance once the active-job window (2 h) has passed.
 - Each plan has a **longest video**: free 10 min, creator 60 min, pro and team 3 h. `MEDIA_MAX_SECONDS` still caps every plan.
-- Anonymous callers keep the IP quota and do not use credits.
+- Anonymous use is 5 credits per rolling 24 hours. That allowance is separate from a signed-in plan's monthly credits. Anonymous results are kept for 24 hours.
 - The plan table is `apps/api-mcp/src/billing/plans.ts`.
 
 `GET /v1/plans` (public, no auth): `{ "plans": [{ id, name, monthly_credits, max_video_minutes, price_usd_monthly }] }`. The list has no checkout URLs. Signed-in checkout is `POST /v1/checkout` on the website.

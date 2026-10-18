@@ -526,7 +526,7 @@ Built with the Hormozi knowledge base (*$100M Offers*, *$100M Leads*, *$100M Mon
 | Seats | 1 | 1 | 1 | 3 (+$12/seat) |
 | Priority queue / support | — | — | ✅ | ✅ |
 
-**Shipped billing (14 October 2026).** The ledger charges the plan's monthly allowance and resets at the next UTC month. Unused credits do not roll over. Credit packs are not in the checkout catalog. Frame checks, speaker labels, and bulk URLs are later releases. The website says so. The rows above are the pricing model, not a second description of the worker.
+**Shipped billing (18 October 2026).** The ledger charges the plan's monthly allowance and resets at the next UTC month. Unused monthly credits do not roll over. A credit pack adds credits and does not replace the plan. The public pricing page does not list frame checks, speaker-name labels, or bulk links. MuteScroll does not return video frames. The rows above are the pricing model, not a second description of the worker.
 
 **Rationale:**
 

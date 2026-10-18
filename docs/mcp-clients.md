@@ -21,6 +21,8 @@ REST API keys are a Team feature. To call as a Team account with a key, send `Au
 | `transcribe_video` | Transcribes a public video link into timestamped text when MuteScroll can reach it. Other links get the one-time upload path. |
 | `get_transcription` | Reads a transcript job by `job_id`. |
 
+MuteScroll reads a public video link when it can reach it. It does not impersonate a browser, and it does not use a person’s cookies to reach a video. There is no retrieval vendor. A finished result is timestamped text, confidence flags, and exports. MuteScroll does not return video frames. Summaries, translations, and claim checks stay in the assistant.
+
 Calling `transcribe_video` starts work. A finished transcript spends credits. A failed job does not. The smoke script never calls it.
 
 ## Cursor
@@ -90,7 +92,7 @@ Quit Claude Desktop completely and open it again so it reloads the file. The con
 This is the way to use MuteScroll inside ChatGPT before a directory listing exists.
 
 1. Plugins → Add custom MCP server → `https://api.mutescroll.xyz/mcp` → OAuth.
-2. ChatGPT discovers MuteScroll’s sign-in, opens it, and asks the person to allow the connection. Transcripts then use that MuteScroll account. Leave authentication empty only for the anonymous allowance (5 credits per rolling 24 hours). See [https://mutescroll.xyz/plans](https://mutescroll.xyz/plans).
+2. Continue with ChatGPT opens `/connect`. It is MuteScroll’s own OAuth connector, not an OpenAI identity provider. ChatGPT discovers MuteScroll’s sign-in, opens it, and asks the person to allow the connection. Transcripts then use that MuteScroll account. Leave authentication empty only for the anonymous allowance (5 credits per rolling 24 hours, kept for 24 hours). See [https://mutescroll.xyz/plans](https://mutescroll.xyz/plans).
 3. Start a new chat, enable the MuteScroll connector, and ask: `Transcribe this public video link.`
 4. If the reply is `processing` plus a `job_id`, ask ChatGPT to call `get_transcription` with that id. Do not ask MuteScroll to summarize; ChatGPT does that from the transcript.
 

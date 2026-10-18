@@ -12,7 +12,7 @@ ChatGPT registers a client with MuteScroll and opens MuteScroll’s own sign-in.
 
 Continue with ChatGPT is MuteScroll’s OAuth connector, not an OpenAI identity provider. On the MuteScroll page, sign in with email or Google first. Continue with ChatGPT then lets ChatGPT use that MuteScroll account.
 
-The server reads a public video link when it can reach it. The video’s own captions are used when they exist. Otherwise the audio is transcribed. If the audio cannot be fetched, automatic captions from the public page are used when the video has them (`captions_auto`). The server does not sign in. If retrieval fails, the tool returns a one-time upload link. There is no separate media-lookup vendor.
+The server reads a public video link when it can reach it. The video’s own captions are used when they exist. Otherwise the audio is transcribed. If the audio cannot be fetched, automatic captions from the public page are used when the video has them (`captions_auto`). The server does not sign in, does not impersonate a browser, and does not use a person’s cookies to reach a video. If retrieval fails, the tool returns a one-time upload link. There is no retrieval vendor. MuteScroll returns timestamped text, confidence flags, and exports. It does not return video frames. Summaries, translations, and claim checks stay in the assistant.
 
 A limit message may include https://mutescroll.xyz/plans. That link is informational.
 
