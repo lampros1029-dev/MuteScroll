@@ -119,3 +119,55 @@ describe("AccountPanel billing interval", () => {
     expect(screen.getByText(/\$12 per month/)).toBeTruthy();
   });
 });
+
+describe("AccountPanel email verification", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function stubVerification(emailVerified: boolean, verification: Response) {
+    document.cookie = "ms_csrf=csrf-test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === "/api/v1/me") return jsonResponse(200, { ...account("free", null), email_verified: emailVerified });
+        if (url === "/api/v1/api-keys") return jsonResponse(200, { items: [] });
+        if (url === "/api/v1/oauth/grants") return jsonResponse(200, { grants: [] });
+        if (url === "/api/v1/auth/email/verification") return verification;
+        return jsonResponse(404, {});
+      }),
+    );
+  }
+
+  it("requests a verification email with the CSRF header", async () => {
+    stubVerification(false, jsonResponse(202, { status: "accepted" }));
+    render(<AccountPanel />);
+    expect(await screen.findByText("This email is not confirmed yet.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Send verification email" }));
+    expect((await screen.findByRole("status")).textContent).toBe("Check your inbox.");
+    const fetchMock = vi.mocked(fetch);
+    const verification = fetchMock.mock.calls.find((call) => call[0] === "/api/v1/auth/email/verification");
+    expect(verification).toBeTruthy();
+    const init = verification?.[1] as RequestInit;
+    expect(init.method).toBe("POST");
+    expect(init.headers).toMatchObject({ "x-csrf-token": "csrf-test" });
+    expect(init.body).toBeUndefined();
+  });
+
+  it("does not say to check the inbox when mail is not configured", async () => {
+    stubVerification(false, jsonResponse(503, { error: { code: "email_not_configured", message: "Email is not configured." } }));
+    render(<AccountPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: "Send verification email" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Mail could not be sent.");
+    expect(screen.queryByText("Check your inbox.")).toBeNull();
+    expect(document.body.textContent ?? "").not.toContain("Email is not configured.");
+  });
+
+  it("shows a confirmed address without a send button", async () => {
+    stubVerification(true, jsonResponse(500, {}));
+    render(<AccountPanel />);
+    expect(await screen.findByText("This email is confirmed.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send verification email" })).toBeNull();
+  });
+});

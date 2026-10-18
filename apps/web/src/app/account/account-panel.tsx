@@ -9,6 +9,7 @@ import {
   createApiKey,
   deleteAccount,
   fetchMe,
+  requestEmailVerification,
   isBillingClosed,
   listApiKeys,
   listGrants,
@@ -24,6 +25,7 @@ import {
   type Me,
   type OauthGrant,
 } from "../../lib/api/account";
+import { INBOX_MESSAGE } from "../../lib/auth-mail";
 import { formatUsd } from "../../lib/format";
 import { CREDIT_PACKS, EXTRA_SEAT, PLANS, priceFor } from "../../lib/pricing";
 
@@ -38,6 +40,10 @@ export function AccountPanel() {
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [mailPending, setMailPending] = useState(false);
+  const [mailError, setMailError] = useState("");
+  const [mailNotice, setMailNotice] = useState("");
+  const [verifiedOverride, setVerifiedOverride] = useState<boolean | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -151,6 +157,7 @@ export function AccountPanel() {
   const currentPrice = currentDefinition !== undefined && cadence !== null ? priceFor(currentDefinition, cadence) : null;
   const nextPrice = nextDefinition !== undefined && cadence !== null ? priceFor(nextDefinition, cadence) : null;
   const team = me.plan.toLowerCase() === "team";
+  const emailVerified = verifiedOverride === true || me.email_verified;
 
   async function buyPlan(plan: CheckoutPlan, interval: "month" | "year"): Promise<void> {
     setPending(true);
@@ -162,6 +169,31 @@ export function AccountPanel() {
       return;
     }
     openUrl(result.value);
+  }
+
+  async function sendVerification(): Promise<void> {
+    setMailPending(true);
+    setMailError("");
+    setMailNotice("");
+    const result = await requestEmailVerification();
+    setMailPending(false);
+    if (!result.ok) {
+      setMailError(result.error.message);
+      return;
+    }
+    switch (result.value) {
+      case "already_verified":
+        setVerifiedOverride(true);
+        return;
+      case "inbox":
+        setMailNotice(INBOX_MESSAGE);
+        return;
+      default: {
+        const unreachable: never = result.value;
+        setMailError("That did not work. Try again.");
+        return unreachable;
+      }
+    }
   }
 
   async function buyAddon(addon: CheckoutAddon): Promise<void> {
@@ -219,6 +251,28 @@ export function AccountPanel() {
           </section>
         )}
       </div>
+
+      <section className="section" aria-labelledby="email-verification">
+        <h2 id="email-verification" className="section-title-small">
+          Email
+        </h2>
+        {emailVerified ? (
+          <p>This email is confirmed.</p>
+        ) : (
+          <>
+            <p>This email is not confirmed yet.</p>
+            {mailNotice === "" ? null : <p role="status">{mailNotice}</p>}
+            {mailError === "" ? null : (
+              <p className="field-error" role="alert">
+                {mailError}
+              </p>
+            )}
+            <button className="btn" type="button" disabled={mailPending} onClick={() => void sendVerification()}>
+              Send verification email
+            </button>
+          </>
+        )}
+      </section>
 
       <section className="section" aria-labelledby="packs-title">
         <h2 id="packs-title" className="section-title-small">

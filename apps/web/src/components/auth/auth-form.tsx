@@ -104,6 +104,11 @@ export function AuthForm({
           onChange={(event) => setPassword(event.target.value)}
         />
         {mode === "signup" ? <p className="field-hint">Use at least 10 characters.</p> : null}
+        {mode === "login" ? (
+          <p className="field-hint">
+            <Link href="/forgot-password">Forgot password?</Link>
+          </p>
+        ) : null}
         {error === "" ? null : (
           <p className="field-error" role="alert">
             {error}

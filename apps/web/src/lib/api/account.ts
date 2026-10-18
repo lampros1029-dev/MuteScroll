@@ -1,7 +1,9 @@
+import { VERIFY_EMAIL_PATH, readMailError, verificationRequestResult } from "../auth-mail";
 import { csrfHeaders } from "../csrf";
 
 export interface Me {
   readonly email: string;
+  readonly email_verified: boolean;
   readonly plan: string;
   /** `month` or `year` when the subscription reported it. Null must not be treated as yearly. */
   readonly billing_interval: "month" | "year" | null;
@@ -145,6 +147,41 @@ export async function logoutAccount(): Promise<Result<null>> {
   return { ok: true, value: null };
 }
 
+/** Signed-in request for the confirmation mail. The link in that mail is /verify-email. */
+export async function requestEmailVerification(): Promise<Result<"inbox" | "already_verified">> {
+  try {
+    const response = await fetch(VERIFY_EMAIL_PATH, {
+      method: "POST",
+      headers: csrfHeaders(false),
+      cache: "no-store",
+    });
+    const body = await parseJson(response);
+    const outcome = verificationRequestResult(response.status, body);
+    if (!outcome.ok) {
+      const error = readMailError(body);
+      return {
+        ok: false,
+        error: { status: response.status, code: error.code === "" ? "request_failed" : error.code, message: outcome.message },
+      };
+    }
+    switch (outcome.kind) {
+      case "inbox":
+      case "already_verified":
+        return { ok: true, value: outcome.kind };
+      case "reset":
+      case "verified":
+        return { ok: false, error: { status: response.status, code: "invalid_response", message: "That did not work. Try again." } };
+      default: {
+        const unreachable: never = outcome.kind;
+        return { ok: false, error: { status: response.status, code: "invalid_response", message: `Unhandled verification result: ${String(unreachable)}` } };
+      }
+    }
+  } catch (error) {
+    if (isAbort(error)) throw error;
+    return { ok: false, error: networkError() };
+  }
+}
+
 export async function startAddonCheckout(addon: CheckoutAddon): Promise<Result<string>> {
   const sent = await send("POST", "/api/v1/checkout", { addon });
   if (!sent.ok) return sent;
@@ -245,6 +282,7 @@ function parseMe(body: unknown): Me | null {
   const seatRow = seats !== null && typeof seats === "object" ? (seats as Record<string, unknown>) : {};
   return {
     email: row["email"],
+    email_verified: row["email_verified"] === true,
     plan: row["plan"],
     billing_interval: row["billing_interval"] === "month" || row["billing_interval"] === "year" ? row["billing_interval"] : null,
     credits: {
