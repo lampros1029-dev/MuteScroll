@@ -29,6 +29,11 @@ export class PgBillingLinkStore implements BillingLinkStore {
     return result.rows.map((row) => row.paddle_id);
   }
 
+  async forget(paddleId: string): Promise<void> {
+    if (!isBillingLinkKey(paddleId)) return;
+    await this.pool.query("DELETE FROM billing_links WHERE paddle_id = $1", [paddleId]);
+  }
+
   async removeForUser(userId: string): Promise<void> {
     if (!isAccountId(userId)) return;
     await this.pool.query("DELETE FROM billing_links WHERE user_id = $1", [userId]);

@@ -4,7 +4,7 @@ import { readPaddleId, type BillingLinkStore } from "./billing-links.js";
 import { billingIntervalFromRecord, interpretPaddleNotification } from "./paddle-events.js";
 import { priceIdForAddon, priceIdForCheckout } from "./paddle-config.js";
 import { verifyPaddleSignature } from "./paddle-signature.js";
-import { PaddleApiError, PaddleClient } from "./paddle-client.js";
+import { PaddleApiError, PaddleClient, type PaddleTransaction } from "./paddle-client.js";
 import {
   BillingCustomerMissingError,
   BillingNotConfiguredError,
@@ -80,12 +80,32 @@ export class PaddleBillingProvider implements BillingProvider {
     };
   }
 
+  /**
+   * Opens one automatic Paddle checkout. A stored `ctm_` is reused; an email is never sent as that id.
+   * A customer id this Paddle account does not have is dropped, and checkout continues with the account email.
+   */
+  private async createTransaction(
+    userId: string,
+    email: string,
+    priceId: string,
+    checkoutNonce: string,
+    customerId: string | undefined,
+  ): Promise<PaddleTransaction> {
+    try {
+      return await this.client.createTransaction({ priceId, userId, checkoutNonce, email, customerId });
+    } catch (error) {
+      if (!(error instanceof PaddleApiError) || !error.customerMissing || customerId === undefined) throw error;
+      await this.links.forget(customerId);
+      return this.client.createTransaction({ priceId, userId, checkoutNonce, email });
+    }
+  }
+
   /** Opens one automatic Paddle checkout. A stored `ctm_` is reused; an email is never sent as that id. */
   private async openTransaction(userId: string, email: string, priceId: string): Promise<CheckoutSession> {
     const checkoutNonce = randomBytes(18).toString("base64url");
     if (!(await this.links.bind(checkoutNonce, userId))) throw new Error("Could not record the checkout");
     const customerId = await this.linkedCustomerId(userId);
-    const created = await this.client.createTransaction({ priceId, userId, checkoutNonce, email, customerId });
+    const created = await this.createTransaction(userId, email, priceId, checkoutNonce, customerId);
     const transactionId = readPaddleId(created.transactionId, "txn");
     if (transactionId === null) throw new PaddleApiError(200);
     if (!(await this.links.bind(transactionId, userId))) throw new Error("Could not record the checkout");

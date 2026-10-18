@@ -1,8 +1,15 @@
 import { normalizeEmail } from "../accounts/email.js";
 
-/** Paddle returned a non-success status, or a success body we could not read. The message never includes the response body. */
+/**
+ * Paddle returned a non-success status, or a success body we could not read.
+ * The message never includes the response body.
+ * `customerMissing` is set only when a `ctm_` id we sent is the entity Paddle could not find.
+ */
 export class PaddleApiError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly customerMissing = false,
+  ) {
     super("Paddle request failed");
     this.name = "PaddleApiError";
   }
@@ -50,8 +57,7 @@ export class PaddleClient {
       }),
     });
     if (!response.ok) {
-      await response.arrayBuffer().catch(() => undefined);
-      throw new PaddleApiError(response.status);
+      throw new PaddleApiError(response.status, await customerWasMissing(response, customerId));
     }
     let payload: unknown;
     try {
@@ -98,7 +104,7 @@ export class PaddleClient {
     return overview;
   }
 
-  /** 409 means Paddle already cancelled the subscription, which is the state we want. */
+  /** 409 means Paddle already cancelled it. 404 means that subscription is not on this account. Both are the state we want. */
   async cancelSubscription(subscriptionId: string): Promise<void> {
     const response = await this.fetchImpl(`${this.baseUrl}/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, {
       method: "POST",
@@ -108,7 +114,7 @@ export class PaddleClient {
       },
       body: JSON.stringify({ effective_from: "immediately" }),
     });
-    if (response.status === 409) {
+    if (response.status === 409 || response.status === 404) {
       await response.arrayBuffer().catch(() => undefined);
       return;
     }
@@ -138,6 +144,23 @@ export class PaddleClient {
     }
     const data = asRecord(asRecord(payload)?.["data"]);
     return data ?? null;
+  }
+}
+
+/** True only for a 404 whose detail names the customer id this request sent. Other 404s stay ordinary failures. */
+async function customerWasMissing(response: Response, customerId: string | undefined): Promise<boolean> {
+  if (customerId === undefined || response.status !== 404) {
+    await response.arrayBuffer().catch(() => undefined);
+    return false;
+  }
+  try {
+    const payload = (await response.json()) as unknown;
+    const error = asRecord(asRecord(payload)?.["error"]);
+    const code = error?.["code"];
+    const detail = error?.["detail"];
+    return code === "not_found" && typeof detail === "string" && detail.includes(customerId);
+  } catch {
+    return false;
   }
 }
 

@@ -36,6 +36,8 @@ export interface BillingLinkStore {
   userFor(paddleId: string): Promise<string | undefined>;
   /** Every Paddle id and checkout nonce stored for this user. */
   idsForUser(userId: string): Promise<readonly string[]>;
+  /** Drops one id. Used when Paddle says that customer no longer exists. */
+  forget(paddleId: string): Promise<void>;
   removeForUser(userId: string): Promise<void>;
 }
 
@@ -59,6 +61,11 @@ export class MemoryBillingLinkStore implements BillingLinkStore {
   async idsForUser(userId: string): Promise<readonly string[]> {
     if (!isAccountId(userId)) return [];
     return [...this.links.entries()].filter(([, owner]) => owner === userId).map(([id]) => id);
+  }
+
+  async forget(paddleId: string): Promise<void> {
+    if (!isBillingLinkKey(paddleId)) return;
+    this.links.delete(paddleId);
   }
 
   async removeForUser(userId: string): Promise<void> {

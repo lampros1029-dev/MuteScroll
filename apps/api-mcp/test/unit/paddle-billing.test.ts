@@ -611,6 +611,68 @@ describe("saved Paddle customer and subscription interval", () => {
     expect(body.items?.[0]?.price_id).toBe("pri_promonth");
   });
 
+  it("drops a stored customer this Paddle account does not have and checks out with the account email", async () => {
+    const links = new MemoryBillingLinkStore();
+    await links.bind("ctm_missingcustomer", "usr_1");
+    const bodies: string[] = [];
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      const body = String(init?.body);
+      bodies.push(body);
+      const sent = JSON.parse(body) as { customer_id?: string };
+      if (sent.customer_id !== undefined) {
+        return new Response(
+          JSON.stringify({
+            error: { type: "request_error", code: "not_found", detail: "customer ctm_missingcustomer not found." },
+          }),
+          { status: 404 },
+        );
+      }
+      return new Response(
+        JSON.stringify({ data: { id: "txn_retry", checkout: { url: "https://checkout.example.test/retry" } } }),
+        { status: 200 },
+      );
+    };
+    const provider = createBillingProvider(
+      loadConfig({ PADDLE_API_KEY: "test_live_key", PADDLE_PRICE_IDS: "pro_month=pri_promonth" }, "linux"),
+      fetchImpl,
+      links,
+    );
+    const session = await provider.createCheckout({ userId: "usr_1", email: "a@example.test", plan: "pro", interval: "month" });
+    expect(session.transactionId).toBe("txn_retry");
+    expect(session.url).toBe("https://checkout.example.test/retry");
+    const first = JSON.parse(bodies[0] ?? "{}") as { customer_id?: string };
+    const second = JSON.parse(bodies[1] ?? "{}") as { customer_id?: string; customer?: { email?: string } };
+    expect(first.customer_id).toBe("ctm_missingcustomer");
+    expect(second.customer).toEqual({ email: "a@example.test" });
+    expect(second).not.toHaveProperty("customer_id");
+    expect(await links.userFor("ctm_missingcustomer")).toBeUndefined();
+    expect(bodies).toHaveLength(2);
+  });
+
+  it("keeps a stored customer when Paddle's not_found is not about that customer", async () => {
+    const links = new MemoryBillingLinkStore();
+    await links.bind("ctm_savedcustomer", "usr_1");
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      return new Response(
+        JSON.stringify({ error: { type: "request_error", code: "not_found", detail: "price pri_promonth not found" } }),
+        { status: 404 },
+      );
+    };
+    const provider = createBillingProvider(
+      loadConfig({ PADDLE_API_KEY: "test_live_key", PADDLE_PRICE_IDS: "pro_month=pri_promonth" }, "linux"),
+      fetchImpl,
+      links,
+    );
+    await expect(provider.createCheckout({ userId: "usr_1", email: "a@example.test", plan: "pro", interval: "month" })).rejects.toMatchObject({
+      name: "PaddleApiError",
+      customerMissing: false,
+    });
+    expect(calls).toBe(1);
+    expect(await links.userFor("ctm_savedcustomer")).toBe("usr_1");
+  });
+
   it("reads month from the linked subscription and leaves a missing cycle null", async () => {
     const links = new MemoryBillingLinkStore();
     await links.bind("sub_month", "usr_1");
@@ -684,5 +746,18 @@ describe("Paddle portal and cancel", () => {
     await provider.cancelSubscriptions("usr_1");
     expect(calls.some((url) => url.endsWith("/subscriptions/sub_portal1/cancel"))).toBe(true);
     await expect(provider.createPortalSession("usr_missing")).rejects.toBeInstanceOf(BillingCustomerMissingError);
+  });
+
+  it("treats a subscription this Paddle account does not have as already cancelled", async () => {
+    const links = new MemoryBillingLinkStore();
+    await links.bind("sub_gone", "usr_1");
+    const fetchImpl: typeof fetch = async () =>
+      new Response(JSON.stringify({ error: { code: "not_found", detail: "subscription not found" } }), { status: 404 });
+    const provider = createBillingProvider(
+      loadConfig({ PADDLE_API_KEY: "test_live_key", PADDLE_PRICE_IDS: "pro=pri_pro" }, "linux"),
+      fetchImpl,
+      links,
+    );
+    await provider.cancelSubscriptions("usr_1");
   });
 });
