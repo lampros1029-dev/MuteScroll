@@ -368,6 +368,7 @@ svg {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  min-height: 2.75rem;
   color: var(--ink);
   font-family: var(--serif);
   font-size: 1.35rem;
@@ -396,6 +397,13 @@ svg {
   list-style: none;
 }
 
+.site-nav a:not(.btn),
+.site-nav button.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
 .site-nav a {
   font-size: 0.975rem;
   text-decoration: none;
@@ -420,6 +428,7 @@ svg {
 }
 
 .site-nav .btn {
+  min-height: 2.75rem;
   color: var(--paper);
 }
 
@@ -1018,6 +1027,15 @@ code {
   flex-basis: 100%;
   font-size: 0.9rem;
   color: var(--ink-soft);
+}
+
+/* Copy and export actions only. Rest stays the page ink on the page ground.
+   Hover and keyboard focus share one orange fill with dark text so it stays readable. */
+.toolbar .btn:hover,
+.toolbar .btn:focus-visible {
+  color: #1d1b16;
+  background: #ff8a5c;
+  outline-color: #ff8a5c;
 }
 
 .result {
