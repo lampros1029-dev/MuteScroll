@@ -114,6 +114,24 @@ describe("ChatGPT OAuth account linking", () => {
     expect(token.body.scope).toBe("transcribe");
   });
 
+  it("returns the registered display name and nothing else", async () => {
+    server = await startTestServer(testConfig());
+    const registered = await api(server, "/oauth/register", {
+      method: "POST",
+      json: {
+        client_name: "Claude",
+        redirect_uris: ["https://claude.ai/api/mcp/auth_callback"],
+        token_endpoint_auth_method: "none",
+      },
+    });
+    expect(registered.status).toBe(201);
+    const named = await api(server, `/oauth/client?client_id=${registered.body.client_id as string}`);
+    expect(named.status).toBe(200);
+    expect(named.body).toEqual({ client_name: "Claude" });
+    const missing = await api(server, "/oauth/client?client_id=oac_missing");
+    expect(missing.status).toBe(404);
+  });
+
   it("rejects a redirect that is not an assistant host", async () => {
     server = await startTestServer(testConfig());
     const registered = await api(server, "/oauth/register", {

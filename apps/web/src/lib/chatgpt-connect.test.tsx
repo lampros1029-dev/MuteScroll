@@ -39,6 +39,11 @@ const EMPTY: ConnectQuery = {
   resource: "",
 };
 
+function approvalFetch(url: string, clientName: string): Promise<Response> {
+  if (url.startsWith("/api/oauth/client")) return Promise.resolve(jsonResponse(200, { client_name: clientName }));
+  return Promise.resolve(jsonResponse(200, { email: "reader@example.test" }));
+}
+
 function jsonResponse(status: number, body: unknown): Response {
   return {
     status,
@@ -80,15 +85,30 @@ describe("Continue with ChatGPT", () => {
   });
 
   it("shows the plain-language approval when ChatGPT has opened the connector", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => jsonResponse(200, { email: "reader@example.test" })),
-    );
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => approvalFetch(url, "ChatGPT")));
     render(<ConnectForm query={QUERY} />);
     expect(await screen.findByText("Allow ChatGPT to read a public video link as this account.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Allow ChatGPT" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Allow ChatGPT" })).toBeTruthy();
     expect(screen.getByText("Signed in as reader@example.test.")).toBeTruthy();
     expect(document.body.textContent ?? "").not.toMatch(/\/pricing|\/checkout|Developer Mode/i);
+  });
+
+  it("uses the registered display name when another assistant opens the connector", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => approvalFetch(url, "Claude")));
+    render(
+      <ConnectForm
+        query={{
+          ...QUERY,
+          clientId: "claude-client",
+          redirectUri: "https://claude.ai/api/mcp/auth_callback",
+        }}
+      />,
+    );
+    expect(await screen.findByText("Allow Claude to read a public video link as this account.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Allow Claude" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Allow Claude" })).toBeTruthy();
+    expect(document.body.textContent ?? "").not.toMatch(/Allow ChatGPT|Developer Mode|youtube|vimeo|tiktok/i);
   });
 
   it("lets a signed-out person start from the connector steps", async () => {

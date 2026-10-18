@@ -24,7 +24,33 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
   const [signedIn, setSignedIn] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [clientName, setClientName] = useState<string | null>(null);
   const googleHref = `/api/v1/auth/google?mode=${mode}&next=${encodeURIComponent(connectReturn(query))}`;
+
+  useEffect(() => {
+    if (query.clientId === "") return;
+    let cancelled = false;
+    void fetch(`/api/oauth/client?client_id=${encodeURIComponent(query.clientId)}`, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (cancelled) return;
+        if (!response.ok) {
+          setClientName("MCP client");
+          return;
+        }
+        const body = (await response.json()) as { client_name?: string };
+        const name = typeof body.client_name === "string" ? body.client_name.trim() : "";
+        setClientName(name === "" ? "MCP client" : name);
+      })
+      .catch(() => {
+        if (!cancelled) setClientName("MCP client");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query.clientId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,8 +143,10 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
   return (
     <div className="container page legal">
       <header className="page-head">
-        <h1 className="display-small">Allow ChatGPT</h1>
-        <p className="section-lede">Allow ChatGPT to read a public video link as this account.</p>
+        <h1 className="display-small">{clientName === null ? "Allow" : `Allow ${clientName}`}</h1>
+        {clientName === null ? null : (
+          <p className="section-lede">Allow {clientName} to read a public video link as this account.</p>
+        )}
       </header>
 
       {signedIn === null ? (
@@ -175,8 +203,8 @@ export function ConnectForm({ query }: { readonly query: ConnectQuery }) {
         <div className="paste">
           <p>Signed in as {signedIn}.</p>
           {error === "" ? null : <p className="field-error">{error}</p>}
-          <button className="btn btn-primary" type="button" disabled={pending} onClick={() => void allow()}>
-            Allow ChatGPT
+          <button className="btn btn-primary" type="button" disabled={pending || clientName === null} onClick={() => void allow()}>
+            {clientName === null ? "Allow" : `Allow ${clientName}`}
           </button>
         </div>
       )}

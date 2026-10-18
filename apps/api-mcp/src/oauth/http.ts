@@ -34,6 +34,7 @@ export async function handleOAuth(req: IncomingMessage, res: ServerResponse, ctx
     }
     if (path === "/.well-known/oauth-authorization-server") return metadata(req, res, authorizationServer(ctx));
     if (path === "/oauth/register") return await register(req, res, ctx);
+    if (path === "/oauth/client") return await clientDisplayName(req, res, ctx, url);
     if (path === "/oauth/authorize") return await authorize(req, res, ctx, url);
     if (path === "/oauth/token") return await token(req, res, ctx);
     if (path === "/oauth/approve") return await approve(req, res, ctx);
@@ -61,6 +62,7 @@ function isOAuthPath(path: string): boolean {
   return (
     path.startsWith("/.well-known/oauth-") ||
     path === "/oauth/register" ||
+    path === "/oauth/client" ||
     path === "/oauth/authorize" ||
     path === "/oauth/token" ||
     path === "/oauth/approve" ||
@@ -129,6 +131,22 @@ async function register(req: IncomingMessage, res: ServerResponse, ctx: AppConte
     token_endpoint_auth_method: registered.tokenEndpointAuthMethod,
     client_name: registered.clientName,
   });
+  return true;
+}
+
+/** The allow screen reads this. The body is the registered display name and nothing else. */
+async function clientDisplayName(req: IncomingMessage, res: ServerResponse, ctx: AppContext, url: URL): Promise<boolean> {
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "method_not_allowed" }, { allow: "GET" });
+    return true;
+  }
+  const clientId = url.searchParams.get("client_id") ?? "";
+  const client = clientId === "" ? undefined : await ctx.stores.oauth.findClient(clientId);
+  if (client === undefined) {
+    sendJson(res, 404, { error: "not_found" });
+    return true;
+  }
+  sendJson(res, 200, { client_name: client.name });
   return true;
 }
 
