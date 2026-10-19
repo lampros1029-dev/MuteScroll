@@ -22,7 +22,6 @@ export default function PrivacyPage() {
     <LegalDocument
       title="Privacy"
       lede="This explains what MuteScroll stores when you transcribe a video or open an account, where it goes, and how long it stays."
-      updated="18 October 2026"
     >
       <section aria-labelledby="who">
         <h2 id="who">Who we are</h2>
@@ -62,7 +61,12 @@ export default function PrivacyPage() {
               </tr>
               <tr>
                 <td>Email address, password hash, and a Google account link when you use Google</td>
-                <td>To create the account and sign you in. A password is stored as a hash. Google sign-in stores the Google account identifier and the email Google provides.</td>
+                <td>
+                  To create the account and sign you in. A password is stored as a hash. Continue with Google requests
+                  the openid, email, and profile scopes. MuteScroll keeps the Google account identifier and the email
+                  address, and uses Google&apos;s email-verified flag only to confirm that address. MuteScroll does not
+                  store the name, the profile photo, or a Google access or refresh token.
+                </td>
                 <td>While the account exists. Deleting the account removes them.</td>
               </tr>
               <tr>
@@ -104,6 +108,17 @@ export default function PrivacyPage() {
           We process account and transcript data to provide the service you asked for. We process the network address
           and logs to keep the service secure and to apply the published limits. Paddle, not MuteScroll, keeps the tax
           invoice for a paid plan.
+        </p>
+        <p>
+          The Google account identifier and email are protected with HTTPS in transit and with access controls on the
+          account database. They are stored on Railway, which hosts the account. The account email is sent to Paddle
+          only when that signed-in person starts checkout. MuteScroll does not transfer that Google user data to anyone
+          else, does not sell it, and does not use it for advertising or to train models.
+        </p>
+        <p>
+          MuteScroll uses Gmail&apos;s send permission only to send verification and password-reset mail from
+          mutescroll.xyz@gmail.com. It does not read a customer&apos;s mailbox, and it does not use Google Workspace
+          APIs to develop, improve, or train AI or machine-learning models.
         </p>
       </section>
 

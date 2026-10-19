@@ -2,7 +2,7 @@ import { CONTACT_EMAIL, SITE_NAME } from "./site";
 
 /** Published operator identity and the dates on the legal pages. */
 
-export const LEGAL_UPDATED = "14 October 2026";
+export const LEGAL_UPDATED = "19 October 2026";
 
 /** Published operator. An individual in Athens. */
 export const OPERATOR_NAME = "Labros Aggelopoulos";
