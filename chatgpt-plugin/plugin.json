@@ -36,7 +36,8 @@
       },
       "review": {
         "commerce": false,
-        "commerce_description": "This plugin does not take payment inside ChatGPT."
+        "commerce_description": "This plugin does not take payment inside ChatGPT.",
+        "demo_recording_url": "https://youtu.be/QESSYKoxyHk"
       }
     }
   }
