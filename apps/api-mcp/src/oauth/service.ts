@@ -288,9 +288,12 @@ async function authenticatedClient(deps: OAuthDeps, clientId: string, clientSecr
   return client;
 }
 
+/** OpenAI's review connector puts a relay blob in `state`. Newlines stay rejected. */
+const OAUTH_STATE_MAX = 4096;
+
 function authorizeProblem(deps: OAuthDeps, input: AuthorizeInput): string | undefined {
   if (input.codeChallengeMethod !== "S256" || !PKCE_PATTERN.test(input.codeChallenge)) return "invalid_request";
-  if (input.state.trim() === "" || input.state.length > 512 || /[\r\n]/.test(input.state)) return "invalid_request";
+  if (input.state.trim() === "" || input.state.length > OAUTH_STATE_MAX || /[\r\n]/.test(input.state)) return "invalid_request";
   if (normalizeScope(input.scope, scopeAllowList(deps, input.resource)) === undefined) return "invalid_scope";
   if (input.resource !== undefined && input.resource !== "" && input.resource !== mcpResource(deps.issuer)) return "invalid_target";
   return undefined;

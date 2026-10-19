@@ -15,6 +15,15 @@ export function sendJson(res: ServerResponse, status: number, body: unknown, ext
   res.end(JSON.stringify(body));
 }
 
+export function sendText(res: ServerResponse, status: number, body: string, extra: OutgoingHttpHeaders = {}): void {
+  res.writeHead(status, {
+    ...BASE_HEADERS,
+    "content-type": "text/plain; charset=utf-8",
+    ...extra,
+  });
+  res.end(body);
+}
+
 export function sendHtml(res: ServerResponse, status: number, html: string, extra: OutgoingHttpHeaders = {}): void {
   res.writeHead(status, {
     ...BASE_HEADERS,

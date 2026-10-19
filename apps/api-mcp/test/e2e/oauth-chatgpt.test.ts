@@ -132,6 +132,24 @@ describe("ChatGPT OAuth account linking", () => {
     expect(missing.status).toBe(404);
   });
 
+  it("accepts the long state OpenAI's review connector sends", async () => {
+    server = await startTestServer(testConfig());
+    const registered = await api(server, "/oauth/register", {
+      method: "POST",
+      json: { client_name: "ChatGPT", redirect_uris: [REDIRECT], token_endpoint_auth_method: "none" },
+    });
+    const clientId = registered.body.client_id as string;
+    const verifier = randomBytes(32).toString("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const state = `openai_platform_oauth_relay__${"a".repeat(900)}`;
+    const authorize = await fetch(authorizeUrl(server.baseUrl, clientId, challenge, state), { redirect: "manual" });
+    expect(authorize.status).toBe(302);
+    expect(authorize.headers.get("location")).toContain(encodeURIComponent(state));
+
+    const tooLong = await fetch(authorizeUrl(server.baseUrl, clientId, challenge, "b".repeat(4097)), { redirect: "manual" });
+    expect(tooLong.status).toBe(400);
+  });
+
   it("rejects a redirect that is not an assistant host", async () => {
     server = await startTestServer(testConfig());
     const registered = await api(server, "/oauth/register", {

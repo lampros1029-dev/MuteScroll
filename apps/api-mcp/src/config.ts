@@ -78,6 +78,11 @@ export interface Config {
   readonly worker: WorkerConfig;
   /** Paddle Billing. Absent key means the in-memory billing provider and no outbound calls. */
   readonly paddle: PaddleConfig;
+  /**
+   * Public OpenAI domain-ownership token served at `/.well-known/openai-apps-challenge`.
+   * Unset means that path stays 404. The value is never logged.
+   */
+  readonly openaiAppsChallenge: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): Config {
@@ -124,7 +129,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJ
       timeoutMs: intEnv(env, "MEDIA_WORKER_TIMEOUT_SECONDS", 900, 10, 6 * 3600) * 1000,
     },
     paddle: paddle.config,
+    openaiAppsChallenge: readOpenAiAppsChallenge(env),
   };
+}
+
+/** A public verification token. Reject a bad value without echoing it. */
+function readOpenAiAppsChallenge(env: NodeJS.ProcessEnv): string | undefined {
+  const raw = nonEmpty(env["OPENAI_APPS_CHALLENGE"]);
+  if (raw === undefined) return undefined;
+  if (!/^[A-Za-z0-9_-]{16,200}$/.test(raw)) {
+    throw new ConfigError("OPENAI_APPS_CHALLENGE must be a single URL-safe token");
+  }
+  return raw;
 }
 
 function readGmailConfig(env: NodeJS.ProcessEnv): GmailConfig {

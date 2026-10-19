@@ -3,7 +3,7 @@ import type { IncomingMessage, RequestListener, ServerResponse } from "node:http
 import { handleApi } from "./api/router.js";
 import type { AppContext } from "./context.js";
 import { clientKeyFor } from "./http/client-key.js";
-import { sendJson, sendNotFound } from "./http/respond.js";
+import { sendJson, sendNotFound, sendText } from "./http/respond.js";
 import { handleMcpRequest } from "./mcp/http.js";
 import { logEvent } from "./log.js";
 import { reportErrorClass } from "./observe/sentry.js";
@@ -11,6 +11,7 @@ import { handleOAuth } from "./oauth/http.js";
 import { handleUploadRoute } from "./upload/routes.js";
 
 const UPLOAD_PATH = /^\/upload\/([A-Za-z0-9_-]{16,128})$/;
+const OPENAI_APPS_CHALLENGE_PATH = "/.well-known/openai-apps-challenge";
 
 export function createRequestHandler(ctx: AppContext): RequestListener {
   return (req, res) => {
@@ -27,9 +28,22 @@ export function createRequestHandler(ctx: AppContext): RequestListener {
   };
 }
 
+function sendOpenAiAppsChallenge(req: IncomingMessage, res: ServerResponse, token: string | undefined): void {
+  if (token === undefined) {
+    sendNotFound(res);
+    return;
+  }
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    sendJson(res, 405, { error: "method_not_allowed" }, { allow: "GET, HEAD" });
+    return;
+  }
+  sendText(res, 200, req.method === "HEAD" ? "" : token);
+}
+
 async function route(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
 
+  if (path === OPENAI_APPS_CHALLENGE_PATH) return sendOpenAiAppsChallenge(req, res, ctx.config.openaiAppsChallenge);
   if (path === "/healthz") {
     if (req.method !== "GET" && req.method !== "HEAD") {
       return sendJson(res, 405, { error: "method_not_allowed" }, { allow: "GET, HEAD" });

@@ -30,6 +30,23 @@ describe("M3 configuration", () => {
     }
   });
 
+  it("keeps the OpenAI apps challenge unset until a URL-safe token is configured", () => {
+    expect(loadConfig({}, "linux").openaiAppsChallenge).toBeUndefined();
+    expect(loadConfig({ OPENAI_APPS_CHALLENGE: "abcDEF1234567890" }, "linux").openaiAppsChallenge).toBe("abcDEF1234567890");
+  });
+
+  it("rejects a malformed OpenAI apps challenge without echoing it", () => {
+    const secret = "has space and hunter2";
+    try {
+      loadConfig({ OPENAI_APPS_CHALLENGE: secret }, "linux");
+      throw new Error("expected a ConfigError");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigError);
+      expect((error as Error).message).toContain("OPENAI_APPS_CHALLENGE");
+      expect((error as Error).message).not.toContain("hunter2");
+    }
+  });
+
   it("adds the Secure flag to cookies only for an https public URL", () => {
     expect(loadConfig({ PUBLIC_BASE_URL: "https://api.mutescroll.xyz" }, "linux").secureCookies).toBe(true);
     expect(loadConfig({ PUBLIC_BASE_URL: "http://localhost:8080" }, "linux").secureCookies).toBe(false);
