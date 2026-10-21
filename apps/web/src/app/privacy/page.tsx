@@ -22,6 +22,7 @@ export default function PrivacyPage() {
     <LegalDocument
       title="Privacy"
       lede="This explains what MuteScroll stores when you transcribe a video or open an account, where it goes, and how long it stays."
+      updated="21 October 2026"
     >
       <section aria-labelledby="who">
         <h2 id="who">Who we are</h2>
@@ -116,9 +117,22 @@ export default function PrivacyPage() {
           else, does not sell it, and does not use it for advertising or to train models.
         </p>
         <p>
-          MuteScroll uses Gmail&apos;s send permission only to send verification and password-reset mail from
-          mutescroll.xyz@gmail.com. It does not read a customer&apos;s mailbox, and it does not use Google Workspace
-          APIs to develop, improve, or train AI or machine-learning models.
+          MuteScroll uses the Gmail send permission (
+          <a href="https://www.googleapis.com/auth/gmail.send">https://www.googleapis.com/auth/gmail.send</a>) on the
+          product mailbox mutescroll.xyz@gmail.com only. It sends verification and password-reset mail. It does not
+          read, change, or delete mailbox contents. Visitors do not connect a personal Gmail account for this scope.
+          It does not use Google Workspace APIs to develop, improve, or train AI or machine-learning models.
+        </p>
+      </section>
+
+      <section aria-labelledby="google-user-data">
+        <h2 id="google-user-data">Google user data</h2>
+        <p>
+          MuteScroll does not sell Google user data and does not share, transfer, or disclose it for advertising,
+          credit, or to train AI models. The Google account identifier and email are stored on Railway for the account.
+          That email is sent to Paddle only when that signed-in person starts checkout. The Gmail send permission is
+          used only with Google to deliver a verification or password-reset message to the address the person asked us
+          to write to. MuteScroll does not share, transfer, or disclose that Google user data with anyone else.
         </p>
       </section>
 
