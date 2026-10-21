@@ -134,6 +134,10 @@ export default function PrivacyPage() {
           used only with Google to deliver a verification or password-reset message to the address the person asked us
           to write to. MuteScroll does not share, transfer, or disclose that Google user data with anyone else.
         </p>
+        <p>
+          The use of raw or derived user data received from Workspace APIs will adhere to the Google User Data Policy,
+          including the Limited Use requirements.
+        </p>
       </section>
 
       <section aria-labelledby="training">
