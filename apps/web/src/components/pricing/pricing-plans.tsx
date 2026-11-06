@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { formatUsd } from "../../lib/format";
 import {
@@ -17,11 +17,42 @@ const CADENCE_LABELS: Readonly<Record<Cadence, string>> = {
   annual: "Annual",
 };
 
-/** Plan cards with a monthly / annual toggle. Annual is the default, as in PRD 20.4. */
+/** Last billing-period choice. Missing or unreadable means the first visit: monthly. */
+const CADENCE_STORAGE_KEY = "ms_pricing_cadence";
+
+function readStoredCadence(): Cadence | null {
+  try {
+    const stored = window.localStorage.getItem(CADENCE_STORAGE_KEY);
+    if (stored === "monthly" || stored === "annual") return stored;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredCadence(cadence: Cadence): void {
+  try {
+    window.localStorage.setItem(CADENCE_STORAGE_KEY, cadence);
+  } catch {
+    // Private browsing can block storage. The choice still applies on this page.
+  }
+}
+
+/** Plan cards with a monthly / annual toggle. A first visit shows monthly. A stored choice is kept. */
 export function PricingPlans() {
-  const [cadence, setCadence] = useState<Cadence>("annual");
+  const [cadence, setCadence] = useState<Cadence>("monthly");
   const signedIn = useSignedIn();
   const saving = maxAnnualSavings();
+
+  useEffect(() => {
+    const stored = readStoredCadence();
+    if (stored !== null) setCadence(stored);
+  }, []);
+
+  function selectCadence(next: Cadence): void {
+    setCadence(next);
+    writeStoredCadence(next);
+  }
 
   return (
     <div className="plans">
@@ -33,7 +64,7 @@ export function PricingPlans() {
               type="button"
               className="cadence-option"
               aria-pressed={cadence === option}
-              onClick={() => setCadence(option)}
+              onClick={() => selectCadence(option)}
             >
               {CADENCE_LABELS[option]}
             </button>

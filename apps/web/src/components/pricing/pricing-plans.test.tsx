@@ -25,19 +25,35 @@ function jsonResponse(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
+const CADENCE_STORAGE_KEY = "ms_pricing_cadence";
+
 describe("PricingPlans", () => {
   afterEach(() => {
     opened.urls = [];
+    localStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it("defaults to annual billing, as PRD 20.4 specifies", () => {
+  it("shows monthly prices when no billing period is stored", () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(401, { error: { code: "unauthorized", message: "Sign in required." } })));
+    render(<PricingPlans />);
+    expect(screen.getByRole("button", { name: "Monthly" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Annual" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByText("Annual saves up to 42%."));
+    expect(screen.getByRole("link", { name: "Compare plans" }).getAttribute("href")).toBe("#compare");
+    const pro = findCard("Pro");
+    expect(within(pro).getByText("$16.99")).toBeTruthy();
+    expect(within(pro).getByText("per month")).toBeTruthy();
+    expect(within(pro).getByText("Billed monthly.")).toBeTruthy();
+    expect(localStorage.getItem(CADENCE_STORAGE_KEY)).toBeNull();
+  });
+
+  it("keeps a stored annual choice", () => {
+    localStorage.setItem(CADENCE_STORAGE_KEY, "annual");
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(401, { error: { code: "unauthorized", message: "Sign in required." } })));
     render(<PricingPlans />);
     expect(screen.getByRole("button", { name: "Annual" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByText("Annual saves up to 42%."));
-    expect(screen.getByRole("link", { name: "Compare plans" }).getAttribute("href")).toBe("#compare");
     expect(screen.getByRole("button", { name: "Monthly" }).getAttribute("aria-pressed")).toBe("false");
     const pro = findCard("Pro");
     expect(within(pro).getByText("$119")).toBeTruthy();
@@ -47,12 +63,20 @@ describe("PricingPlans", () => {
   it("switches prices when the toggle changes", () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(401, { error: { code: "unauthorized", message: "Sign in required." } })));
     render(<PricingPlans />);
-    fireEvent.click(screen.getByRole("button", { name: "Monthly" }));
     const creator = findCard("Creator");
     expect(within(creator).getByText("$7.99")).toBeTruthy();
     expect(within(creator).getByText("Billed monthly.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Annual" }));
+    expect(within(creator).getByText("$59")).toBeTruthy();
+    expect(within(creator).getByText("$4.92 per month, billed yearly. Save 38%")).toBeTruthy();
     expect(within(creator).getByText("Plus VAT or sales tax for your country.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Annual" }).getAttribute("aria-pressed")).toBe("true");
+    expect(localStorage.getItem(CADENCE_STORAGE_KEY)).toBe("annual");
+    fireEvent.click(screen.getByRole("button", { name: "Monthly" }));
+    expect(within(creator).getByText("$7.99")).toBeTruthy();
+    expect(within(creator).getByText("Billed monthly.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Monthly" }).getAttribute("aria-pressed")).toBe("true");
+    expect(localStorage.getItem(CADENCE_STORAGE_KEY)).toBe("monthly");
   });
 
   it("sends paid plans to sign-up when signed out, never to a waitlist mailbox", () => {
@@ -102,14 +126,14 @@ describe("PricingPlans", () => {
     fireEvent.click(within(pro).getByRole("button", { name: "Continue" }));
     expect(await within(pro).findByRole("alert")).toHaveProperty("textContent", "Billing is not open yet.");
 
-    fireEvent.click(screen.getByRole("button", { name: "Monthly" }));
+    fireEvent.click(screen.getByRole("button", { name: "Annual" }));
     const creator = findCard("Creator");
     fireEvent.click(within(creator).getByRole("button", { name: "Continue" }));
     await waitFor(() => expect(opened.urls).toEqual(["https://buy.paddle.com/checkout/test"]));
 
     const checkoutCalls = fetchMock.mock.calls.filter((call) => call[0] === "/api/v1/checkout");
-    expect(JSON.parse(String(checkoutCalls[0]?.[1]?.body))).toEqual({ plan: "pro", interval: "year" });
-    expect(JSON.parse(String(checkoutCalls[1]?.[1]?.body))).toEqual({ plan: "creator", interval: "month" });
+    expect(JSON.parse(String(checkoutCalls[0]?.[1]?.body))).toEqual({ plan: "pro", interval: "month" });
+    expect(JSON.parse(String(checkoutCalls[1]?.[1]?.body))).toEqual({ plan: "creator", interval: "year" });
     expect(checkoutCalls[0]?.[1]?.headers).toMatchObject({ "x-csrf-token": "csrf-test" });
   });
 });
