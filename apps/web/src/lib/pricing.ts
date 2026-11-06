@@ -21,7 +21,6 @@ export interface PlanFeatures {
   readonly exports: string;
   readonly bulk: string;
   readonly seats: string;
-  readonly priority: string;
 }
 
 export interface Plan {
@@ -53,7 +52,6 @@ export const PLANS: readonly Plan[] = [
       exports: "TXT",
       bulk: "Not included",
       seats: "1",
-      priority: "Not included",
     },
   },
   {
@@ -73,7 +71,6 @@ export const PLANS: readonly Plan[] = [
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "25 per batch",
       seats: "1",
-      priority: "Not included",
     },
   },
   {
@@ -93,7 +90,6 @@ export const PLANS: readonly Plan[] = [
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "200 per batch",
       seats: "1",
-      priority: "Included",
     },
   },
   {
@@ -113,7 +109,6 @@ export const PLANS: readonly Plan[] = [
       exports: "TXT, SRT, VTT, DOCX, MD",
       bulk: "1,000 per batch",
       seats: "3 included, +$12 per extra seat",
-      priority: "Included",
     },
   },
 ];

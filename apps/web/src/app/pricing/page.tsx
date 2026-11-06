@@ -23,7 +23,6 @@ const COMPARE_ROWS: ReadonlyArray<{
   { label: "Transcript library", key: "library" },
   { label: "Exports", key: "exports" },
   { label: "Seats", key: "seats" },
-  { label: "Priority queue and support", key: "priority" },
 ];
 
 const foundingSaving = (() => {
