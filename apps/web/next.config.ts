@@ -59,6 +59,9 @@ export default function nextConfig(phase: string): NextConfig {
   return {
     reactStrictMode: true,
     poweredByHeader: false,
+    experimental: {
+      agentUpgrade: "security",
+    },
     async rewrites() {
       return {
         fallback: [
