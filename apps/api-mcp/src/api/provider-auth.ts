@@ -101,7 +101,8 @@ export async function finishGoogle(req: IncomingMessage, res: ServerResponse, ct
 
     const session = await openSession({ store: ctx.stores.sessions, ttlMs: ctx.config.sessionTtlMs, now: ctx.now }, user.id);
     const cookies = sessionCookies(session, newCsrfToken(), cookieSettingsFor(ctx));
-    redirect(res, transaction.next, [...cookies, clear]);
+    const landing = existing === undefined && linked === undefined ? signupLanding(transaction.next) : transaction.next;
+    redirect(res, landing, [...cookies, clear]);
   } catch (error) {
     if (error instanceof GoogleLinkError) {
       const code = error.problem === "unverified_existing" ? "google_existing_unverified" : "google_unverified";
@@ -197,6 +198,13 @@ function connectSearch(query: URLSearchParams): URLSearchParams | null {
   const resource = query.get("resource");
   if (resource !== null && resource !== "") search.set("resource", resource);
   return search;
+}
+
+/** Marks a brand-new Google account so the website can send the signup event after the redirect. */
+function signupLanding(path: string): string {
+  const url = new URL(path, "https://mutescroll.xyz");
+  url.searchParams.set("ms_signed_up", "1");
+  return `${url.pathname}${url.search}`;
 }
 
 function pageLocation(mode: AuthPage, error: string): string {

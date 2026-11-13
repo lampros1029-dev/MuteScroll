@@ -87,7 +87,7 @@ export default function PrivacyPage() {
               </tr>
               <tr>
                 <td>Campaign parameters (utm_source, utm_medium, utm_campaign, utm_content, utm_term) and referrer</td>
-                <td>To measure which posts and campaigns bring sign-ups. First-party attribution only; no third-party analytics.</td>
+                <td>To measure which posts and campaigns bring sign-ups. First-party, stored with the account.</td>
                 <td>Stored with the account to track sign-ups and purchases per campaign. Deleted when the account is deleted.</td>
               </tr>
               <tr>
@@ -174,9 +174,12 @@ export default function PrivacyPage() {
             controller of that payment data under{" "}
             <a href={PADDLE_PRIVACY_URL}>Paddle&apos;s privacy notice</a>.
           </li>
+          <li>
+            <strong>Umami</strong>, in the EU, measures page views with a cookieless script. It does not set a cookie.
+          </li>
         </ul>
         <p>
-          Groq, Railway, Cloudflare, and Paddle process data for MuteScroll. Groq&apos;s data-processing addendum is
+          Groq, Railway, Cloudflare, Paddle, and Umami process data for MuteScroll. Groq&apos;s data-processing addendum is
           accepted by electronic acceptance of Groq&apos;s services agreement. Zero Data Retention is enabled for
           inference.{" "}
           <a href="https://console.groq.com/docs/your-data">Groq&apos;s published data documentation</a> states that
@@ -211,8 +214,8 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          We do not use advertising trackers. We do not run third-party analytics on the pages you read. If we add
-          product analytics later, this page will say what it measures before it starts.
+          We do not use advertising trackers. Page views are measured with cookieless Umami Cloud (EU). It does not set a
+          cookie.
         </p>
       </section>
 

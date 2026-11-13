@@ -47,7 +47,7 @@ describe("Google and ChatGPT sign-in", () => {
     const identity: GoogleIdentity = { subject: "google-subject-1", email: "Person@Example.test", emailVerified: true };
     server = await startTestServer(googleConfig(), { google: fakeGoogle(identity) });
     const done = await finishGoogle(server, "/account");
-    expect(done.headers.get("location")).toBe("/account");
+    expect(done.headers.get("location")).toBe("/account?ms_signed_up=1");
     const session = cookieValue(done.headers.getSetCookie(), "ms_session");
     expect(cookieValue(done.headers.getSetCookie(), "ms_csrf").length).toBeGreaterThan(10);
     const me = await api(server, "/v1/me", { headers: { cookie: `ms_session=${session}` } });
@@ -99,7 +99,7 @@ describe("Google and ChatGPT sign-in", () => {
         },
       },
     );
-    expect(done.headers.get("location")).toBe("/account");
+    expect(done.headers.get("location")).toBe("/account?ms_signed_up=1");
     const user = await server.ctx.stores.users.findByEmail("attr@example.test");
     if (user === undefined) throw new Error("account missing");
     const stored = await server.ctx.stores.userAttribution.get(user.id);

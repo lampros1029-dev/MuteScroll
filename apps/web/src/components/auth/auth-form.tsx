@@ -7,6 +7,7 @@ import { pathAfterAuth } from "../../lib/auth-next";
 import { chatgptConnectHref } from "../../lib/chatgpt-connect";
 import { connectSearch, type ConnectRequest } from "../../lib/connect-query";
 import { getStoredAttribution } from "../../lib/attribution";
+import { trackUmami } from "../../lib/umami-track";
 import { ChatgptMark, GoogleMark } from "./provider-marks";
 
 type Mode = "login" | "signup";
@@ -83,6 +84,7 @@ export function AuthForm({
         setError(body?.error?.message ?? "That did not work. Try again.");
         return;
       }
+      if (mode === "signup") trackUmami("signup");
       window.location.assign(connect === undefined ? pathAfterAuth(next) : chatgptHref);
     } catch {
       setError("The connection failed. Try again.");
