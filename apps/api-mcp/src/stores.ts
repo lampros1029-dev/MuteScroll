@@ -13,6 +13,8 @@ import type { JobTtls } from "./jobs/types.js";
 import { createPostgresStores } from "./db/pg-stores.js";
 import type { OAuthStore } from "./oauth/types.js";
 import { MemoryOAuthStore } from "./oauth/memory-store.js";
+import type { UserAttributionStore, ConversionEventStore } from "./attribution/types.js";
+import { MemoryUserAttributionStore, MemoryConversionEventStore } from "./attribution/memory-attribution.js";
 
 /** Everything the server persists. Either all in memory, or all in Postgres (DATABASE_URL). */
 export interface Stores {
@@ -28,6 +30,10 @@ export interface Stores {
   readonly billingLinks: BillingLinkStore;
   /** Google subjects linked to accounts. */
   readonly identities: ExternalIdentityStore;
+  /** UTM attribution tracking. */
+  readonly userAttribution: UserAttributionStore;
+  /** Conversion events (signup, purchase). */
+  readonly conversionEvents: ConversionEventStore;
   /** Names of migrations not yet applied. Always empty for memory stores. */
   pendingMigrations(): Promise<string[]>;
   close(): Promise<void>;
@@ -50,6 +56,8 @@ export function createMemoryStores(options: MemoryStoresOptions): Stores {
     billingEvents: new MemoryBillingEventLog(),
     billingLinks: new MemoryBillingLinkStore(),
     identities: new MemoryExternalIdentityStore(),
+    userAttribution: new MemoryUserAttributionStore(),
+    conversionEvents: new MemoryConversionEventStore(),
     pendingMigrations: async () => [],
     close: async () => undefined,
   };

@@ -84,6 +84,7 @@ describe("migration files", () => {
       "007_external_identities.sql",
       "008_account_addons.sql",
       "009_billing_interval.sql",
+      "010_attribution.sql",
     ]);
     const [first] = migrations;
     const onDisk = await readFile(join(MIGRATIONS_DIR, "001_init.sql"), "utf8");

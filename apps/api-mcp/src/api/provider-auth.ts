@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { normalizeEmail } from "../accounts/email.js";
 import { accountForGoogle, GoogleLinkError } from "../accounts/google-account.js";
 import { codeChallengeFor, googleRedirectUri } from "../accounts/google-oauth.js";
 import { newCsrfToken } from "../accounts/secrets.js";
@@ -22,6 +23,8 @@ import { objectBody, readJsonRequest, requiredString } from "./body.js";
 import { ApiError } from "./errors.js";
 import { rateLimited } from "./failures.js";
 import { cookieSettingsFor, identify, requireAccount, requireCsrf } from "./identity.js";
+import { attributionFromCookieHeader } from "../attribution/cookie.js";
+import { recordSignupConversion, recordUserAttribution } from "../attribution/service.js";
 
 type AuthPage = "login" | "signup";
 
@@ -86,10 +89,20 @@ export async function finishGoogle(req: IncomingMessage, res: ServerResponse, ct
       redirectUri: googleRedirectUri(ctx.config.webOrigin),
       nonce: transaction.nonce,
     });
+    const email = normalizeEmail(identity.email);
+    const existing = email === null ? undefined : await ctx.stores.users.findByEmail(email);
+    const linked = await ctx.stores.identities.find("google", identity.subject);
     const user = await accountForGoogle(ctx.stores.users, ctx.stores.identities, identity, ctx.now());
+    if (existing === undefined && linked === undefined) {
+      const pair = attributionFromCookieHeader(req.headers.cookie, ctx.now());
+      await recordUserAttribution(ctx.stores.userAttribution, user.id, pair.firstTouch, pair.lastTouch);
+      await recordSignupConversion(ctx.stores.userAttribution, ctx.stores.conversionEvents, user.id, ctx.now());
+    }
+
     const session = await openSession({ store: ctx.stores.sessions, ttlMs: ctx.config.sessionTtlMs, now: ctx.now }, user.id);
     const cookies = sessionCookies(session, newCsrfToken(), cookieSettingsFor(ctx));
-    redirect(res, transaction.next, [...cookies, clear]);
+    const landing = existing === undefined && linked === undefined ? signupLanding(transaction.next) : transaction.next;
+    redirect(res, landing, [...cookies, clear]);
   } catch (error) {
     if (error instanceof GoogleLinkError) {
       const code = error.problem === "unverified_existing" ? "google_existing_unverified" : "google_unverified";
@@ -185,6 +198,13 @@ function connectSearch(query: URLSearchParams): URLSearchParams | null {
   const resource = query.get("resource");
   if (resource !== null && resource !== "") search.set("resource", resource);
   return search;
+}
+
+/** Marks a brand-new Google account so the website can send the signup event after the redirect. */
+function signupLanding(path: string): string {
+  const url = new URL(path, "https://mutescroll.xyz");
+  url.searchParams.set("ms_signed_up", "1");
+  return `${url.pathname}${url.search}`;
 }
 
 function pageLocation(mode: AuthPage, error: string): string {

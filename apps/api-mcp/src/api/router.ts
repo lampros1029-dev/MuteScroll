@@ -18,6 +18,7 @@ import {
   exportTranscription,
   getTranscription,
 } from "./transcription-routes.js";
+import { getConversions } from "./attribution-routes.js";
 
 /** The REST handler receives the route's regex match (capture 1 is the job or key id) and the query string. */
 type Handler = (req: IncomingMessage, res: ServerResponse, ctx: AppContext, match: RegExpExecArray, query: URLSearchParams) => Promise<void>;
@@ -63,6 +64,8 @@ const ROUTES: readonly Route[] = [
   { method: "GET", path: /^\/v1\/plans$/, handler: (req, res) => listPlansRoute(req, res) },
   // Paddle notifications. Signature only: this handler does not call requireCsrf.
   { method: "POST", path: /^\/v1\/paddle\/webhook$/, handler: (req, res, ctx) => paddleWebhook(req, res, ctx) },
+  // Admin-only attribution endpoint
+  { method: "GET", path: /^\/v1\/admin\/attribution\/conversions$/, handler: (req, res, ctx, _m, query) => getConversions(req, res, ctx, query) },
 ];
 
 /** Dispatches /v1 requests. Every failure, expected or not, leaves as the documented error JSON. */

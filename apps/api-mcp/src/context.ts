@@ -81,7 +81,7 @@ export function createContext(config: Config, overrides: ContextOverrides = {}):
       consume: (userId, credits) => stores.users.consumeBonus(userId, credits),
     },
   });
-  const billingProvider = overrides.billingProvider ?? createBillingProvider(config, fetch, stores.billingLinks);
+  const billingProvider = overrides.billingProvider ?? createBillingProvider(config, fetch, stores.billingLinks, stores.userAttribution);
   const uploads = new UploadTokenStore({ ttlMs: config.uploadTokenTtlMs, now });
   const runner = new JobRunner({
     store: stores.jobs,

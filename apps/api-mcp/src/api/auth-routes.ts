@@ -17,6 +17,30 @@ import { ApiError } from "./errors.js";
 import { rateLimited } from "./failures.js";
 import { callerOf, cookieSettingsFor, identify, requireAccount, requireCsrf } from "./identity.js";
 import { meView } from "./views.js";
+import { attributionFromCookieHeader } from "../attribution/cookie.js";
+import { parseAttributionData } from "../attribution/sanitize.js";
+import { recordSignupConversion, recordUserAttribution } from "../attribution/service.js";
+
+const SIGNUP_FIELDS = [
+  "email",
+  "password",
+  "first_utm_source",
+  "first_utm_medium",
+  "first_utm_campaign",
+  "first_utm_content",
+  "first_utm_term",
+  "first_referrer_host",
+  "first_landing_path",
+  "first_captured_at",
+  "last_utm_source",
+  "last_utm_medium",
+  "last_utm_campaign",
+  "last_utm_content",
+  "last_utm_term",
+  "last_referrer_host",
+  "last_landing_path",
+  "last_captured_at",
+] as const;
 
 /** POST /v1/auth/signup: creates a free account and opens a session. Limited per client IP. */
 export async function signup(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
@@ -24,12 +48,16 @@ export async function signup(req: IncomingMessage, res: ServerResponse, ctx: App
   const limit = ctx.signupLimiter.hit(clientKey);
   if (!limit.allowed) throw rateLimited(ctx, { kind: "anonymous", clientKey }, limit.retryAfterMs);
 
-  const body = objectBody(await readJsonRequest(req, ctx.config.jsonMaxBodyBytes), ["email", "password"]);
+  const body = objectBody(await readJsonRequest(req, ctx.config.jsonMaxBodyBytes), SIGNUP_FIELDS);
   const email = normalizeEmail(requiredString(body, "email", 320));
   if (email === null) throw new ApiError(400, "invalid_request", "Enter a valid email address.");
   const password = requiredString(body, "password", 1024);
   const policy = passwordPolicyError(password);
   if (policy !== null) throw new ApiError(400, "invalid_request", policy);
+
+  const fromCookie = attributionFromCookieHeader(req.headers.cookie, ctx.now());
+  const firstTouch = parseAttributionFromBody(body, "first", ctx.now()) ?? fromCookie.firstTouch;
+  const lastTouch = parseAttributionFromBody(body, "last", ctx.now()) ?? fromCookie.lastTouch;
 
   const passwordHash = await hashPassword(password);
   let user: UserRecord;
@@ -41,7 +69,38 @@ export async function signup(req: IncomingMessage, res: ServerResponse, ctx: App
     }
     throw error;
   }
+
+  await recordUserAttribution(ctx.stores.userAttribution, user.id, firstTouch, lastTouch);
+  await recordSignupConversion(ctx.stores.userAttribution, ctx.stores.conversionEvents, user.id, ctx.now());
+
   await openAccountSession(ctx, res, user, 201);
+}
+
+function parseAttributionFromBody(body: Record<string, unknown>, prefix: "first" | "last", now: number) {
+  const utmSource = optionalString(body[`${prefix}_utm_source`]);
+  const utmMedium = optionalString(body[`${prefix}_utm_medium`]);
+  const utmCampaign = optionalString(body[`${prefix}_utm_campaign`]);
+  const utmContent = optionalString(body[`${prefix}_utm_content`]);
+  const utmTerm = optionalString(body[`${prefix}_utm_term`]);
+  const referrerHost = optionalString(body[`${prefix}_referrer_host`]);
+  const landingPath = optionalString(body[`${prefix}_landing_path`]);
+  const capturedAtValue = body[`${prefix}_captured_at`];
+  const capturedAt = typeof capturedAtValue === "number" ? capturedAtValue : now;
+
+  return parseAttributionData({
+    utmSource,
+    utmMedium,
+    utmCampaign,
+    utmContent,
+    utmTerm,
+    referrerHost,
+    landingPath,
+    capturedAt,
+  });
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
 }
 
 /**

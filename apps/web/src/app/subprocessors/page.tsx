@@ -35,6 +35,12 @@ const ROWS: ReadonlyArray<{
     where: "Global network",
     contract: "Accepted by signing in to the Cloudflare account for mutescroll.xyz.",
   },
+  {
+    name: "Umami",
+    role: "Cookieless pageview analytics for the website.",
+    where: "European Union",
+    contract: "The public website loads the cookieless script from cloud.umami.is. No cookie is set.",
+  },
 ];
 
 export default function SubprocessorsPage() {

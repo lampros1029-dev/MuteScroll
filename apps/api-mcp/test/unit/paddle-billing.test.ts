@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { MemoryUserStore } from "../../src/accounts/memory-stores.js";
+import { MemoryUserAttributionStore } from "../../src/attribution/memory-attribution.js";
 import { applyDueDowngrades, applySubscriptionChange } from "../../src/billing/apply-subscription.js";
 import { MemoryBillingLinkStore } from "../../src/billing/billing-links.js";
 import { createBillingProvider } from "../../src/billing/create-provider.js";
@@ -329,6 +330,42 @@ describe("POST /v1/paddle/webhook", () => {
     }
   });
 
+  it("records the completed transaction once, in Paddle minor units", async () => {
+    const clock = { value: Date.UTC(2026, 9, 12, 12) };
+    const server = await startTestServer(paddleConfig(), { now: () => clock.value });
+    try {
+      await server.ctx.stores.users.create({
+        id: "usr_paddle",
+        email: "paddle@example.test",
+        passwordHash: "x",
+        plan: "free",
+        createdAt: clock.value,
+      });
+      expect(await server.ctx.stores.billingLinks.bind("txn_paid", "usr_paddle")).toBe(true);
+      const body = eventBody("evt_pay", "transaction.completed", {
+        id: "txn_paid",
+        currency_code: "USD",
+        custom_data: { user_id: "usr_paddle", utm_source: "Newsletter", utm_campaign: "Launch" },
+        details: { totals: { total: "2499", currency_code: "USD" } },
+      });
+      expect((await postWebhook(server, body, sign(body, clock.value))).status).toBe(200);
+      expect((await postWebhook(server, body, sign(body, clock.value))).status).toBe(200);
+      const rows = await server.ctx.stores.conversionEvents.aggregateByAttribution(clock.value - 1000, clock.value + 86_400_000);
+      expect(rows).toEqual([
+        expect.objectContaining({
+          utmSource: "newsletter",
+          utmCampaign: "launch",
+          purchaseCount: 1,
+          signupCount: 0,
+          totalRevenueCents: 2499,
+          currency: "USD",
+        }),
+      ]);
+    } finally {
+      await server.close();
+    }
+  });
+
   it("returns the user to free at period end, and immediately when Paddle does not schedule it", async () => {
     const clock = { value: Date.UTC(2026, 9, 12, 12) };
     const server = await startTestServer(paddleConfig(), { now: () => clock.value });
@@ -609,6 +646,38 @@ describe("saved Paddle customer and subscription interval", () => {
     expect(body.customer).toBeUndefined();
     expect(body.collection_mode).toBe("automatic");
     expect(body.items?.[0]?.price_id).toBe("pri_promonth");
+  });
+
+  it("adds stored attribution to checkout custom_data without removing the user id", async () => {
+    const links = new MemoryBillingLinkStore();
+    const attribution = new MemoryUserAttributionStore();
+    await attribution.setLastTouch("usr_1", {
+      utmSource: "newsletter",
+      utmMedium: "email",
+      utmCampaign: "launch",
+      utmContent: null,
+      utmTerm: null,
+      referrerHost: "news.example",
+      landingPath: "/",
+      capturedAt: 1,
+    });
+    let sent = "";
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      sent = String(init?.body);
+      return new Response(JSON.stringify({ data: { id: "txn_attr", checkout: { url: "https://checkout.example.test/attr" } } }), { status: 200 });
+    };
+    const provider = createBillingProvider(
+      loadConfig({ PADDLE_API_KEY: "test_sdbx_key", PADDLE_PRICE_IDS: "pro_month=pri_promonth" }, "linux"),
+      fetchImpl,
+      links,
+      attribution,
+    );
+    await provider.createCheckout({ userId: "usr_1", email: "a@example.test", plan: "pro", interval: "month" });
+    const body = JSON.parse(sent) as { custom_data?: Record<string, string> };
+    expect(body.custom_data?.["user_id"]).toBe("usr_1");
+    expect(body.custom_data?.["utm_source"]).toBe("newsletter");
+    expect(body.custom_data?.["utm_campaign"]).toBe("launch");
+    expect(body.custom_data?.["utm_medium"]).toBe("email");
   });
 
   it("drops a stored customer this Paddle account does not have and checks out with the account email", async () => {

@@ -1,8 +1,11 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { parseAttributionFromCustomData } from "../attribution/sanitize.js";
+import { recordPurchaseConversion } from "../attribution/service.js";
 import { applySubscriptionChange } from "../billing/apply-subscription.js";
 import { authorizeBillingSubject } from "../billing/billing-links.js";
-import type { WebhookFailure } from "../billing/provider.js";
+import { parsePaddlePurchase } from "../billing/paddle-money.js";
+import type { WebhookFailure, WebhookVerification } from "../billing/provider.js";
 import type { AppContext } from "../context.js";
 import { BodyError, readRawBody } from "../http/body.js";
 import { headerString } from "../http/headers.js";
@@ -20,11 +23,13 @@ export async function paddleWebhook(req: IncomingMessage, res: ServerResponse, c
   const raw = await readWebhookBody(req);
   const verified = ctx.billingProvider.verifyWebhook(raw, headerString(req.headers["paddle-signature"]), ctx.now());
   if (!verified.ok) throw webhookError(verified.reason);
+
   if (verified.change === null) {
     if (verified.subject !== null) {
       await authorizeBillingSubject(ctx.stores.billingLinks, verified.subject, verified.claimedUserId);
     }
-    logEvent("billing.webhook_ignored", { eventType: verified.eventType });
+    const recorded = await recordCompletedPurchase(ctx, verified, raw, false);
+    if (!recorded) logEvent("billing.webhook_ignored", { eventType: verified.eventType });
   } else {
     const result = await applySubscriptionChange(
       ctx.stores.users,
@@ -35,8 +40,45 @@ export async function paddleWebhook(req: IncomingMessage, res: ServerResponse, c
       ctx.now(),
     );
     if (result === "ignored") logEvent("billing.webhook_unlinked", { eventType: verified.eventType });
+    if (result === "applied") await recordCompletedPurchase(ctx, verified, raw, true);
   }
   sendJson(res, 200, { ok: true });
+}
+
+/**
+ * Stores one purchase for a completed transaction. A repeated event id does not add a second row.
+ * `eventAlreadyClaimed` is set when applySubscriptionChange already recorded the event id.
+ */
+async function recordCompletedPurchase(
+  ctx: AppContext,
+  verified: Extract<WebhookVerification, { ok: true }>,
+  raw: Uint8Array,
+  eventAlreadyClaimed: boolean,
+): Promise<boolean> {
+  if (verified.eventType !== "transaction.completed" || verified.claimedUserId === null || verified.subject === null) return false;
+  const owner = await authorizeBillingSubject(ctx.stores.billingLinks, verified.subject, verified.claimedUserId);
+  if (owner !== verified.claimedUserId) return false;
+  if (!eventAlreadyClaimed) {
+    const claimed = await ctx.stores.billingEvents.claim(verified.eventId, ctx.now());
+    if (!claimed) return false;
+  }
+  try {
+    const money = parsePaddlePurchase(raw);
+    const attribution = parseAttributionFromCustomData(money.customData);
+    await recordPurchaseConversion(
+      ctx.stores.userAttribution,
+      ctx.stores.conversionEvents,
+      verified.claimedUserId,
+      attribution,
+      money.amountCents,
+      money.currency,
+      ctx.now(),
+    );
+    return true;
+  } catch (error) {
+    await ctx.stores.billingEvents.forget(verified.eventId).catch(() => undefined);
+    throw error;
+  }
 }
 
 async function readWebhookBody(req: IncomingMessage): Promise<Buffer> {

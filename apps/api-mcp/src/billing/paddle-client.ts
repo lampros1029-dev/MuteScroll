@@ -40,9 +40,16 @@ export class PaddleClient {
     readonly email?: string;
     /** An existing `ctm_` id. An email or a MuteScroll user id is ignored. */
     readonly customerId?: string;
+    /** Additional custom_data fields (merged with user_id and checkout_nonce). */
+    readonly customData?: Record<string, unknown>;
   }): Promise<PaddleTransaction> {
     const email = input.email === undefined ? null : normalizeEmail(input.email);
     const customerId = input.customerId !== undefined && isPaddleId(input.customerId, "ctm") ? input.customerId : undefined;
+    const customData = {
+      user_id: input.userId,
+      checkout_nonce: input.checkoutNonce,
+      ...(input.customData ?? {}),
+    };
     const response = await this.fetchImpl(`${this.baseUrl}/transactions`, {
       method: "POST",
       headers: {
@@ -51,7 +58,7 @@ export class PaddleClient {
       },
       body: JSON.stringify({
         items: [{ price_id: input.priceId, quantity: 1 }],
-        custom_data: { user_id: input.userId, checkout_nonce: input.checkoutNonce },
+        custom_data: customData,
         collection_mode: "automatic",
         ...(customerId !== undefined ? { customer_id: customerId } : email === null ? {} : { customer: { email } }),
       }),

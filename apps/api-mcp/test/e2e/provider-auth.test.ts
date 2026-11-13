@@ -47,7 +47,7 @@ describe("Google and ChatGPT sign-in", () => {
     const identity: GoogleIdentity = { subject: "google-subject-1", email: "Person@Example.test", emailVerified: true };
     server = await startTestServer(googleConfig(), { google: fakeGoogle(identity) });
     const done = await finishGoogle(server, "/account");
-    expect(done.headers.get("location")).toBe("/account");
+    expect(done.headers.get("location")).toBe("/account?ms_signed_up=1");
     const session = cookieValue(done.headers.getSetCookie(), "ms_session");
     expect(cookieValue(done.headers.getSetCookie(), "ms_csrf").length).toBeGreaterThan(10);
     const me = await api(server, "/v1/me", { headers: { cookie: `ms_session=${session}` } });
@@ -72,6 +72,45 @@ describe("Google and ChatGPT sign-in", () => {
       json: { email: "person@example.test", password: GOOD_PASSWORD },
     });
     expect(password.status).toBe(401);
+  });
+
+  it("stores the ms_attr cookie when Google creates the account, and does not count a later sign-in", async () => {
+    server = await startTestServer(googleConfig(), {
+      google: fakeGoogle({ subject: "google-attr", email: "attr@example.test", emailVerified: true }),
+    });
+    const started = await beginGoogle(server, "/account");
+    const touch = {
+      utmSource: "reddit",
+      utmMedium: "social",
+      utmCampaign: "post",
+      utmContent: null,
+      utmTerm: null,
+      referrerHost: "reddit.com",
+      landingPath: "/",
+      capturedAt: Date.now(),
+      expiresAt: Date.now() + 86_400_000,
+    };
+    const done = await fetch(
+      `${server.baseUrl}/v1/auth/google/callback?code=good-code&state=${encodeURIComponent(started.state)}`,
+      {
+        redirect: "manual",
+        headers: {
+          cookie: `${cookiePair(started.cookie)}; ms_attr=${encodeURIComponent(JSON.stringify({ first: touch, last: touch }))}`,
+        },
+      },
+    );
+    expect(done.headers.get("location")).toBe("/account?ms_signed_up=1");
+    const user = await server.ctx.stores.users.findByEmail("attr@example.test");
+    if (user === undefined) throw new Error("account missing");
+    const stored = await server.ctx.stores.userAttribution.get(user.id);
+    expect(stored?.firstTouch.utmSource).toBe("reddit");
+    expect(stored?.lastTouch.utmCampaign).toBe("post");
+
+    const again = await finishGoogle(server, "/account");
+    expect(again.status).toBe(302);
+    const now = Date.now();
+    const rows = await server.ctx.stores.conversionEvents.aggregateByAttribution(now - 86_400_000, now + 86_400_000);
+    expect(rows.find((row) => row.utmCampaign === "post")?.signupCount).toBe(1);
   });
 
   it("signs into an account whose email is already verified", async () => {

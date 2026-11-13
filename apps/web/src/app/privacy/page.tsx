@@ -86,6 +86,16 @@ export default function PrivacyPage() {
                 <td>The anonymous credit limit keeps it in the running process for up to 24 hours, then it ages out. A restart drops it sooner.</td>
               </tr>
               <tr>
+                <td>Campaign parameters (utm_source, utm_medium, utm_campaign, utm_content, utm_term) and referrer</td>
+                <td>To measure which posts and campaigns bring sign-ups. Stored with the account in our own database.</td>
+                <td>Kept with the account until the account is deleted.</td>
+              </tr>
+              <tr>
+                <td>Page views</td>
+                <td>Umami Cloud (EU, cookieless, no personal data) is used for anonymous pageview counts.</td>
+                <td>Not stored on the account. The script does not set a cookie.</td>
+              </tr>
+              <tr>
                 <td>Server logs</td>
                 <td>Security and reliability.</td>
                 <td>The application writes a line that does not include the link, the transcript, or the network address. The host keeps those lines. This service does not run its own deletion job for them.</td>
@@ -169,9 +179,12 @@ export default function PrivacyPage() {
             controller of that payment data under{" "}
             <a href={PADDLE_PRIVACY_URL}>Paddle&apos;s privacy notice</a>.
           </li>
+          <li>
+            <strong>Umami Cloud</strong> (EU, cookieless, no personal data) is used for anonymous pageview counts. It does not set a cookie.
+          </li>
         </ul>
         <p>
-          Groq, Railway, Cloudflare, and Paddle process data for MuteScroll. Groq&apos;s data-processing addendum is
+          Groq, Railway, Cloudflare, Paddle, and Umami process data for MuteScroll. Groq&apos;s data-processing addendum is
           accepted by electronic acceptance of Groq&apos;s services agreement. Zero Data Retention is enabled for
           inference.{" "}
           <a href="https://console.groq.com/docs/your-data">Groq&apos;s published data documentation</a> states that
@@ -200,10 +213,14 @@ export default function PrivacyPage() {
             <strong>ms_google_tx</strong> ties a Google sign-in redirect to this browser. The browser hides it from page
             scripts. It lasts 10 minutes and is cleared when Google sends you back.
           </li>
+          <li>
+            <strong>ms_attr</strong> is a first-party cookie. It remembers campaign parameters (utm_*) and the referrer
+            host from a visit, so a later sign-up can be tied to that visit. It lasts 90 days.
+          </li>
         </ul>
         <p>
-          We do not use advertising trackers. We do not run third-party analytics on the pages you read. If we add
-          product analytics later, this page will say what it measures before it starts.
+          We do not use advertising trackers. Umami Cloud (EU, cookieless, no personal data) is used for anonymous pageview
+          counts. It does not set a cookie.
         </p>
       </section>
 

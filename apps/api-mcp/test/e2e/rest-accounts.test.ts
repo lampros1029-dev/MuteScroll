@@ -31,6 +31,62 @@ describe.each(STORE_MODES)("REST accounts on $name stores", (mode) => {
     expect(csrf).not.toMatch(/HttpOnly/);
   });
 
+  it("keeps first-touch and last-touch attribution on the new account", async () => {
+    const server = await start();
+    const email = `attr-${randomUUID()}@example.test`;
+    const result = await api(server, "/v1/auth/signup", {
+      method: "POST",
+      json: {
+        email,
+        password: GOOD_PASSWORD,
+        first_utm_source: "Twitter",
+        first_utm_campaign: "Launch",
+        last_utm_source: "Newsletter",
+        last_utm_medium: "email",
+        last_utm_campaign: "Launch",
+      },
+    });
+    expect(result.status).toBe(201);
+    const user = await server.ctx.stores.users.findByEmail(email);
+    if (user === undefined) throw new Error("account missing");
+    const stored = await server.ctx.stores.userAttribution.get(user.id);
+    expect(stored?.firstTouch.utmSource).toBe("twitter");
+    expect(stored?.firstTouch.utmCampaign).toBe("launch");
+    expect(stored?.lastTouch.utmSource).toBe("newsletter");
+    expect(stored?.lastTouch.utmMedium).toBe("email");
+    const now = Date.now();
+    const rows = await server.ctx.stores.conversionEvents.aggregateByAttribution(now - 86_400_000, now + 86_400_000);
+    const launch = rows.find((row) => row.utmCampaign === "launch");
+    expect(launch).toMatchObject({ utmSource: "newsletter", utmMedium: "email", signupCount: 1, purchaseCount: 0 });
+  });
+
+  it("reads attribution from the ms_attr cookie when the body does not send it", async () => {
+    const server = await start();
+    const email = `cookie-${randomUUID()}@example.test`;
+    const touch = {
+      utmSource: "partner",
+      utmMedium: "referral",
+      utmCampaign: "spring",
+      utmContent: null,
+      utmTerm: null,
+      referrerHost: "partner.example",
+      landingPath: "/",
+      capturedAt: Date.now(),
+      expiresAt: Date.now() + 86_400_000,
+    };
+    const result = await api(server, "/v1/auth/signup", {
+      method: "POST",
+      headers: { cookie: `ms_attr=${encodeURIComponent(JSON.stringify({ first: touch, last: touch }))}` },
+      json: { email, password: GOOD_PASSWORD },
+    });
+    expect(result.status).toBe(201);
+    const user = await server.ctx.stores.users.findByEmail(email);
+    if (user === undefined) throw new Error("account missing");
+    const stored = await server.ctx.stores.userAttribution.get(user.id);
+    expect(stored?.firstTouch.utmCampaign).toBe("spring");
+    expect(stored?.lastTouch.referrerHost).toBe("partner.example");
+  });
+
   it("refuses weak passwords, bad addresses and a second account on the same address", async () => {
     const server = await start();
     const weak = await api(server, "/v1/auth/signup", { method: "POST", json: { email: `w-${randomUUID()}@example.test`, password: "short" } });

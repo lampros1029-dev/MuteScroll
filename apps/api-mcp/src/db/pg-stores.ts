@@ -12,6 +12,7 @@ import { PgApiKeyStore, PgSessionStore, PgUserStore } from "./pg-accounts.js";
 import { PgOAuthStore } from "./pg-oauth.js";
 import { createPool } from "./pool.js";
 import { pendingMigrations } from "./migrate.js";
+import { PgUserAttributionStore, PgConversionEventStore } from "../attribution/pg-attribution.js";
 
 export interface PostgresStoresOptions {
   readonly connectionString: string;
@@ -44,6 +45,8 @@ export function createPostgresStores(options: PostgresStoresOptions): PostgresSt
     billingEvents: new PgBillingEventLog(pool),
     billingLinks: new PgBillingLinkStore(pool),
     identities: new PgExternalIdentityStore(pool),
+    userAttribution: new PgUserAttributionStore(pool),
+    conversionEvents: new PgConversionEventStore(pool),
     pendingMigrations: () => pendingMigrations(pool),
     close: () => pool.end(),
   };

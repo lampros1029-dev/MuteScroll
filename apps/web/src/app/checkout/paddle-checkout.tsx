@@ -4,6 +4,7 @@ import Script from "next/script";
 import { useEffect, useState } from "react";
 
 import { fetchMe } from "../../lib/api/account";
+import { trackUmami } from "../../lib/umami-track";
 
 const PADDLE_SRC = "https://cdn.paddle.com/paddle/v2/paddle.js";
 const SUCCESS_URL = "https://mutescroll.xyz/billing/success";
@@ -16,6 +17,7 @@ interface PaddleNamespace {
   };
   Initialize: (options: {
     readonly token: string;
+    readonly eventCallback?: (event: { readonly name?: string }) => void;
     readonly checkout?: {
       readonly settings: {
         readonly displayMode: "inline";
@@ -70,6 +72,9 @@ function boot(transactionId: string, email: string): void {
     if (token.startsWith("test_")) paddle.Environment.set("sandbox");
     paddle.Initialize({
       token,
+      eventCallback(event) {
+        if (event.name === "checkout.completed") trackUmami("purchase");
+      },
       checkout: {
         settings: {
           displayMode: "inline",
