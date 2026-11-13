@@ -12,6 +12,7 @@ import { sendJson } from "../http/respond.js";
 import { objectBody, readJsonRequest, requiredString } from "./body.js";
 import { ApiError, errorBody, failureError } from "./errors.js";
 import { invalidLanguage, jobFailure, quotaExceeded, rateLimited } from "./failures.js";
+import { restJobClient } from "./job-client.js";
 import { callerOf, identify, requireCsrf, requireOauthScope, type Requester } from "./identity.js";
 import { sendDownload, sendNoContent } from "./send.js";
 import { transcriptionView } from "./views.js";
@@ -35,7 +36,13 @@ export async function createTranscription(req: IncomingMessage, res: ServerRespo
   const limit = transcribeLimiterFor(ctx, caller).hit(rateKeyFor(caller));
   if (!limit.allowed) throw rateLimited(ctx, caller, limit.retryAfterMs);
 
-  const outcome = await ctx.service.request({ canonicalUrl: parsed.canonicalUrl, platform: parsed.platform, language, caller });
+  const outcome = await ctx.service.request({
+    canonicalUrl: parsed.canonicalUrl,
+    platform: parsed.platform,
+    language,
+    caller,
+    client: restJobClient(req, requester),
+  });
   if (outcome.kind === "quota_exceeded") throw quotaExceeded(ctx, caller, outcome.resetAt);
   const job = (await ctx.service.waitForSettled(outcome.job.id, ctx.config.toolWaitMs, POLL_INTERVAL_MS)) ?? outcome.job;
   if (job.status === "failed") throw jobFailure(ctx, caller, job);

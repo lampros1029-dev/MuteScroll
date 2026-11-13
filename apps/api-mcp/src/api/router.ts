@@ -19,6 +19,7 @@ import {
   getTranscription,
 } from "./transcription-routes.js";
 import { getConversions } from "./attribution-routes.js";
+import { jobClientStats } from "./admin-routes.js";
 
 /** The REST handler receives the route's regex match (capture 1 is the job or key id) and the query string. */
 type Handler = (req: IncomingMessage, res: ServerResponse, ctx: AppContext, match: RegExpExecArray, query: URLSearchParams) => Promise<void>;
@@ -62,6 +63,7 @@ const ROUTES: readonly Route[] = [
   { method: "POST", path: /^\/v1\/uploads$/, handler: (req, res, ctx) => createUpload(req, res, ctx) },
   { method: "GET", path: /^\/v1\/library$/, handler: (req, res, ctx, _m, query) => listLibrary(req, res, ctx, query) },
   { method: "GET", path: /^\/v1\/plans$/, handler: (req, res) => listPlansRoute(req, res) },
+  { method: "GET", path: /^\/v1\/admin\/job-clients$/, handler: (req, res, ctx) => jobClientStats(req, res, ctx) },
   // Paddle notifications. Signature only: this handler does not call requireCsrf.
   { method: "POST", path: /^\/v1\/paddle\/webhook$/, handler: (req, res, ctx) => paddleWebhook(req, res, ctx) },
   // Admin-only attribution endpoint

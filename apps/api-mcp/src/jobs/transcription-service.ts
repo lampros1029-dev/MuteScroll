@@ -9,7 +9,8 @@ import type { WorkerTarget } from "../worker/types.js";
 import { canView } from "./ownership.js";
 import { LiveJobConflictError, type CreateOrReuseResult, type JobStore, type PageRequest } from "./job-store.js";
 import type { JobRunner } from "./job-runner.js";
-import type { Job, JobSummary } from "./types.js";
+import { UNKNOWN_JOB_CLIENT } from "./client.js";
+import type { Job, JobClient, JobSummary } from "./types.js";
 
 export type RequestOutcome =
   | { readonly kind: "job"; readonly job: Job }
@@ -30,6 +31,7 @@ export interface UrlRequest {
   readonly platform: string;
   readonly language: string;
   readonly caller: Caller;
+  readonly client?: JobClient;
 }
 
 export interface TranscriptionServiceDeps {
@@ -52,6 +54,7 @@ interface StartInput {
   readonly caller: Caller;
   readonly target: WorkerTarget;
   readonly cleanup?: () => Promise<void>;
+  readonly client: JobClient;
 }
 
 /**
@@ -73,11 +76,12 @@ export class TranscriptionService {
       language: input.language,
       caller: input.caller,
       target: { kind: "url", url: input.canonicalUrl },
+      client: input.client ?? UNKNOWN_JOB_CLIENT,
     });
   }
 
   /** Starts a transcription of an uploaded file as a new job. Uploads are never deduped. */
-  async startFileJob(caller: Caller, file: UploadFile): Promise<RequestOutcome> {
+  async startFileJob(caller: Caller, file: UploadFile, client: JobClient = UNKNOWN_JOB_CLIENT): Promise<RequestOutcome> {
     const jobId = newJobId();
     return this.start({
       jobId,
@@ -87,6 +91,7 @@ export class TranscriptionService {
       caller,
       target: { kind: "file", path: file.path },
       cleanup: file.cleanup,
+      client,
     });
   }
 
@@ -164,6 +169,7 @@ export class TranscriptionService {
         language: input.language,
         platform: input.platform,
         ownerUserId: input.caller.kind === "account" ? input.caller.userId : null,
+        client: input.client,
       });
     } catch (error) {
       await outcome.hold.settle(0).catch(() => undefined);

@@ -1,4 +1,5 @@
-import { LiveJobConflictError, type CreateOrReuseResult, type JobStore, type PageRequest } from "./job-store.js";
+import { jobClientFrom } from "./client.js";
+import { LiveJobConflictError, type CreateOrReuseResult, type JobClientFact, type JobStore, type PageRequest } from "./job-store.js";
 import { ttlMsFor } from "./ttl.js";
 import type { Job, JobPatch, JobSummary, JobTtls, NewJob } from "./types.js";
 
@@ -33,6 +34,7 @@ export class MemoryJobStore implements JobStore {
       createdAt: now,
       updatedAt: now,
       expiresAt: now + this.options.ttl.activeMs,
+      client: jobClientFrom(input.client),
     };
     this.jobs.set(job.id, job);
     this.indexIfFree(job);
@@ -95,6 +97,18 @@ export class MemoryJobStore implements JobStore {
     for (const job of [...this.jobs.values()]) {
       if (job.ownerUserId === userId) this.remove(job);
     }
+  }
+
+  async listClientFacts(): Promise<JobClientFact[]> {
+    const groups = new Map<string, JobClientFact>();
+    for (const job of this.jobs.values()) {
+      const day = new Date(job.createdAt).toISOString().slice(0, 10);
+      const key = JSON.stringify([day, job.client]);
+      const existing = groups.get(key);
+      if (existing === undefined) groups.set(key, { day, client: job.client, count: 1 });
+      else groups.set(key, { day, client: existing.client, count: existing.count + 1 });
+    }
+    return [...groups.values()].sort((a, b) => a.day.localeCompare(b.day) || a.count - b.count);
   }
 
   async pruneExpired(): Promise<number> {

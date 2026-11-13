@@ -7,6 +7,7 @@ import { headerString } from "../http/headers.js";
 import { sendJson } from "../http/respond.js";
 import { ApiError } from "./errors.js";
 import { quotaExceeded, rateLimited } from "./failures.js";
+import { restJobClient } from "./job-client.js";
 import { callerOf, identify, requireCsrf } from "./identity.js";
 
 /**
@@ -38,7 +39,7 @@ export async function createUpload(req: IncomingMessage, res: ServerResponse, ct
   });
   if (!accepted.ok) throw rejectionError(accepted.reason, ctx.config.maxUploadBytes);
 
-  const outcome = await ctx.service.startFileJob(caller, accepted.staged);
+  const outcome = await ctx.service.startFileJob(caller, accepted.staged, restJobClient(req, requester));
   if (outcome.kind === "quota_exceeded") {
     await accepted.staged.cleanup();
     throw quotaExceeded(ctx, caller, outcome.resetAt);

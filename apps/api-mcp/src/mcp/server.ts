@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { Caller } from "../caller.js";
 import type { AppContext } from "../context.js";
+import type { JobClient } from "../jobs/types.js";
 import { getTranscriptionInputShape, toolOutputShape, transcribeInputShape } from "./schemas.js";
 import { toCallToolResult } from "./output.js";
 import type { ToolOutput } from "./schemas.js";
@@ -31,7 +32,7 @@ const TOOL_SECURITY = [
 ] as const;
 
 /** One MCP server per HTTP request (stateless transport). The caller is bound into the tool handlers. */
-export function createMcpServer(ctx: AppContext, caller: Caller, oauthScope?: string): McpServer {
+export function createMcpServer(ctx: AppContext, caller: Caller, client: JobClient, oauthScope?: string): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION }, { instructions: SERVER_INSTRUCTIONS });
 
   server.registerTool(
@@ -46,7 +47,7 @@ export function createMcpServer(ctx: AppContext, caller: Caller, oauthScope?: st
     async (args) => {
       const denied = transcribeScopeDenied(oauthScope);
       if (denied !== undefined) return toCallToolResult(denied);
-      const output = await runTranscribeVideo(ctx, caller, args);
+      const output = await runTranscribeVideo(ctx, caller, args, client);
       return toCallToolResult(output, wwwAuthenticateFor(caller, output));
     },
   );

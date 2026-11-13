@@ -10,6 +10,7 @@ import { PgJobStore } from "./pg-job-store.js";
 import { PgExternalIdentityStore } from "./pg-identities.js";
 import { PgApiKeyStore, PgSessionStore, PgUserStore } from "./pg-accounts.js";
 import { PgOAuthStore } from "./pg-oauth.js";
+import { PgMcpClientSessionStore } from "./pg-mcp-sessions.js";
 import { createPool } from "./pool.js";
 import { pendingMigrations } from "./migrate.js";
 import { PgUserAttributionStore, PgConversionEventStore } from "../attribution/pg-attribution.js";
@@ -47,6 +48,7 @@ export function createPostgresStores(options: PostgresStoresOptions): PostgresSt
     identities: new PgExternalIdentityStore(pool),
     userAttribution: new PgUserAttributionStore(pool),
     conversionEvents: new PgConversionEventStore(pool),
+    mcpSessions: new PgMcpClientSessionStore(pool),
     pendingMigrations: () => pendingMigrations(pool),
     close: () => pool.end(),
   };

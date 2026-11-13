@@ -47,6 +47,23 @@ describe("M3 configuration", () => {
     }
   });
 
+  it("leaves the admin stats token unset until a long enough value is configured", () => {
+    expect(loadConfig({}, "linux").adminStatsToken).toBeUndefined();
+    expect(loadConfig({ ADMIN_STATS_TOKEN: "0123456789abcdef" }, "linux").adminStatsToken).toBe("0123456789abcdef");
+  });
+
+  it("rejects a short admin stats token without echoing it", () => {
+    const secret = "short-hunter2";
+    try {
+      loadConfig({ ADMIN_STATS_TOKEN: secret }, "linux");
+      throw new Error("expected a ConfigError");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigError);
+      expect((error as Error).message).toContain("ADMIN_STATS_TOKEN");
+      expect((error as Error).message).not.toContain("hunter2");
+    }
+  });
+
   it("adds the Secure flag to cookies only for an https public URL", () => {
     expect(loadConfig({ PUBLIC_BASE_URL: "https://api.mutescroll.xyz" }, "linux").secureCookies).toBe(true);
     expect(loadConfig({ PUBLIC_BASE_URL: "http://localhost:8080" }, "linux").secureCookies).toBe(false);
@@ -85,6 +102,7 @@ describe("migration files", () => {
       "008_account_addons.sql",
       "009_billing_interval.sql",
       "010_attribution.sql",
+      "011_job_client.sql",
     ]);
     const [first] = migrations;
     const onDisk = await readFile(join(MIGRATIONS_DIR, "001_init.sql"), "utf8");
@@ -99,6 +117,10 @@ describe("migration files", () => {
     expect(migrations[6]?.sql).toContain("CREATE TABLE external_identities");
     expect(migrations[7]?.sql).toContain("bonus_credits");
     expect(migrations[8]?.sql).toContain("billing_interval");
+    expect(migrations[9]?.sql).toContain("user_attribution");
+    const jobClient = migrations.find((migration) => migration.name === "011_job_client.sql");
+    expect(jobClient?.sql).toContain("mcp_client_sessions");
+    expect(jobClient?.sql).not.toContain("inet");
   });
 
   describe("with a scratch directory", () => {

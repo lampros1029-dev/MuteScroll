@@ -1,4 +1,11 @@
-import type { Job, JobPatch, JobSummary, NewJob } from "./types.js";
+import type { Job, JobClient, JobPatch, JobSummary, NewJob } from "./types.js";
+
+/** Jobs grouped for the admin client report. `day` is UTC `YYYY-MM-DD`. */
+export interface JobClientFact {
+  readonly day: string;
+  readonly client: JobClient;
+  readonly count: number;
+}
 
 export interface CreateOrReuseResult {
   readonly job: Job;
@@ -37,4 +44,6 @@ export interface JobStore {
   removeForUser(userId: string): Promise<void>;
   /** Removes expired jobs. Returns how many were removed. */
   pruneExpired(): Promise<number>;
+  /** Every stored job, including ones past their expiry until prune, grouped by day and client. */
+  listClientFacts(): Promise<JobClientFact[]>;
 }
