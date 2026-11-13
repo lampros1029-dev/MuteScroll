@@ -17,6 +17,9 @@ const apiBase = (process.env.API_BASE_URL ?? "http://localhost:8080").replace(/\
 
 const paddleHosts = "https://cdn.paddle.com https://*.paddle.com";
 const paddleCheckoutHosts = `${paddleHosts} https://buy.paddle.com https://sandbox-buy.paddle.com`;
+/** script.js is served here. With no data-host-url, that file posts to gateway.umami.is/api/send. */
+const umamiScriptHost = "https://cloud.umami.is";
+const umamiCollectHost = "https://gateway.umami.is";
 
 /**
  * React's development runtime calls eval(). Production builds do not.
@@ -34,11 +37,11 @@ function allowsUnsafeEval(phase: string): boolean {
   return phase === PHASE_DEVELOPMENT_SERVER || process.env.NODE_ENV === "development";
 }
 
-/** Next's own scripts are inline. Paddle checkout may load script, frames, and connections from these hosts. */
+/** Next's own scripts are inline. Paddle checkout and the Umami cloud script may load from these hosts. */
 function contentSecurityPolicy(phase: string): string {
   const scriptSrc = allowsUnsafeEval(phase)
-    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${paddleCheckoutHosts}`
-    : `script-src 'self' 'unsafe-inline' ${paddleCheckoutHosts}`;
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${paddleCheckoutHosts} ${umamiScriptHost}`
+    : `script-src 'self' 'unsafe-inline' ${paddleCheckoutHosts} ${umamiScriptHost}`;
 
   return [
     "default-src 'self'",
@@ -49,7 +52,7 @@ function contentSecurityPolicy(phase: string): string {
     `style-src 'self' 'unsafe-inline' ${paddleHosts}`,
     `img-src 'self' data: blob: ${paddleHosts}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${paddleCheckoutHosts}`,
+    `connect-src 'self' ${paddleCheckoutHosts} ${umamiScriptHost} ${umamiCollectHost}`,
     `frame-src ${paddleCheckoutHosts}`,
     "form-action 'self' https://buy.paddle.com https://sandbox-buy.paddle.com",
   ].join("; ");
