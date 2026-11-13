@@ -87,8 +87,13 @@ export default function PrivacyPage() {
               </tr>
               <tr>
                 <td>Campaign parameters (utm_source, utm_medium, utm_campaign, utm_content, utm_term) and referrer</td>
-                <td>To measure which posts and campaigns bring sign-ups. First-party, stored with the account.</td>
-                <td>Stored with the account to track sign-ups and purchases per campaign. Deleted when the account is deleted.</td>
+                <td>To measure which posts and campaigns bring sign-ups. Stored with the account in our own database.</td>
+                <td>Kept with the account until the account is deleted.</td>
+              </tr>
+              <tr>
+                <td>Page views</td>
+                <td>Umami Cloud (EU, cookieless, no personal data) is used for anonymous pageview counts.</td>
+                <td>Not stored on the account. The script does not set a cookie.</td>
               </tr>
               <tr>
                 <td>Server logs</td>
@@ -175,7 +180,7 @@ export default function PrivacyPage() {
             <a href={PADDLE_PRIVACY_URL}>Paddle&apos;s privacy notice</a>.
           </li>
           <li>
-            <strong>Umami</strong>, in the EU, measures page views with a cookieless script. It does not set a cookie.
+            <strong>Umami Cloud</strong> (EU, cookieless, no personal data) is used for anonymous pageview counts. It does not set a cookie.
           </li>
         </ul>
         <p>
@@ -209,13 +214,13 @@ export default function PrivacyPage() {
             scripts. It lasts 10 minutes and is cleared when Google sends you back.
           </li>
           <li>
-            <strong>ms_attr</strong> remembers campaign parameters (utm_*) and the referrer host from a visit, so a later
-            sign-up can be tied to that visit. It is first-party, lasts 90 days, and is not a third-party analytics cookie.
+            <strong>ms_attr</strong> is a first-party cookie. It remembers campaign parameters (utm_*) and the referrer
+            host from a visit, so a later sign-up can be tied to that visit. It lasts 90 days.
           </li>
         </ul>
         <p>
-          We do not use advertising trackers. Page views are measured with cookieless Umami Cloud (EU). It does not set a
-          cookie.
+          We do not use advertising trackers. Umami Cloud (EU, cookieless, no personal data) is used for anonymous pageview
+          counts. It does not set a cookie.
         </p>
       </section>
 
