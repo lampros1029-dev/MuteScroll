@@ -116,8 +116,8 @@ export class PgConversionEventStore implements ConversionEventStore {
   async recordPurchase(
     userId: string,
     attribution: Omit<AttributionData, "capturedAt">,
-    amountCents: number,
-    currency: string,
+    amountCents: number | null,
+    currency: string | null,
     createdAt: number,
   ): Promise<void> {
     await this.pool.query(

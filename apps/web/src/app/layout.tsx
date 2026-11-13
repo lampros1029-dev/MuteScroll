@@ -5,6 +5,7 @@ import { MotionRoot } from "../components/cinematic/motion-root";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
 import { AttributionCapture } from "../components/attribution-capture";
+import { UmamiScript } from "../components/umami-script";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "../lib/site";
 
 import "./globals.css";
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           Skip to content
         </a>
         <AttributionCapture />
+        <UmamiScript />
         <MotionRoot />
         <SiteHeader />
         <main id="main" tabIndex={-1} className="site-main">

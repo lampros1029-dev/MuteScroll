@@ -2,6 +2,8 @@
 
 const STORAGE_KEY_FIRST = "ms_attr_first";
 const STORAGE_KEY_LAST = "ms_attr_last";
+/** First-party cookie the API reads on sign-up, including the Google redirect. */
+export const ATTRIBUTION_COOKIE = "ms_attr";
 const EXPIRY_DAYS = 90;
 
 export interface AttributionParams {
@@ -32,22 +34,21 @@ export function captureAttribution(): void {
   const now = Date.now();
   const expiresAt = now + EXPIRY_DAYS * 24 * 60 * 60 * 1000;
   const stored: StoredAttribution = { ...params, expiresAt };
+  let firstTouch = stored;
 
   try {
     const firstTouchRaw = localStorage.getItem(STORAGE_KEY_FIRST);
-    if (firstTouchRaw === null) {
-      localStorage.setItem(STORAGE_KEY_FIRST, JSON.stringify(stored));
+    const existing = firstTouchRaw === null ? null : parseStoredAttribution(firstTouchRaw);
+    if (existing !== null && existing.expiresAt >= now) {
+      firstTouch = existing;
     } else {
-      const firstTouch = parseStoredAttribution(firstTouchRaw);
-      if (firstTouch === null || firstTouch.expiresAt < now) {
-        localStorage.setItem(STORAGE_KEY_FIRST, JSON.stringify(stored));
-      }
+      localStorage.setItem(STORAGE_KEY_FIRST, JSON.stringify(stored));
     }
-
     localStorage.setItem(STORAGE_KEY_LAST, JSON.stringify(stored));
   } catch {
-    // LocalStorage unavailable or full; silent fail
+    // LocalStorage unavailable or full; the cookie below still carries this visit.
   }
+  writeAttributionCookie(firstTouch, stored);
 }
 
 /**
@@ -98,6 +99,16 @@ export function clearStoredAttribution(): void {
     localStorage.removeItem(STORAGE_KEY_LAST);
   } catch {
     // Silent fail
+  }
+}
+
+function writeAttributionCookie(first: StoredAttribution, last: StoredAttribution): void {
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    const payload = encodeURIComponent(JSON.stringify({ first, last }));
+    document.cookie = `${ATTRIBUTION_COOKIE}=${payload}; Path=/; SameSite=Lax; Max-Age=${EXPIRY_DAYS * 24 * 60 * 60}${secure}`;
+  } catch {
+    // Cookie writes can fail in locked-down browsers. localStorage still holds the visit.
   }
 }
 

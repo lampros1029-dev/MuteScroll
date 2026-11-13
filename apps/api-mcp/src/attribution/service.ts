@@ -42,8 +42,8 @@ export async function recordPurchaseConversion(
   conversionStore: ConversionEventStore,
   userId: string,
   customDataAttribution: Omit<AttributionData, "capturedAt"> | null,
-  amountCents: number,
-  currency: string,
+  amountCents: number | null,
+  currency: string | null,
   now: number,
 ): Promise<void> {
   let attribution: Omit<AttributionData, "capturedAt">;

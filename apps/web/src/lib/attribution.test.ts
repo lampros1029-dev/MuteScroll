@@ -24,18 +24,29 @@ describe("attribution client-side storage", () => {
   it("should capture and store UTM parameters", async () => {
     const { captureAttribution, getStoredAttribution } = await import("./attribution");
 
+    let cookie = "";
     vi.stubGlobal("window", {
       location: {
         search: "?utm_source=twitter&utm_medium=social&utm_campaign=launch",
         pathname: "/pricing",
+        protocol: "https:",
       },
     });
     vi.stubGlobal("document", {
       referrer: "https://twitter.com/post/123",
+      get cookie() {
+        return cookie;
+      },
+      set cookie(value: string) {
+        cookie = value;
+      },
     });
 
     captureAttribution();
 
+    expect(cookie.startsWith("ms_attr=")).toBe(true);
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain("Secure");
     const stored = getStoredAttribution();
     expect(stored.firstTouch).toBeTruthy();
     expect(stored.firstTouch?.utmSource).toBe("twitter");

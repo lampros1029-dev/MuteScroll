@@ -57,8 +57,8 @@ export class MemoryConversionEventStore implements ConversionEventStore {
   async recordPurchase(
     userId: string,
     attribution: Omit<AttributionData, "capturedAt">,
-    amountCents: number,
-    currency: string,
+    amountCents: number | null,
+    currency: string | null,
     createdAt: number,
   ): Promise<void> {
     this.events.push({
@@ -86,7 +86,7 @@ export class MemoryConversionEventStore implements ConversionEventStore {
           utmCampaign: event.attribution.utmCampaign,
           signupCount: event.eventType === "signup" ? 1 : 0,
           purchaseCount: event.eventType === "purchase" ? 1 : 0,
-          totalRevenueCents: event.eventType === "purchase" && event.amountCents !== null ? event.amountCents : 0,
+          totalRevenueCents: event.amountCents ?? 0,
           currency: event.currency,
         });
       } else {
@@ -94,8 +94,8 @@ export class MemoryConversionEventStore implements ConversionEventStore {
           ...existing,
           signupCount: existing.signupCount + (event.eventType === "signup" ? 1 : 0),
           purchaseCount: existing.purchaseCount + (event.eventType === "purchase" ? 1 : 0),
-          totalRevenueCents:
-            existing.totalRevenueCents + (event.eventType === "purchase" && event.amountCents !== null ? event.amountCents : 0),
+          totalRevenueCents: existing.totalRevenueCents + (event.amountCents ?? 0),
+          currency: event.currency ?? existing.currency,
         });
       }
     }

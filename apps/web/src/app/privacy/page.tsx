@@ -205,6 +205,10 @@ export default function PrivacyPage() {
             <strong>ms_google_tx</strong> ties a Google sign-in redirect to this browser. The browser hides it from page
             scripts. It lasts 10 minutes and is cleared when Google sends you back.
           </li>
+          <li>
+            <strong>ms_attr</strong> remembers campaign parameters (utm_*) and the referrer host from a visit, so a later
+            sign-up can be tied to that visit. It is first-party, lasts 90 days, and is not a third-party analytics cookie.
+          </li>
         </ul>
         <p>
           We do not use advertising trackers. We do not run third-party analytics on the pages you read. If we add

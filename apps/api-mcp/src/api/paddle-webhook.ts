@@ -1,16 +1,17 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { parseAttributionFromCustomData } from "../attribution/sanitize.js";
+import { recordPurchaseConversion } from "../attribution/service.js";
 import { applySubscriptionChange } from "../billing/apply-subscription.js";
 import { authorizeBillingSubject } from "../billing/billing-links.js";
-import type { WebhookFailure } from "../billing/provider.js";
+import { parsePaddlePurchase } from "../billing/paddle-money.js";
+import type { WebhookFailure, WebhookVerification } from "../billing/provider.js";
 import type { AppContext } from "../context.js";
 import { BodyError, readRawBody } from "../http/body.js";
 import { headerString } from "../http/headers.js";
 import { sendJson } from "../http/respond.js";
 import { logEvent } from "../log.js";
 import { ApiError } from "./errors.js";
-import { parseAttributionFromCustomData } from "../attribution/sanitize.js";
-import { recordPurchaseConversion } from "../attribution/service.js";
 
 const WEBHOOK_MAX_BYTES = 1024 * 1024;
 
@@ -22,33 +23,13 @@ export async function paddleWebhook(req: IncomingMessage, res: ServerResponse, c
   const raw = await readWebhookBody(req);
   const verified = ctx.billingProvider.verifyWebhook(raw, headerString(req.headers["paddle-signature"]), ctx.now());
   if (!verified.ok) throw webhookError(verified.reason);
-  
-  if (verified.eventType === "transaction.completed" && verified.claimedUserId !== null) {
-    const owner = verified.subject !== null 
-      ? await authorizeBillingSubject(ctx.stores.billingLinks, verified.subject, verified.claimedUserId)
-      : null;
-    if (owner === verified.claimedUserId) {
-      const transactionData = parseTransactionData(raw);
-      if (transactionData !== null) {
-        const attribution = parseAttributionFromCustomData(transactionData.customData);
-        await recordPurchaseConversion(
-          ctx.stores.userAttribution,
-          ctx.stores.conversionEvents,
-          verified.claimedUserId,
-          attribution,
-          transactionData.amountCents,
-          transactionData.currency,
-          ctx.now(),
-        );
-      }
-    }
-  }
 
   if (verified.change === null) {
     if (verified.subject !== null) {
       await authorizeBillingSubject(ctx.stores.billingLinks, verified.subject, verified.claimedUserId);
     }
-    logEvent("billing.webhook_ignored", { eventType: verified.eventType });
+    const recorded = await recordCompletedPurchase(ctx, verified, raw, false);
+    if (!recorded) logEvent("billing.webhook_ignored", { eventType: verified.eventType });
   } else {
     const result = await applySubscriptionChange(
       ctx.stores.users,
@@ -59,42 +40,44 @@ export async function paddleWebhook(req: IncomingMessage, res: ServerResponse, c
       ctx.now(),
     );
     if (result === "ignored") logEvent("billing.webhook_unlinked", { eventType: verified.eventType });
+    if (result === "applied") await recordCompletedPurchase(ctx, verified, raw, true);
   }
   sendJson(res, 200, { ok: true });
 }
 
-function parseTransactionData(rawBody: Buffer): { amountCents: number; currency: string; customData: unknown } | null {
+/**
+ * Stores one purchase for a completed transaction. A repeated event id does not add a second row.
+ * `eventAlreadyClaimed` is set when applySubscriptionChange already recorded the event id.
+ */
+async function recordCompletedPurchase(
+  ctx: AppContext,
+  verified: Extract<WebhookVerification, { ok: true }>,
+  raw: Uint8Array,
+  eventAlreadyClaimed: boolean,
+): Promise<boolean> {
+  if (verified.eventType !== "transaction.completed" || verified.claimedUserId === null || verified.subject === null) return false;
+  const owner = await authorizeBillingSubject(ctx.stores.billingLinks, verified.subject, verified.claimedUserId);
+  if (owner !== verified.claimedUserId) return false;
+  if (!eventAlreadyClaimed) {
+    const claimed = await ctx.stores.billingEvents.claim(verified.eventId, ctx.now());
+    if (!claimed) return false;
+  }
   try {
-    const payload = JSON.parse(rawBody.toString("utf8")) as unknown;
-    if (typeof payload !== "object" || payload === null) return null;
-    const data = (payload as Record<string, unknown>)["data"];
-    if (typeof data !== "object" || data === null) return null;
-    const record = data as Record<string, unknown>;
-
-    const details = record["details"];
-    if (typeof details !== "object" || details === null) return null;
-    const detailsRecord = details as Record<string, unknown>;
-    
-    const totals = detailsRecord["totals"];
-    if (typeof totals !== "object" || totals === null) return null;
-    const totalsRecord = totals as Record<string, unknown>;
-    
-    const total = totalsRecord["total"];
-    const currencyCode = record["currency_code"];
-    const customData = record["custom_data"];
-    
-    if (typeof total !== "string" || typeof currencyCode !== "string") return null;
-    
-    const amountCents = Math.round(Number.parseFloat(total) * 100);
-    if (!Number.isFinite(amountCents)) return null;
-    
-    return {
-      amountCents,
-      currency: currencyCode.toUpperCase(),
-      customData,
-    };
-  } catch {
-    return null;
+    const money = parsePaddlePurchase(raw);
+    const attribution = parseAttributionFromCustomData(money.customData);
+    await recordPurchaseConversion(
+      ctx.stores.userAttribution,
+      ctx.stores.conversionEvents,
+      verified.claimedUserId,
+      attribution,
+      money.amountCents,
+      money.currency,
+      ctx.now(),
+    );
+    return true;
+  } catch (error) {
+    await ctx.stores.billingEvents.forget(verified.eventId).catch(() => undefined);
+    throw error;
   }
 }
 
