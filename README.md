@@ -122,7 +122,7 @@ docker rm -f ms-pg
 Production runs on Railway. Two images, matching the Dockerfiles:
 
 - The root `Dockerfile` is the API and the media worker (Node, Python, ffmpeg). The process is `node apps/api-mcp/dist/index.js`. `PORT` comes from the platform.
-- `Dockerfile.web` is the Next.js site only. It does not include the media worker. Build args are `API_BASE_URL`, `NEXT_PUBLIC_MCP_URL`, `NEXT_PUBLIC_SITE_URL`, and `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`.
+- `Dockerfile.web` is the Next.js site only. It does not include the media worker. Build args are `API_BASE_URL`, `NEXT_PUBLIC_MCP_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`, and `NEXT_PUBLIC_UMAMI_WEBSITE_ID`.
 
 Run migrations as a release step before the API process starts (`npm run migrate -w @mutescroll/api-mcp` with `DATABASE_URL` set). The API refuses to start while migrations are pending.
 
