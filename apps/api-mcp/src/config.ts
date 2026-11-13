@@ -83,6 +83,11 @@ export interface Config {
    * Unset means that path stays 404. The value is never logged.
    */
   readonly openaiAppsChallenge: string | undefined;
+  /**
+   * Admin-only token for accessing attribution conversion reports.
+   * Unset means the endpoint returns 503. The value is never logged.
+   */
+  readonly attributionAdminToken: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): Config {
@@ -130,6 +135,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJ
     },
     paddle: paddle.config,
     openaiAppsChallenge: readOpenAiAppsChallenge(env),
+    attributionAdminToken: nonEmpty(env["ATTRIBUTION_ADMIN_TOKEN"]),
   };
 }
 

@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { pathAfterAuth } from "../../lib/auth-next";
 import { chatgptConnectHref } from "../../lib/chatgpt-connect";
 import { connectSearch, type ConnectRequest } from "../../lib/connect-query";
+import { getStoredAttribution } from "../../lib/attribution";
 import { ChatgptMark, GoogleMark } from "./provider-marks";
 
 type Mode = "login" | "signup";
@@ -45,11 +46,37 @@ export function AuthForm({
     setPending(true);
     setError("");
     const path = mode === "login" ? "/api/v1/auth/login" : "/api/v1/auth/signup";
+    const { firstTouch, lastTouch } = getStoredAttribution();
+    const payload: Record<string, unknown> = { email, password };
+
+    if (mode === "signup") {
+      if (firstTouch !== null) {
+        payload.first_utm_source = firstTouch.utmSource;
+        payload.first_utm_medium = firstTouch.utmMedium;
+        payload.first_utm_campaign = firstTouch.utmCampaign;
+        payload.first_utm_content = firstTouch.utmContent;
+        payload.first_utm_term = firstTouch.utmTerm;
+        payload.first_referrer_host = firstTouch.referrerHost;
+        payload.first_landing_path = firstTouch.landingPath;
+        payload.first_captured_at = firstTouch.capturedAt;
+      }
+      if (lastTouch !== null) {
+        payload.last_utm_source = lastTouch.utmSource;
+        payload.last_utm_medium = lastTouch.utmMedium;
+        payload.last_utm_campaign = lastTouch.utmCampaign;
+        payload.last_utm_content = lastTouch.utmContent;
+        payload.last_utm_term = lastTouch.utmTerm;
+        payload.last_referrer_host = lastTouch.referrerHost;
+        payload.last_landing_path = lastTouch.landingPath;
+        payload.last_captured_at = lastTouch.capturedAt;
+      }
+    }
+
     try {
       const response = await fetch(path, {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
       });
       const body = (await response.json().catch(() => undefined)) as { error?: { message?: string } } | undefined;
       if (!response.ok) {

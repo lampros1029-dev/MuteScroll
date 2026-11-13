@@ -22,6 +22,7 @@ import { objectBody, readJsonRequest, requiredString } from "./body.js";
 import { ApiError } from "./errors.js";
 import { rateLimited } from "./failures.js";
 import { cookieSettingsFor, identify, requireAccount, requireCsrf } from "./identity.js";
+import { recordSignupConversion } from "../attribution/service.js";
 
 type AuthPage = "login" | "signup";
 
@@ -86,7 +87,14 @@ export async function finishGoogle(req: IncomingMessage, res: ServerResponse, ct
       redirectUri: googleRedirectUri(ctx.config.webOrigin),
       nonce: transaction.nonce,
     });
+    const existingUser = await ctx.stores.users.findByEmail(identity.email);
+    const isNewAccount = existingUser === undefined;
     const user = await accountForGoogle(ctx.stores.users, ctx.stores.identities, identity, ctx.now());
+    
+    if (isNewAccount) {
+      await recordSignupConversion(ctx.stores.userAttribution, ctx.stores.conversionEvents, user.id, ctx.now());
+    }
+
     const session = await openSession({ store: ctx.stores.sessions, ttlMs: ctx.config.sessionTtlMs, now: ctx.now }, user.id);
     const cookies = sessionCookies(session, newCsrfToken(), cookieSettingsFor(ctx));
     redirect(res, transaction.next, [...cookies, clear]);

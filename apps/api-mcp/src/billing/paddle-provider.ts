@@ -15,6 +15,7 @@ import {
   type PortalSession,
   type WebhookVerification,
 } from "./provider.js";
+import type { UserAttributionStore } from "../attribution/types.js";
 
 /** Paddle Billing (merchant of record). Checkout opens a transaction; plan changes arrive as webhooks. */
 export class PaddleBillingProvider implements BillingProvider {
@@ -25,6 +26,7 @@ export class PaddleBillingProvider implements BillingProvider {
     private readonly webhookSecret: string | undefined,
     private readonly prices: Readonly<Record<string, string>>,
     private readonly links: BillingLinkStore,
+    private readonly attribution: UserAttributionStore,
   ) {}
 
   async createCheckout(input: CheckoutInput): Promise<CheckoutSession> {
@@ -91,12 +93,26 @@ export class PaddleBillingProvider implements BillingProvider {
     checkoutNonce: string,
     customerId: string | undefined,
   ): Promise<PaddleTransaction> {
+    const userAttribution = await this.attribution.get(userId);
+    const customData: Record<string, unknown> = {};
+
+    if (userAttribution !== undefined) {
+      const attribution = userAttribution.lastTouch.utmCampaign !== null ? userAttribution.lastTouch : userAttribution.firstTouch;
+      if (attribution.utmSource !== null) customData.utm_source = attribution.utmSource;
+      if (attribution.utmMedium !== null) customData.utm_medium = attribution.utmMedium;
+      if (attribution.utmCampaign !== null) customData.utm_campaign = attribution.utmCampaign;
+      if (attribution.utmContent !== null) customData.utm_content = attribution.utmContent;
+      if (attribution.utmTerm !== null) customData.utm_term = attribution.utmTerm;
+      if (attribution.referrerHost !== null) customData.referrer_host = attribution.referrerHost;
+      if (attribution.landingPath !== null) customData.landing_path = attribution.landingPath;
+    }
+
     try {
-      return await this.client.createTransaction({ priceId, userId, checkoutNonce, email, customerId });
+      return await this.client.createTransaction({ priceId, userId, checkoutNonce, email, customerId, customData });
     } catch (error) {
       if (!(error instanceof PaddleApiError) || !error.customerMissing || customerId === undefined) throw error;
       await this.links.forget(customerId);
-      return this.client.createTransaction({ priceId, userId, checkoutNonce, email });
+      return this.client.createTransaction({ priceId, userId, checkoutNonce, email, customData });
     }
   }
 

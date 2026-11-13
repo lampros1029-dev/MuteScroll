@@ -86,6 +86,11 @@ export default function PrivacyPage() {
                 <td>The anonymous credit limit keeps it in the running process for up to 24 hours, then it ages out. A restart drops it sooner.</td>
               </tr>
               <tr>
+                <td>Campaign parameters (utm_source, utm_medium, utm_campaign, utm_content, utm_term) and referrer</td>
+                <td>To measure which posts and campaigns bring sign-ups. First-party attribution only; no third-party analytics.</td>
+                <td>Stored with the account to track sign-ups and purchases per campaign. Deleted when the account is deleted.</td>
+              </tr>
+              <tr>
                 <td>Server logs</td>
                 <td>Security and reliability.</td>
                 <td>The application writes a line that does not include the link, the transcript, or the network address. The host keeps those lines. This service does not run its own deletion job for them.</td>

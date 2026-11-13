@@ -17,6 +17,8 @@ import { ApiError } from "./errors.js";
 import { rateLimited } from "./failures.js";
 import { callerOf, cookieSettingsFor, identify, requireAccount, requireCsrf } from "./identity.js";
 import { meView } from "./views.js";
+import { parseAttributionData } from "../attribution/sanitize.js";
+import { recordSignupConversion, recordUserAttribution } from "../attribution/service.js";
 
 /** POST /v1/auth/signup: creates a free account and opens a session. Limited per client IP. */
 export async function signup(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
@@ -31,6 +33,9 @@ export async function signup(req: IncomingMessage, res: ServerResponse, ctx: App
   const policy = passwordPolicyError(password);
   if (policy !== null) throw new ApiError(400, "invalid_request", policy);
 
+  const firstTouch = parseAttributionFromBody(body, "first", ctx.now());
+  const lastTouch = parseAttributionFromBody(body, "last", ctx.now());
+
   const passwordHash = await hashPassword(password);
   let user: UserRecord;
   try {
@@ -41,7 +46,38 @@ export async function signup(req: IncomingMessage, res: ServerResponse, ctx: App
     }
     throw error;
   }
+
+  await recordUserAttribution(ctx.stores.userAttribution, user.id, firstTouch, lastTouch);
+  await recordSignupConversion(ctx.stores.userAttribution, ctx.stores.conversionEvents, user.id, ctx.now());
+
   await openAccountSession(ctx, res, user, 201);
+}
+
+function parseAttributionFromBody(body: Record<string, unknown>, prefix: "first" | "last", now: number) {
+  const utmSource = optionalString(body[`${prefix}_utm_source`]);
+  const utmMedium = optionalString(body[`${prefix}_utm_medium`]);
+  const utmCampaign = optionalString(body[`${prefix}_utm_campaign`]);
+  const utmContent = optionalString(body[`${prefix}_utm_content`]);
+  const utmTerm = optionalString(body[`${prefix}_utm_term`]);
+  const referrerHost = optionalString(body[`${prefix}_referrer_host`]);
+  const landingPath = optionalString(body[`${prefix}_landing_path`]);
+  const capturedAtValue = body[`${prefix}_captured_at`];
+  const capturedAt = typeof capturedAtValue === "number" ? capturedAtValue : now;
+
+  return parseAttributionData({
+    utmSource,
+    utmMedium,
+    utmCampaign,
+    utmContent,
+    utmTerm,
+    referrerHost,
+    landingPath,
+    capturedAt,
+  });
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
 }
 
 /**
