@@ -15,6 +15,7 @@ import type { OAuthStore } from "./oauth/types.js";
 import { MemoryOAuthStore } from "./oauth/memory-store.js";
 import type { UserAttributionStore, ConversionEventStore } from "./attribution/types.js";
 import { MemoryUserAttributionStore, MemoryConversionEventStore } from "./attribution/memory-attribution.js";
+import { MemoryMcpClientSessionStore, type McpClientSessionStore } from "./mcp/client-session.js";
 
 /** Everything the server persists. Either all in memory, or all in Postgres (DATABASE_URL). */
 export interface Stores {
@@ -34,6 +35,8 @@ export interface Stores {
   readonly userAttribution: UserAttributionStore;
   /** Conversion events (signup, purchase). */
   readonly conversionEvents: ConversionEventStore;
+  /** MCP initialize clientInfo, keyed by session id or bearer hash. */
+  readonly mcpSessions: McpClientSessionStore;
   /** Names of migrations not yet applied. Always empty for memory stores. */
   pendingMigrations(): Promise<string[]>;
   close(): Promise<void>;
@@ -58,6 +61,7 @@ export function createMemoryStores(options: MemoryStoresOptions): Stores {
     identities: new MemoryExternalIdentityStore(),
     userAttribution: new MemoryUserAttributionStore(),
     conversionEvents: new MemoryConversionEventStore(),
+    mcpSessions: new MemoryMcpClientSessionStore(),
     pendingMigrations: async () => [],
     close: async () => undefined,
   };

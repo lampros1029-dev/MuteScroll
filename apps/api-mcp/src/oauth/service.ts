@@ -60,6 +60,7 @@ export function mcpResource(issuer: string): string {
 export interface AccessTokenPrincipal {
   readonly userId: string;
   readonly scope: string;
+  readonly clientId: string;
 }
 
 /** The account and scope of a live access token, or undefined when the token is unknown or expired. */
@@ -67,7 +68,7 @@ export async function userIdForAccessToken(deps: Pick<OAuthDeps, "store" | "now"
   if (!isOauthAccessToken(token)) return undefined;
   const grant = await deps.store.findGrant(hashSecret(token), "access");
   if (grant === undefined || grant.expiresAt <= deps.now()) return undefined;
-  return { userId: grant.userId, scope: grant.scope };
+  return { userId: grant.userId, scope: grant.scope, clientId: grant.clientId };
 }
 
 /** Revokes the access token and every other grant that client holds for the same user. */

@@ -7,7 +7,11 @@ import type { AppContext } from "../context.js";
 import { identify, callerOf } from "../api/identity.js";
 import { ApiError } from "../api/errors.js";
 import { BodyError, readJsonBody } from "../http/body.js";
+import { headerString } from "../http/headers.js";
 import { sendJson } from "../http/respond.js";
+import { truncateUserAgent } from "../jobs/client.js";
+import type { JobClient } from "../jobs/types.js";
+import { clientIdentityFromBody, mcpSessionKey } from "./client-session.js";
 import { createMcpServer } from "./server.js";
 
 const JSON_RPC_PARSE_ERROR = -32700;
@@ -15,18 +19,21 @@ const JSON_RPC_INVALID_REQUEST = -32600;
 const JSON_RPC_UNAUTHORIZED = -32001;
 
 /**
- * Streamable HTTP at `/mcp`, stateless: a fresh server and transport per request, so no session state
- * survives between calls. A Bearer API key or a ChatGPT OAuth token makes the caller an account. Without
- * either, the caller is anonymous.
+ * Streamable HTTP at `/mcp`. The transport is stateless: a fresh server per request.
+ * `initialize` clientInfo is remembered for the bearer credential, or for a client-supplied
+ * session id, so a later tools/call from that same credential is attributed. The raw token is not stored.
+ * A Bearer API key or an OAuth access token makes the caller an account. Without either, the caller is anonymous.
  * The body is read here so the size limit applies before the SDK sees it.
  */
 export async function handleMcpRequest(req: IncomingMessage, res: ServerResponse, ctx: AppContext): Promise<void> {
   let caller: Caller;
   let oauthScope: string | undefined;
+  let oauthClientId: string | null = null;
   try {
     const requester = await identify(req, res, ctx, { allowSession: false });
     caller = callerOf(requester);
     oauthScope = requester.kind === "account" ? requester.oauthScope : undefined;
+    oauthClientId = requester.kind === "account" ? (requester.oauthClientId ?? null) : null;
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
     sendJson(
@@ -57,7 +64,8 @@ export async function handleMcpRequest(req: IncomingMessage, res: ServerResponse
     }
   }
 
-  const server = createMcpServer(ctx, caller, oauthScope);
+  const client = await mcpJobClient(req, ctx, parsedBody, oauthClientId);
+  const server = createMcpServer(ctx, caller, client, oauthScope);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();
@@ -65,4 +73,26 @@ export async function handleMcpRequest(req: IncomingMessage, res: ServerResponse
   });
   await server.connect(transport);
   await transport.handleRequest(req, res, parsedBody);
+}
+
+async function mcpJobClient(req: IncomingMessage, ctx: AppContext, body: unknown, oauthClientId: string | null): Promise<JobClient> {
+  const sessionKey = mcpSessionKey({
+    sessionId: headerString(req.headers["mcp-session-id"]),
+    authorization: headerString(req.headers.authorization),
+  });
+  const presented = clientIdentityFromBody(body);
+  let identity = presented;
+  if (identity === undefined && sessionKey !== undefined) {
+    identity = await ctx.stores.mcpSessions.recall(sessionKey, ctx.now());
+  }
+  if (presented !== undefined && sessionKey !== undefined) {
+    await ctx.stores.mcpSessions.remember(sessionKey, presented, ctx.now());
+  }
+  return {
+    source: "mcp",
+    clientName: identity?.clientName ?? null,
+    clientVersion: identity?.clientVersion ?? null,
+    oauthClientId,
+    userAgent: truncateUserAgent(headerString(req.headers["user-agent"])),
+  };
 }

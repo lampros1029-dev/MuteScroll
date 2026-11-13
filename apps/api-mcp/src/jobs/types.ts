@@ -3,6 +3,18 @@ import type { WorkerTranscript } from "../worker/transcript-schema.js";
 
 export type JobStatus = "queued" | "running" | "succeeded" | "failed";
 
+/** Where the job was created. `web` is the site, `rest` is /v1, `mcp` is the MCP server. */
+export type JobSource = "web" | "rest" | "mcp";
+
+/** Client identity stored on a job. Every field is null when the caller did not provide it. */
+export interface JobClient {
+  readonly source: JobSource | null;
+  readonly clientName: string | null;
+  readonly clientVersion: string | null;
+  readonly oauthClientId: string | null;
+  readonly userAgent: string | null;
+}
+
 /** Internal job record. `id` is the only identifier exposed to clients (PRD 8). */
 export interface Job {
   readonly id: string;
@@ -20,6 +32,7 @@ export interface Job {
   readonly createdAt: number;
   readonly updatedAt: number;
   readonly expiresAt: number;
+  readonly client: JobClient;
 }
 
 export interface NewJob {
@@ -28,6 +41,8 @@ export interface NewJob {
   readonly language: string;
   readonly platform: string | null;
   readonly ownerUserId: string | null;
+  /** Omitted by older callers and tests. The store writes nulls. */
+  readonly client?: JobClient;
 }
 
 export interface JobPatch {

@@ -130,6 +130,7 @@ export async function runMaintenance(ctx: AppContext): Promise<void> {
   await ctx.store.pruneExpired();
   await ctx.stores.sessions.removeExpired(ctx.now());
   await ctx.stores.oauth.pruneExpired(ctx.now());
+  await ctx.stores.mcpSessions.pruneExpired(ctx.now());
   // A run that never settled (the process died mid-job) would hold its credit for the rest of the month.
   // Live runs settle well inside the active-job TTL, so holds older than that are released. A late
   // settle still charges correctly, because it shares the release row.

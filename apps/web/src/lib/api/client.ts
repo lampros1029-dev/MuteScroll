@@ -59,7 +59,7 @@ export function createTranscription(input: TranscribeInput, options: RequestOpti
     `${API_BASE}/transcriptions`,
     {
       method: "POST",
-      headers: csrfHeaders(true),
+      headers: { ...csrfHeaders(true), "x-mutescroll-source": "web" },
       body: JSON.stringify({ url: input.url, language: input.language }),
     },
     options,
@@ -100,6 +100,7 @@ export function uploadFile(file: File, options: UploadOptions = {}): Promise<Out
     xhr.setRequestHeader("X-Filename", asciiFileName(file.name));
     xhr.setRequestHeader("Accept", "application/json");
     xhr.setRequestHeader("x-csrf-token", readCsrf());
+    xhr.setRequestHeader("x-mutescroll-source", "web");
     xhr.responseType = "text";
 
     xhr.upload.onprogress = (event: ProgressEvent) => {

@@ -32,8 +32,9 @@ describe.skipIf(!POSTGRES_AVAILABLE)("Postgres stores against a real database", 
   it("reports the schema as pending before it is applied, then applies it", async () => {
     const fixture = await openPostgresFixture(TTL, () => OCT_15, false);
     try {
-      expect(await pendingMigrations(fixture.pool)).toEqual(["001_init.sql", "002_billing_events.sql", "003_oauth.sql", "004_billing_links.sql"]);
-      expect(await runMigrations(fixture.pool)).toEqual(["001_init.sql", "002_billing_events.sql", "003_oauth.sql", "004_billing_links.sql"]);
+      const names = (await loadMigrations()).map((migration) => migration.name);
+      expect(await pendingMigrations(fixture.pool)).toEqual(names);
+      expect(await runMigrations(fixture.pool)).toEqual(names);
       expect(await pendingMigrations(fixture.pool)).toEqual([]);
     } finally {
       await fixture.close();
@@ -44,7 +45,7 @@ describe.skipIf(!POSTGRES_AVAILABLE)("Postgres stores against a real database", 
     const fixture = await openPostgresFixture(TTL, () => OCT_15);
     try {
       await fixture.pool.query("UPDATE schema_migrations SET checksum = 'edited-after-apply'");
-      expect(await pendingMigrations(fixture.pool)).toEqual(["001_init.sql", "002_billing_events.sql", "003_oauth.sql", "004_billing_links.sql"]);
+      expect(await pendingMigrations(fixture.pool)).toEqual((await loadMigrations()).map((migration) => migration.name));
       await expect(runMigrations(fixture.pool)).rejects.toBeInstanceOf(MigrationError);
     } finally {
       await fixture.close();

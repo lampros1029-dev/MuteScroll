@@ -88,6 +88,11 @@ export interface Config {
    * Unset means the endpoint returns 503. The value is never logged.
    */
   readonly attributionAdminToken: string | undefined;
+  /**
+   * Bearer token for GET /v1/admin/job-clients. Unset means that path answers 404.
+   * The value is never logged.
+   */
+  readonly adminStatsToken: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): Config {
@@ -136,6 +141,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, platform: NodeJ
     paddle: paddle.config,
     openaiAppsChallenge: readOpenAiAppsChallenge(env),
     attributionAdminToken: nonEmpty(env["ATTRIBUTION_ADMIN_TOKEN"]),
+    adminStatsToken: readAdminStatsToken(env),
   };
 }
 
@@ -145,6 +151,15 @@ function readOpenAiAppsChallenge(env: NodeJS.ProcessEnv): string | undefined {
   if (raw === undefined) return undefined;
   if (!/^[A-Za-z0-9_-]{16,200}$/.test(raw)) {
     throw new ConfigError("OPENAI_APPS_CHALLENGE must be a single URL-safe token");
+  }
+  return raw;
+}
+
+function readAdminStatsToken(env: NodeJS.ProcessEnv): string | undefined {
+  const raw = nonEmpty(env["ADMIN_STATS_TOKEN"]);
+  if (raw === undefined) return undefined;
+  if (raw.length < 16 || raw.length > 200) {
+    throw new ConfigError("ADMIN_STATS_TOKEN must be between 16 and 200 characters");
   }
   return raw;
 }

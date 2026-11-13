@@ -29,6 +29,8 @@ export interface AccountRequester {
   readonly oauthScope?: string;
   /** Presented OAuth access token, so it can revoke itself. Never logged. */
   readonly oauthAccessToken?: string;
+  /** OAuth client that issued the access token. Absent for sessions and API keys. */
+  readonly oauthClientId?: string;
 }
 
 export type Requester = AnonymousRequester | AccountRequester;
@@ -56,7 +58,15 @@ export async function identify(req: IncomingMessage, res: ServerResponse, ctx: A
       if (principal === undefined || user === undefined) {
         throw new ApiError(401, "unauthorized", "This ChatGPT connection expired. Connect the account again.");
       }
-      return { kind: "account", clientKey, user, cookieAuth: false, oauthScope: principal.scope, oauthAccessToken: presented };
+      return {
+        kind: "account",
+        clientKey,
+        user,
+        cookieAuth: false,
+        oauthScope: principal.scope,
+        oauthAccessToken: presented,
+        oauthClientId: principal.clientId,
+      };
     }
     const userId = presented === undefined ? undefined : await userIdForApiKey({ store: ctx.stores.apiKeys, now: ctx.now }, presented);
     const user = userId === undefined ? undefined : await ctx.stores.users.findById(userId);

@@ -1,8 +1,9 @@
 import type { Pool, PoolClient } from "pg";
 
-import { LiveJobConflictError, type CreateOrReuseResult, type JobStore, type PageRequest } from "../jobs/job-store.js";
+import { jobClientFrom } from "../jobs/client.js";
+import { LiveJobConflictError, type CreateOrReuseResult, type JobClientFact, type JobStore, type PageRequest } from "../jobs/job-store.js";
 import { ttlMsFor } from "../jobs/ttl.js";
-import type { Job, JobPatch, JobStatus, JobSummary, JobTtls, NewJob } from "../jobs/types.js";
+import type { Job, JobPatch, JobSource, JobStatus, JobSummary, JobTtls, NewJob } from "../jobs/types.js";
 import { isWorkerErrorCode } from "../worker/errors.js";
 import type { WorkerTranscript } from "../worker/transcript-schema.js";
 import { isUniqueViolation, withTransaction } from "./pool.js";
@@ -20,6 +21,11 @@ interface JobRow {
   readonly created_at: Date;
   readonly updated_at: Date;
   readonly expires_at: Date;
+  readonly source: string | null;
+  readonly client_name: string | null;
+  readonly client_version: string | null;
+  readonly oauth_client_id: string | null;
+  readonly user_agent: string | null;
 }
 
 interface SummaryRow {
@@ -48,9 +54,10 @@ export class PgJobStore implements JobStore {
       const outcome = await withTransaction(this.options.pool, async (client) => {
         // An expired row must not block a fresh job for the same key.
         await client.query("DELETE FROM jobs WHERE dedupe_key = $1 AND expires_at <= $2", [input.key, at(now)]);
+        const clientInfo = jobClientFrom(input.client);
         const inserted = await client.query<JobRow>(
-          `INSERT INTO jobs (id, dedupe_key, owner_user_id, status, language, platform, credits_charged, created_at, updated_at, expires_at)
-           VALUES ($1, $2, $3, 'queued', $4, $5, 0, $6, $6, $7)
+          `INSERT INTO jobs (id, dedupe_key, owner_user_id, status, language, platform, credits_charged, created_at, updated_at, expires_at, source, client_name, client_version, oauth_client_id, user_agent)
+           VALUES ($1, $2, $3, 'queued', $4, $5, 0, $6, $6, $7, $8, $9, $10, $11, $12)
            ON CONFLICT (dedupe_key) WHERE status <> 'failed' DO NOTHING
            RETURNING *`,
           [
@@ -61,6 +68,11 @@ export class PgJobStore implements JobStore {
             input.platform,
             at(now),
             at(now + ttlMsFor("queued", input.ownerUserId, this.options.ttl)),
+            clientInfo.source,
+            clientInfo.clientName,
+            clientInfo.clientVersion,
+            clientInfo.oauthClientId,
+            clientInfo.userAgent,
           ],
         );
         const created = inserted.rows[0];
@@ -141,6 +153,28 @@ export class PgJobStore implements JobStore {
     await this.options.pool.query("DELETE FROM jobs WHERE owner_user_id = $1", [userId]);
   }
 
+  async listClientFacts(): Promise<JobClientFact[]> {
+    const result = await this.options.pool.query<JobRow & { day: string; count: number }>(
+      `SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+              source, client_name, client_version, oauth_client_id, user_agent,
+              count(*)::int AS count
+         FROM jobs
+        GROUP BY 1, 2, 3, 4, 5, 6
+        ORDER BY 1`,
+    );
+    return result.rows.map((row) => ({
+      day: row.day,
+      count: Number(row.count),
+      client: {
+        source: jobSource(row.source),
+        clientName: row.client_name,
+        clientVersion: row.client_version,
+        oauthClientId: row.oauth_client_id,
+        userAgent: row.user_agent,
+      },
+    }));
+  }
+
   async pruneExpired(): Promise<number> {
     const result = await this.options.pool.query("DELETE FROM jobs WHERE expires_at <= $1", [at(this.options.now())]);
     return result.rowCount ?? 0;
@@ -201,5 +235,23 @@ function toJob(row: JobRow): Job {
     createdAt: row.created_at.getTime(),
     updatedAt: row.updated_at.getTime(),
     expiresAt: row.expires_at.getTime(),
+    client: {
+      source: jobSource(row.source),
+      clientName: row.client_name,
+      clientVersion: row.client_version,
+      oauthClientId: row.oauth_client_id,
+      userAgent: row.user_agent,
+    },
   };
+}
+
+function jobSource(value: string | null): JobSource | null {
+  switch (value) {
+    case "web":
+    case "rest":
+    case "mcp":
+      return value;
+    default:
+      return null;
+  }
 }

@@ -3,6 +3,7 @@ import { parseVideoUrl } from "@mutescroll/shared";
 import { rateKeyFor, type Caller } from "../../caller.js";
 import { transcribeLimiterFor, type AppContext } from "../../context.js";
 import { normalizeLanguage } from "../../jobs/language.js";
+import type { JobClient } from "../../jobs/types.js";
 import { jobOutput } from "../job-output.js";
 import { failureOutput } from "../output.js";
 import type { ToolOutput } from "../schemas.js";
@@ -20,7 +21,7 @@ const POLL_INTERVAL_MS = 250;
  * `transcribe_video`: validate first (no work for bad input), then rate-limit, then dedupe or start a job.
  * Waits up to `toolWaitMs` for a result; otherwise returns `processing` with a job_id.
  */
-export async function runTranscribeVideo(ctx: AppContext, caller: Caller, args: TranscribeArgs): Promise<ToolOutput> {
+export async function runTranscribeVideo(ctx: AppContext, caller: Caller, args: TranscribeArgs, client: JobClient): Promise<ToolOutput> {
   const plansUrl = ctx.config.plansUrl;
 
   const parsed = parseVideoUrl(args.url);
@@ -34,7 +35,7 @@ export async function runTranscribeVideo(ctx: AppContext, caller: Caller, args: 
     return failureOutput("rate_limited", { plansUrl, retryAfterSeconds: Math.ceil(limit.retryAfterMs / 1000) });
   }
 
-  const outcome = await ctx.service.request({ canonicalUrl: parsed.canonicalUrl, platform: parsed.platform, language, caller });
+  const outcome = await ctx.service.request({ canonicalUrl: parsed.canonicalUrl, platform: parsed.platform, language, caller, client });
   if (outcome.kind === "quota_exceeded") {
     return failureOutput("quota_exceeded", { plansUrl, resetsAt: new Date(outcome.resetAt) });
   }

@@ -33,6 +33,7 @@ describe("signed-in transcription writes", () => {
     expect(seen.url).toBe("/api/v1/transcriptions");
     expect(headers.get("x-csrf-token")).toBe(TOKEN);
     expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("x-mutescroll-source")).toBe("web");
     expect(JSON.parse(String(seen.init?.body))).toEqual({
       url: "https://example.com/video/abcdefghijk",
       language: "auto",
@@ -73,5 +74,6 @@ describe("signed-in transcription writes", () => {
     expect(sent.get("x-csrf-token")).toBe(TOKEN);
     expect(sent.get("content-type")).toBe("video/mp4");
     expect(sent.get("x-filename")).toBe("clip.mp4");
+    expect(sent.get("x-mutescroll-source")).toBe("web");
   });
 });
