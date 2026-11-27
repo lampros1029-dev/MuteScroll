@@ -203,7 +203,7 @@ function resetsAt() {
 }
 
 function newJob(outcome, readyInMs) {
-  const id = randomUUID();
+  const id = `job_${randomUUID()}`;
   jobs.set(id, { id, readyAt: Date.now() + readyInMs, outcome });
   return id;
 }

@@ -39,7 +39,7 @@ export interface TryClientProps {
   readonly maxWaitMs?: number;
 }
 
-const JOB_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
+const JOB_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 
 const NETWORK_FAILURE: Failure = { status: 0, code: "network_error", message: "" };
 
