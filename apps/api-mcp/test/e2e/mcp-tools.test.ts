@@ -181,7 +181,9 @@ describe("transcribe_video", () => {
     expect(result.output.error?.code).toBe("blocked_bot_check");
     expect(result.output.error?.upload_url).toMatch(new RegExp(`^${s.server.baseUrl}/upload/[A-Za-z0-9_-]{16,}$`));
     expect(result.output.job_id).toMatch(/^job_/);
-    expect((result.content[0] as { text: string }).text).toContain("/upload/");
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain("/upload/");
+    expect(text).toContain(`After the file is uploaded, call get_transcription with job_id "${result.output.job_id}".`);
     expect(s.server.ctx.quota.remaining("127.0.0.1")).toBe(5);
   });
 

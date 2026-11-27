@@ -78,7 +78,13 @@ function textFor(output: ToolOutput): string {
     case "failed": {
       const error = output.error;
       if (error === undefined) return "The transcription failed.";
-      return error.upload_url === undefined ? error.message : `${error.message} Upload link: ${error.upload_url}`;
+      if (error.upload_url === undefined) return error.message;
+      // Hosts that only read `content` still need the id the upload completes.
+      const followUp =
+        output.job_id === undefined
+          ? ""
+          : ` After the file is uploaded, call get_transcription with job_id "${output.job_id}".`;
+      return `${error.message} Upload link: ${error.upload_url}${followUp}`;
     }
     default: {
       const unreachable: never = output.status;
