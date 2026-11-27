@@ -26,8 +26,13 @@ async function failedJobWithUploadLink(env: Record<string, string> = {}): Promis
   session = await openSession(env, failThenSucceed());
   const result = await call(session, "transcribe_video", { url: sampleUrl() });
   const uploadUrl = result.output.error?.upload_url ?? "";
+  const jobId = result.output.job_id ?? "";
+  const text = (result.content[0] as { text: string }).text;
   expect(uploadUrl).toContain("/upload/");
-  return { s: session, jobId: result.output.job_id ?? "", uploadUrl };
+  expect(jobId).toMatch(/^job_/);
+  expect(text).toContain(`Upload link: ${uploadUrl}`);
+  expect(text).toContain(`After the file is uploaded, call get_transcription with job_id "${jobId}".`);
+  return { s: session, jobId, uploadUrl };
 }
 
 function postFile(url: string, body: Buffer, fileName: string, type = "video/mp4"): Promise<Response> {
@@ -63,7 +68,7 @@ describe("upload POST", () => {
     expect(await response.json()).toMatchObject({ status: "processing" });
 
     const done = await waitForStatus(s, jobId, "completed");
-    expect(done).toMatchObject({ status: "completed", job_id: jobId });
+    expect(done).toMatchObject({ status: "completed", job_id: jobId, transcript_text: "[00:00] Hello there" });
 
     const second = s.worker.requests[1];
     expect(second?.target.kind).toBe("file");
