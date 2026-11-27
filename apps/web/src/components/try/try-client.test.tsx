@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TryClient } from "./try-client";
 
 const LINK = "https://example.com/video/abcdefghijk";
+const REAL_JOB_ID = "job_6f1c2b9e-1d2a-4c3b-9e8f-0a1b2c3d4e5f";
 
 const transcription = {
   metadata: { platform: "public", content_type: "video", title: "Captions example", author: null, duration_seconds: 58 },
@@ -130,6 +131,28 @@ describe("TryClient", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Captions example" })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/v1/transcriptions/job-resume01");
+  });
+
+  it("resumes a production job id with one GET and no POST", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { status: "completed", job_id: REAL_JOB_ID, transcription }));
+
+    render(<TryClient initialJobId={REAL_JOB_ID} pollIntervalMs={1} maxWaitMs={60_000} />);
+
+    expect(await screen.findByRole("heading", { level: 2, name: "Captions example" })).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`/api/v1/transcriptions/${REAL_JOB_ID}`);
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).method).toBe("GET");
+    expect(fetchMock.mock.calls.some((call) => (call[1] as RequestInit | undefined)?.method === "POST")).toBe(false);
+  });
+
+  it("does not post when the address has both a link and a production job id", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { status: "completed", job_id: REAL_JOB_ID, transcription }));
+
+    render(<TryClient initialUrl={LINK} initialJobId={REAL_JOB_ID} pollIntervalMs={1} maxWaitMs={60_000} />);
+
+    expect(await screen.findByRole("heading", { level: 2, name: "Captions example" })).toBeTruthy();
+    expect(fetchMock.mock.calls.some((call) => (call[1] as RequestInit | undefined)?.method === "POST")).toBe(false);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`/api/v1/transcriptions/${REAL_JOB_ID}`);
   });
 
   it("does not start a request for an unusable address-bar link", async () => {
